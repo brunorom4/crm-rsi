@@ -8703,6 +8703,7 @@ def _historico_tratamento_categoria(status, tabulacao):
         "ENFILEIRADO": "Em andamento (aguardando retorno)",
         "AGUARDANDO_ANALISE_GPON": "Em andamento (aguardando análise GPON)",
         "PENDENTE": "Em andamento (fila GPON)",
+        "BLOQUEADO_GED": "Fora da fila (venda não liberada no GED)",
     }
     return "andamento", rotulos.get(status, status or "—")
 
@@ -9980,6 +9981,7 @@ GRUPOS_PERMISSAO = [
         {"chave": "confirmacao_agenda_tratar", "label": "Confirmação de Agenda", "desc": "Tratamento da fila de confirmação de agenda (módulo separado, perfil OPERADOR_CONF tem por padrão).", "subitens": None},
         {"chave": "relatorio_clima", "label": "Relatório de Clima", "desc": "Previsão do tempo dos próximos 7 dias, por DDD e cidades de destaque (módulo separado, só leitura).", "subitens": None},
         {"chave": "backlog_tratar", "label": "Tratamento de Backlog", "desc": "Fila de contratos em backlog (agenda no passado ou sem agenda), módulo separado com banco próprio.", "subitens": None},
+        {"chave": "relatorio_ged", "label": "Cruzamento GED", "desc": "Relatório dos contratos que saíram da fila por venda bloqueada/não liberada/não encontrada na base GED, com extração em Excel. Upload e aplicação do cruzamento são sempre só do ADM. Desligado por padrão.", "subitens": None},
     ]),
     ("Administração", "bi-gear-fill", [
         {"chave": "modo_trabalho", "label": "Modo de Trabalho", "desc": "Configuração geral do modo de trabalho do sistema.", "subitens": None},
@@ -11436,52 +11438,52 @@ app.register_blueprint(bp_relatorio_clima)
 from backlog import bp_backlog
 app.register_blueprint(bp_backlog)
 
+# Módulo Cruzamento com a Base GED -- pedido do Bruno, 2026-10-16. Mesmo
+# padrão dos blueprints acima: vive inteiro em cruzamento_ged.py (rotas,
+# tabelas ged_* no crm.db, tela GedCruzamento.html). Tira da fila
+# (status BLOQUEADO_GED) o que não está com venda liberada no GED e devolve
+# sozinho quando libera. Também registra a função ged_alerta() usada pelo
+# aviso das telas de atendimento (_alerta_ged.html).
+from cruzamento_ged import bp_cruzamento_ged
+app.register_blueprint(bp_cruzamento_ged)
+
 
 # ==========================
-# AMBIENTE ESPELHO -- pedido do Bruno, 2026-09-25
+# AMBIENTE DE TESTE -- conta separada no PythonAnywhere (2026-10-15)
 # ==========================
-# O espelho é uma segunda cópia do sistema (pasta CRM_RSI_ESPELHO, montada a
-# partir do último backup completo pelo montar_espelho.py) que roda DENTRO da
-# mesma web app do PythonAnywhere. Quem decide se um acesso vai pra produção
-# ou pro espelho é o espelho_dispatcher.py (carregado no fim do arquivo WSGI),
-# por um cookie assinado que só o ADM consegue obter pela rota abaixo.
+# Substituiu o antigo "ambiente espelho" (cópia rodando dentro da mesma web
+# app, 2026-09-25), removido em 2026-10-16 junto com as rotas /espelho/* e o
+# botão do Portal.
 #
 # Este bloco fica de propósito NO FINAL do app.py: as funções redefinidas
 # aqui substituem as versões lá de cima (o Python procura o nome na hora da
 # chamada), então todo lugar que manda coisa pra fora -- rotinas, botões de
 # teste, relatórios -- passa a cair no bloqueio, sem precisar mexer em cada
 # chamada. Qualquer integração externa NOVA que for criada daqui pra frente
-# precisa checar EH_ESPELHO também (ou ser adicionada ao bloqueio abaixo).
-#
-# Como o app.py sabe que é o espelho: existe um arquivo ESPELHO.flag na pasta
-# dele (o montar_espelho.py cria; a pasta de produção nunca tem). O
-# dispatcher também força EH_ESPELHO=True ao carregar o espelho, como
-# segunda trava.
-EH_ESPELHO = os.path.exists(os.path.join(PASTA_BASE, "ESPELHO.flag"))
-
+# precisa ser adicionada ao bloqueio abaixo.
 # Conta de teste separada (PythonAnywhere gratuito, decidido em 2026-10-15):
 # o mesmo bloqueio vale pra ela. Quem cria o AMBIENTE_TESTE.flag é o
 # preparar_ambiente_teste.py; a pasta de produção nunca tem nenhum dos dois
 # arquivos, então em produção os dois ficam False e nada aqui é trocado.
 EH_AMBIENTE_TESTE = os.path.exists(os.path.join(PASTA_BASE, "AMBIENTE_TESTE.flag"))
 
-EH_AMBIENTE_SEGURO = EH_ESPELHO or EH_AMBIENTE_TESTE
+EH_AMBIENTE_SEGURO = EH_AMBIENTE_TESTE
 
 if EH_AMBIENTE_SEGURO:
-    _NOME_AMBIENTE = "ESPELHO" if EH_ESPELHO else "TESTE"
-    _MSG_BLOQUEIO_ESPELHO = "Bloqueado em ambiente de teste (sem comunicação externa)."
+    _NOME_AMBIENTE = "TESTE"
+    _MSG_BLOQUEIO_AMBIENTE = "Bloqueado em ambiente de teste (sem comunicação externa)."
 
     def chamar_funcao_supabase(project_url, anon_key, nome_funcao, payload):
         print(f"[{_NOME_AMBIENTE}] chamada ao Supabase bloqueada: {nome_funcao}", file=sys.stderr)
-        return False, _MSG_BLOQUEIO_ESPELHO
+        return False, _MSG_BLOQUEIO_AMBIENTE
 
     def enviar_mensagem_telegram(token, chat_id, texto):
         print(f"[{_NOME_AMBIENTE}] envio direto ao Telegram bloqueado", file=sys.stderr)
-        return False, _MSG_BLOQUEIO_ESPELHO
+        return False, _MSG_BLOQUEIO_AMBIENTE
 
     def escrever_arquivo_relatorio(pasta_destino, corpo_html):
         print(f"[{_NOME_AMBIENTE}] gravação do relatório de e-mail bloqueada", file=sys.stderr)
-        return False, _MSG_BLOQUEIO_ESPELHO
+        return False, _MSG_BLOQUEIO_AMBIENTE
 
     # Faixa de aviso em TODA página HTML. Injetada aqui, na resposta, e não
     # no layout.html de propósito: nove templates (Portal, Login, os painéis
@@ -11520,39 +11522,8 @@ if EH_AMBIENTE_SEGURO:
 
 
 @app.context_processor
-def injetar_link_espelho():
-    """Mostra o botão 'Ambiente Espelho' no Portal só pro ADM, só na
-    produção, e só se o dispatcher estiver instalado no WSGI e a pasta do
-    espelho existir (o dispatcher avisa isso pelo environ da requisição)."""
-    mostrar = False
-    if not EH_ESPELHO and request.environ.get("crm_espelho.disponivel"):
-        usuario = usuario_atual()
-        mostrar = bool(usuario and usuario["perfil"] == "ADM")
-    return {"mostrar_link_espelho": mostrar, "eh_espelho": EH_ESPELHO,
-            "eh_ambiente_teste": EH_AMBIENTE_TESTE}
-
-
-@app.route("/espelho/entrar")
-@login_required
-@perfil_required("ADM")
-def espelho_entrar():
-    """Liga o cookie que faz ESTE navegador passar a enxergar o espelho.
-    Quem assina o cookie é o dispatcher (a chave fica num arquivo fora das
-    duas pastas); aqui só confirmamos que quem pediu é ADM da produção. Pra
-    voltar à produção: /espelho/sair (tratado direto pelo dispatcher, então
-    funciona mesmo se o espelho estiver quebrado)."""
-    if EH_ESPELHO:
-        return redirect("/portal")
-    emitir_cookie = request.environ.get("crm_espelho.emitir_cookie")
-    if not emitir_cookie:
-        return (
-            "O ambiente espelho não está ativo: o bloco do espelho_dispatcher "
-            "não foi adicionado ao arquivo WSGI, ou a pasta do espelho ainda "
-            "não foi montada (rode o montar_espelho.py).", 503
-        )
-    resposta = redirect("/login")
-    emitir_cookie(resposta)
-    return resposta
+def injetar_ambiente_teste():
+    return {"eh_ambiente_teste": EH_AMBIENTE_TESTE}
 
 
 if __name__ == "__main__":

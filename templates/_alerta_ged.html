@@ -1,0 +1,16 @@
+{# Aviso de status comercial do GED -- incluído em Cliente.html e AtendimentoAvulso.html.
+   Aparece quando o último cruzamento com a base GED (ver cruzamento_ged.py) achou o
+   contrato SEM venda liberada. Caso típico: Retorno agendado com o cliente, que fica
+   com o operador mesmo bloqueado -- ele precisa conferir antes de fechar o agendamento. #}
+{% set alerta_ged = ged_alerta(cliente['id']) if ged_alerta is defined else none %}
+{% if alerta_ged %}
+<div class="alert alert-warning d-flex align-items-start gap-3 mb-4" role="alert" style="border-left: 5px solid #B45309;">
+    <i class="bi bi-exclamation-triangle-fill fs-4" style="color:#B45309;"></i>
+    <div>
+        <strong>Venda não liberada no GED — confira antes de agendar.</strong><br>
+        Na base GED de {{ alerta_ged.data_base }}, este contrato está como
+        <strong>{{ alerta_ged.status }}</strong>. Verifique o status comercial do endereço no sistema
+        antes de finalizar o agendamento com o cliente.
+    </div>
+</div>
+{% endif %}

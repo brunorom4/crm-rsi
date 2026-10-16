@@ -1,0 +1,239 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<style>
+    .ged-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 16px 0 6px; }
+    .ged-kpi { background: #fff; border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); border-left: 4px solid #d6d3d1; }
+    .ged-kpi .rotulo { font-size: 11.5px; color: #6b6b6b; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .ged-kpi .valor { font-size: 24px; font-weight: 800; line-height: 1.2; }
+    .ged-kpi .sub { font-size: 12px; color: #6b6b6b; }
+    .ged-kpi.vermelho { border-left-color: #DA291C; }
+    .ged-kpi.verde { border-left-color: #2e7d32; }
+    .ged-kpi.ambar { border-left-color: #B45309; }
+    .ged-tabela { font-size: 13px; }
+    .ged-tabela th { font-size: 12px; text-transform: uppercase; letter-spacing: .02em; color: #555; white-space: nowrap; }
+    .ged-simulacao { border: 2px dashed #B45309; background: #fffaf3; }
+    .badge-motivo { font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+    .motivo-VENDA-BLOQUEADA { background: #fde2e1; color: #9b1c13; }
+    .motivo-VENDA-NAO-LIBERADA { background: #fff1d6; color: #8a4b00; }
+    .motivo-NAO-ENCONTRADO-NO-GED { background: #e7e5e4; color: #44403c; }
+    .tabela-rolagem { max-height: 520px; overflow: auto; }
+</style>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <h2 class="mb-1"><i class="bi bi-diagram-3-fill"></i> Cruzamento com a Base GED</h2>
+                <p class="text-muted mb-0">
+                    Contratos da fila (Pendentes e Enfileirados) cruzados por <strong>contrato + cidade</strong> com o status comercial do GED.
+                    Venda liberada continua na fila; venda bloqueada, não liberada ou contrato não encontrado sai da fila e aparece aqui.
+                    Retorno agendado com o cliente fica com o operador, com aviso na tela de atendimento.
+                </p>
+            </div>
+            <a href="/ged/extracao" class="btn btn-outline-dark"><i class="bi bi-file-earmark-excel"></i> Extrair Excel</a>
+        </div>
+
+        {% if erro %}<div class="alert alert-danger mt-3 mb-0">{{ erro }}</div>{% endif %}
+        {% if ok %}<div class="alert alert-success mt-3 mb-0">{{ ok }}</div>{% endif %}
+
+        {% if eh_adm %}
+        <hr>
+        <div class="d-flex align-items-center gap-3 flex-wrap">
+            <form action="/ged/upload" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').innerHTML='<span class=&quot;spinner-border spinner-border-sm&quot;></span> Lendo a base...';">
+                <input type="file" name="arquivo" accept=".zip,.csv" class="form-control" style="max-width: 340px;" required>
+                <button type="submit" class="btn btn-danger"><i class="bi bi-cloud-upload-fill"></i> Enviar e simular</button>
+            </form>
+            <span class="small text-muted">
+                .zip (recomendado) ou .csv com as colunas CONTRATO, CIDADE e STATUS_COMERCIAL (NODE opcional).
+                O envio só <strong>simula</strong> — nada muda na fila até você clicar em Aplicar.
+            </span>
+        </div>
+        {% if dias_desde is not none and dias_desde >= 7 %}
+        <div class="alert alert-warning mt-3 mb-0"><i class="bi bi-clock-history"></i> O último cruzamento foi aplicado há {{ dias_desde }} dias.</div>
+        {% elif dias_desde is none %}
+        <div class="alert alert-secondary mt-3 mb-0">Nenhum cruzamento aplicado ainda.</div>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+{% if simulacao %}
+{% set s = simulacao.resumo_obj.simulado.por_acao %}
+{% set sai = s.get('SAI', 0) %}
+<div class="card card-shadow mb-4 ged-simulacao" id="simulacao">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-eye-fill"></i> Simulação pendente de aplicação</div>
+        <p class="mb-2 small">
+            Arquivo <strong>{{ simulacao.arquivo }}</strong> (base de {{ simulacao.data_base }}) enviado por {{ simulacao.enviado_por }} em {{ simulacao.enviado_em }} —
+            {{ '{:,}'.format(simulacao.linhas_lidas).replace(',', '.') }} linhas, {{ '{:,}'.format(simulacao.linhas_com_contrato).replace(',', '.') }} com contrato,
+            {{ simulacao.cidades_arquivo_obj|length }} cidades.
+        </p>
+
+        <div class="ged-kpis">
+            <div class="ged-kpi verde"><div class="rotulo">Continuam na fila</div><div class="valor">{{ s.get('MANTEM', 0) }}</div></div>
+            <div class="ged-kpi vermelho"><div class="rotulo">Saem da fila</div><div class="valor">{{ sai }}</div>
+                <div class="sub">{% if fila_atual %}{{ '%.1f'|format(100 * sai / fila_atual) }}% da fila{% endif %}</div></div>
+            <div class="ged-kpi ambar"><div class="rotulo">Retornos sinalizados</div><div class="valor">{{ s.get('SINALIZA', 0) }}</div><div class="sub">ficam com o operador</div></div>
+            <div class="ged-kpi verde"><div class="rotulo">Voltam pra fila</div><div class="valor">{{ s.get('VOLTA', 0) }}</div><div class="sub">foram liberados</div></div>
+            <div class="ged-kpi"><div class="rotulo">Continuam fora</div><div class="valor">{{ s.get('CONTINUA', 0) }}</div></div>
+            <div class="ged-kpi"><div class="rotulo">Não avaliados</div><div class="valor">{{ s.get('NAO_AVALIADO', 0) }}</div><div class="sub">cidade fora do arquivo</div></div>
+        </div>
+
+        {% if simulacao.cidades_fora_obj %}
+        <div class="alert alert-warning mt-3 small mb-2">
+            <strong>Cidades da fila que não aparecem no arquivo</strong> (não serão avaliadas — ficam como estão):
+            {% for c, n in simulacao.cidades_fora_obj.items() %}{{ c }} ({{ n }}){% if not loop.last %}, {% endif %}{% endfor %}.
+            Se o arquivo deveria ter essas cidades, confira a extração antes de aplicar.
+        </div>
+        {% endif %}
+        {% if fila_atual and sai > fila_atual * 0.10 %}
+        <div class="alert alert-danger mt-2 small mb-2">
+            <i class="bi bi-exclamation-triangle-fill"></i> Mais de 10% da fila sairia de uma vez. Confira se o arquivo é o certo e está completo.
+        </div>
+        {% endif %}
+
+        <details class="mt-2">
+            <summary class="small fw-semibold">Detalhe por status do contrato × status no GED</summary>
+            <table class="table table-sm ged-tabela mt-2 mb-0" style="max-width: 720px;">
+                <thead><tr><th>Status no CRM</th><th>Status no GED</th><th>O que acontece</th><th class="text-end">Contratos</th></tr></thead>
+                <tbody>
+                    {% for chave, n in simulacao.resumo_obj.simulado.por_status_acao.items()|sort %}
+                    {% set partes = chave.split('|') %}
+                    <tr><td>{{ partes[0] }}</td><td>{{ partes[1] }}</td><td>{{ rotulo_acao.get(partes[2], partes[2]) }}</td><td class="text-end">{{ n }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </details>
+
+        <div class="d-flex gap-2 mt-3">
+            <form action="/ged/aplicar/{{ simulacao.id }}" method="POST" onsubmit="return confirm('Aplicar o cruzamento? {{ sai }} contrato(s) saem da fila e {{ s.get('VOLTA', 0) }} voltam.');">
+                <button class="btn btn-danger"><i class="bi bi-check2-circle"></i> Aplicar na fila</button>
+            </form>
+            <form action="/ged/descartar/{{ simulacao.id }}" method="POST">
+                <button class="btn btn-outline-secondary">Descartar</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-bar-chart-fill"></i> Situação atual</div>
+        {% if ultimo %}
+        {% set a = ultimo.resumo_obj.get('aplicado', {}) %}
+        <p class="small text-muted mb-0">Último cruzamento: base de {{ ultimo.data_base }}, aplicado por {{ ultimo.aplicado_por }} em {{ ultimo.aplicado_em }}.</p>
+        <div class="ged-kpis">
+            <div class="ged-kpi vermelho"><div class="rotulo">Fora da fila agora</div><div class="valor">{{ total_ativos }}</div></div>
+            {% for m, n in por_motivo.items()|sort %}
+            <div class="ged-kpi"><div class="rotulo">{{ m }}</div><div class="valor">{{ n }}</div></div>
+            {% endfor %}
+            <div class="ged-kpi ambar"><div class="rotulo">Retornos sinalizados</div><div class="valor">{{ sinalizados|length }}</div></div>
+            <div class="ged-kpi"><div class="rotulo">No último cruzamento</div><div class="valor" style="font-size:15px; padding-top:6px;">
+                {{ a.get('saiu', 0) }} saíram · {{ a.get('voltou', 0) }} voltaram</div></div>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhum cruzamento aplicado ainda.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if por_cidade %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-geo-alt-fill"></i> Fora da fila por cidade</div>
+        <div class="tabela-rolagem">
+        <table class="table table-sm ged-tabela mb-0" style="max-width: 760px;">
+            <thead><tr><th>Cidade</th>{% for m in motivos_filtro %}<th class="text-end">{{ m }}</th>{% endfor %}<th class="text-end">Total</th></tr></thead>
+            <tbody>
+                {% for cid, c in por_cidade %}
+                <tr><td><a href="?cidade={{ cid|urlencode }}#lista">{{ cid }}</a></td>
+                    {% for m in motivos_filtro %}<td class="text-end">{{ c.get(m, 0) or '—' }}</td>{% endfor %}
+                    <td class="text-end fw-bold">{{ c.total }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if sinalizados %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-exclamation-diamond-fill"></i> Retornos agendados com venda não liberada (ficaram com o operador)</div>
+        <div class="tabela-rolagem">
+        <table class="table table-sm ged-tabela mb-0">
+            <thead><tr><th>Contrato</th><th>Cidade</th><th>Cliente</th><th>Status GED</th><th>Operador</th><th>Retorno para</th><th>Status atual</th></tr></thead>
+            <tbody>
+                {% for r in sinalizados %}
+                <tr><td>{{ r['contrato'] }}</td><td>{{ r['cidade'] }}</td><td>{{ r['cliente'] or '—' }}</td>
+                    <td><span class="badge-motivo motivo-{{ (r['status_ged'] or '')|replace(' ', '-') }}">{{ r['status_ged'] }}</span></td>
+                    <td>{{ r['operador_followup'] or '—' }}</td><td>{{ r['data_retorno'] or '—' }}</td><td>{{ r['status_atual'] }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-shadow mb-4" id="lista">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-end flex-wrap gap-2 mb-2">
+            <div class="section-title mb-0"><i class="bi bi-list-ul"></i> Contratos fora da fila ({{ bloqueados|length }})</div>
+            <form method="GET" class="d-flex gap-2 align-items-center flex-wrap">
+                <select name="cidade" class="form-select form-select-sm" style="width:auto;">
+                    <option value="">Todas as cidades</option>
+                    {% for c in cidades_filtro %}<option value="{{ c }}" {{ 'selected' if c == cidade }}>{{ c }}</option>{% endfor %}
+                </select>
+                <select name="motivo" class="form-select form-select-sm" style="width:auto;">
+                    <option value="">Todos os motivos</option>
+                    {% for m in motivos_filtro %}<option value="{{ m }}" {{ 'selected' if m == motivo }}>{{ m }}</option>{% endfor %}
+                </select>
+                <button class="btn btn-sm btn-dark">Filtrar</button>
+                {% if cidade or motivo %}<a href="/ged#lista" class="btn btn-sm btn-outline-secondary">Limpar</a>{% endif %}
+            </form>
+        </div>
+        {% if bloqueados %}
+        <div class="tabela-rolagem">
+        <table class="table table-sm table-hover ged-tabela mb-0">
+            <thead><tr><th>Contrato</th><th>Cidade</th><th>Node</th><th>Cliente</th><th>Motivo</th><th>Estava</th><th>Operador</th><th>Saiu em</th><th class="text-end">Dias fora</th></tr></thead>
+            <tbody>
+                {% for b in bloqueados[:500] %}
+                <tr><td>{{ b['contrato'] }}</td><td>{{ b['cidade'] }}</td><td>{{ b['node'] or '—' }}</td><td>{{ b['cliente'] or '—' }}</td>
+                    <td><span class="badge-motivo motivo-{{ (b['motivo'] or '')|replace(' ', '-') }}">{{ b['motivo'] }}</span></td>
+                    <td>{{ b['status_anterior'] }}</td><td>{{ b['operador_followup'] or b['ultimo_operador'] or '—' }}</td>
+                    <td>{{ (b['saiu_em'] or '')[:10] }}</td><td class="text-end">{{ b['dias_fora'] }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% if bloqueados|length > 500 %}<p class="small text-muted mt-2 mb-0">Mostrando 500 de {{ bloqueados|length }} — a lista completa está no Excel.</p>{% endif %}
+        {% else %}
+        <p class="text-muted mb-0">Nenhum contrato fora da fila{% if cidade or motivo %} com esse filtro{% endif %}.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if historico %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-clock-history"></i> Histórico de cruzamentos</div>
+        <table class="table table-sm ged-tabela mb-0">
+            <thead><tr><th>Base de</th><th>Aplicado em</th><th>Por</th><th class="text-end">Saíram</th><th class="text-end">Voltaram</th><th class="text-end">Sinalizados</th><th class="text-end">Continuaram fora</th><th class="text-end">Tratados por outro caminho</th></tr></thead>
+            <tbody>
+                {% for h in historico %}
+                {% set a = h.resumo_obj.get('aplicado', {}) %}
+                <tr><td>{{ h.data_base }}</td><td>{{ h.aplicado_em }}</td><td>{{ h.aplicado_por }}</td>
+                    <td class="text-end">{{ a.get('saiu', 0) }}</td><td class="text-end">{{ a.get('voltou', 0) }}</td>
+                    <td class="text-end">{{ a.get('sinalizado', 0) }}</td><td class="text-end">{{ a.get('continua', 0) }}</td>
+                    <td class="text-end">{{ a.get('tratado_fora', 0) }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

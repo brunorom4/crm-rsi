@@ -366,7 +366,7 @@
             </ul>
 
             {% set pode_extracao = pode('extracao_pontualidade') or pode('extracao_tratamentos') or pode('extracao_gpon') or pode('extracao_ausencias') or pode('extracao_usuarios') %}
-            {% if pode('supervisao') or pode('escalas') or pode('transferencias') or pode_extracao or pode('historico_tratamento') or pode('quebra_gestao') or pode('diario_bordo') %}
+            {% if pode('supervisao') or pode('escalas') or pode('transferencias') or pode_extracao or pode('historico_tratamento') or pode('quebra_gestao') or pode('diario_bordo') or pode('relatorio_ged') %}
             <div class="nav-label">Gestão</div>
             <ul class="sidebar-menu">
                 {% if pode('supervisao') %}
@@ -389,6 +389,9 @@
                 {% endif %}
                 {% if pode('diario_bordo') %}
                 <li><a href="/diario-bordo" class="{{ 'active' if request.path == '/diario-bordo' }}"><i class="bi bi-journal-text"></i> <span class="texto-menu">Diário de Bordo</span></a></li>
+                {% endif %}
+                {% if pode('relatorio_ged') %}
+                <li><a href="/ged" class="{{ 'active' if request.path == '/ged' }}"><i class="bi bi-diagram-3-fill"></i> <span class="texto-menu">Cruzamento GED</span></a></li>
                 {% endif %}
             </ul>
             {% endif %}

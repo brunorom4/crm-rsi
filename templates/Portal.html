@@ -139,17 +139,6 @@
             color: #000;
         }
 
-        /* Ambiente Espelho (só ADM) -- fora da grade, de propósito, pra não
-           parecer um módulo do dia a dia */
-        .btn-espelho {
-            height: auto;
-            margin-top: 14px;
-            background: #FFF4E5;
-            color: #8a4b00;
-            border: 2px dashed #e08600;
-            box-shadow: none;
-        }
-
         .sem-opcoes { font-size: 0.85rem; color: #6b625c; margin-top: 8px; }
 
         .rodape-portal { margin-top: 18px; }
@@ -229,13 +218,6 @@
                     <small>Disponibilidade de agenda por Cidade e Classe</small>
                 </a>
             </div>
-
-            {% if mostrar_link_espelho %}
-            <a href="/espelho/entrar" class="btn-portal btn-espelho">
-                <span><i class="bi bi-cone-striped"></i> Ambiente Espelho</span>
-                <small>Cópia de teste para validar versões novas (só ADM)</small>
-            </a>
-            {% endif %}
 
             <div class="rodape-portal">
                 <a href="/trocar-senha"><i class="bi bi-lock-fill"></i> Trocar senha</a>
