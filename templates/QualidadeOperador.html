@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band">
+    <div class="hero-eyebrow">Monitoria</div>
+    <h1><i class="bi bi-award-fill"></i> Qualidade</h1>
+    <p>Suas monitorias de atendimento</p>
+</div>
+
+{% set pendentes = minhas_monitorias | selectattr('aceite_status', 'equalto', 'PENDENTE') | list %}
+{% if pendentes %}
+<div class="card card-shadow mb-4" style="margin-top: -18px; position: relative; z-index: 2; border-left: 4px solid var(--red);">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-bell-fill" style="color: var(--red);"></i> Você tem {{ pendentes|length }} monitoria(s) aguardando seu aceite</div>
+        {% for m in pendentes %}
+        <a href="/qualidade/{{ m['id'] }}" class="btn btn-danger btn-sm me-2 mb-2">Ver monitoria de {{ m['data_monitoria'][:10] }}</a>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-clock-history"></i> Histórico</div>
+        {% if minhas_monitorias %}
+        <table class="table align-middle">
+            <thead><tr><th>Data</th><th>Nota final</th><th>Supervisor</th><th>Aceite</th><th></th></tr></thead>
+            <tbody>
+                {% for m in minhas_monitorias %}
+                <tr>
+                    <td>{{ m['data_monitoria'][:16] }}</td>
+                    <td>{{ m['nota_final'] }}%</td>
+                    <td>{{ m['supervisor_nome'] }}</td>
+                    <td>
+                        {% if m['aceite_status'] == 'ACEITO' %}
+                        <span class="status-pill status-verde">Aceito</span>
+                        {% else %}
+                        <span class="status-pill status-amarelo">Pendente</span>
+                        {% endif %}
+                    </td>
+                    <td><a href="/qualidade/{{ m['id'] }}" class="btn btn-sm btn-outline-dark">Ver</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma monitoria registrada ainda.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

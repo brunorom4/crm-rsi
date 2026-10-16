@@ -1,0 +1,78 @@
+{% extends "layout_confirmacao_agenda.html" %}
+
+{% block conteudo %}
+<style>
+    .lista-cidades { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+    .lista-cidades .cabecalho-lista {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 20px; border-bottom: 1px solid #f0efed;
+    }
+    .lista-cidades .cabecalho-lista h5 { margin: 0; }
+    .lista-cidades .linha-cidade {
+        display: flex; align-items: center; gap: 12px;
+        padding: 11px 20px; border-top: 1px solid #f5f4f2; font-size: 14px;
+    }
+    .lista-cidades .linha-cidade:first-of-type { border-top: none; }
+    .lista-cidades .linha-cidade:hover { background: #fafafa; }
+    .lista-cidades .linha-cidade input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--claro-vermelho); cursor: pointer; }
+    .lista-cidades .linha-cidade label { flex: 1; cursor: pointer; margin: 0; }
+    .lista-cidades .linha-cidade.bloqueada label { color: var(--claro-vermelho-escuro); font-weight: 600; }
+    .rodape-salvar {
+        padding: 16px 20px; display: flex; justify-content: flex-end; border-top: 1px solid #f0efed;
+    }
+    .busca-cidade {
+        padding: 14px 20px; border-bottom: 1px solid #f0efed;
+    }
+    .busca-cidade input {
+        width: 100%; border: 1px solid #e0dedb; border-radius: 8px; padding: 8px 12px; font-family: 'Poppins', sans-serif; font-size: 13.5px;
+    }
+</style>
+
+<div class="card card-shadow mb-3" style="padding: 20px 24px;">
+    <h5 class="mb-1"><i class="bi bi-slash-circle"></i> Cidades Bloqueadas</h5>
+    <p class="text-muted small mb-0">
+        Cidade bloqueada não entra na distribuição -- fica assim até você desmarcar
+        e salvar de novo, não expira sozinha. Marque/desmarque as cidades abaixo e
+        clique em Salvar Alterações.
+    </p>
+</div>
+
+<form action="/confirmacao-agenda/cidades-bloqueadas/salvar" method="POST">
+    <div class="lista-cidades">
+        <div class="cabecalho-lista">
+            <h5 class="mb-0">Cidades da Base ({{ cidades|length }})</h5>
+        </div>
+        <div class="busca-cidade">
+            <input type="text" id="filtroCidade" placeholder="Buscar cidade..." onkeyup="filtrarCidades()">
+        </div>
+        {% if cidades %}
+        <div id="listaCidades">
+            {% for c in cidades %}
+            <div class="linha-cidade {{ 'bloqueada' if c.bloqueada else '' }}" data-cidade="{{ c.cidade|lower }}">
+                <input type="checkbox" name="cidades" value="{{ c.cidade }}" id="cidade-{{ loop.index }}" {{ 'checked' if c.bloqueada else '' }}>
+                <label for="cidade-{{ loop.index }}">{{ c.cidade }}</label>
+                {% if c.bloqueada %}<span class="badge" style="background: var(--claro-vermelho-escuro); color: #fff; font-size: 11px;">Bloqueada</span>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <p class="text-muted mb-0">Nenhuma cidade encontrada na base ainda -- aguardando importação.</p>
+        </div>
+        {% endif %}
+        <div class="rodape-salvar">
+            <button type="submit" class="btn btn-danger"><i class="bi bi-check-lg"></i> Salvar Alterações</button>
+        </div>
+    </div>
+</form>
+
+<script>
+    function filtrarCidades() {
+        var termo = document.getElementById('filtroCidade').value.toLowerCase();
+        var linhas = document.querySelectorAll('#listaCidades .linha-cidade');
+        linhas.forEach(function (linha) {
+            linha.style.display = linha.dataset.cidade.includes(termo) ? 'flex' : 'none';
+        });
+    }
+</script>
+{% endblock %}

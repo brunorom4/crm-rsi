@@ -1,0 +1,297 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-upload"></i> Importação de Dados</h2>
+        <hr>
+        <p class="text-muted">
+            Suba aqui as planilhas de mailing (contratos) e de usuários pra atualizar a base direto pelo
+            navegador — sem precisar entrar no console Bash. Contrato/login que já existe é atualizado;
+            o que não existe é criado.
+        </p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-people-fill"></i> Mailing (contratos)</div>
+
+                {% if request.args.get('erro_mailing') %}
+                <div class="alert alert-danger">{{ request.args.get('erro_mailing') }}</div>
+                {% endif %}
+                {% if request.args.get('mailing_novos') is not none %}
+                <div class="alert alert-success">
+                    Importação concluída: <strong>{{ request.args.get('mailing_novos') }}</strong> novo(s),
+                    <strong>{{ request.args.get('mailing_atualizados') }}</strong> atualizado(s){% if request.args.get('mailing_reabertos') and request.args.get('mailing_reabertos') != '0' %},
+                    <strong>{{ request.args.get('mailing_reabertos') }}</strong> de volta pra fila (estavam Improdutivo){% endif %},
+                    {{ request.args.get('mailing_ignorados') }} ignorado(s) (sem contrato),
+                    {{ request.args.get('mailing_erros') }} com erro{% if request.args.get('mailing_zerados') and request.args.get('mailing_zerados') != '0' %},
+                    <strong>{{ request.args.get('mailing_zerados') }}</strong> com prioridade zerada (não voltaram nessa lista){% endif %}.
+                </div>
+                {% endif %}
+
+                <p class="text-muted small">
+                    Planilha .xlsx ou .csv com as colunas: {{ colunas_mailing | join(', ') }}
+                    (opcionais: ENDERECO, COMPLEMENTO, PRIORIDADE). Contratos que já existem têm os dados
+                    atualizados (status/operador/atendimento em andamento não são mexidos); contratos novos
+                    entram como PENDENTE. Exceção: um contrato <strong>Concluído como Improdutivo</strong>
+                    volta pra fila geral (PENDENTE) ao ser reimportado, com a nova prioridade e o cadastro
+                    atualizado, sem apagar o histórico de tratamento e sem distribuir de volta pra mesma pessoa.
+                </p>
+
+                <form id="formImportMailing" action="/admin/importacao/mailing" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="file" name="arquivo" accept=".xlsx,.xls,.csv" class="form-control" style="max-width: 320px;" required>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-cloud-upload-fill"></i> Importar mailing</button>
+                </form>
+                <div class="progress mt-2 d-none" id="progressImportMailing" style="height: 6px;">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card card-shadow mb-4">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-calendar-check"></i> Confirmação de Agenda</div>
+
+                {% if request.args.get('erro_conf') %}
+                <div class="alert alert-danger">{{ request.args.get('erro_conf') }}</div>
+                {% endif %}
+                {% if request.args.get('conf_novos') is not none %}
+                <div class="alert alert-success">
+                    Importação concluída: <strong>{{ request.args.get('conf_novos') }}</strong> novo(s),
+                    <strong>{{ request.args.get('conf_atualizados') }}</strong> atualizado(s),
+                    {{ request.args.get('conf_ignorados') }} ignorado(s) (data passada/vazia ou sem mudança),
+                    {{ request.args.get('conf_sem_ddd') }} sem DDD identificado,
+                    {{ request.args.get('conf_em_andamento') }} preservado(s) (alguém tratando agora).
+                </div>
+                {% endif %}
+
+                <p class="text-muted small">
+                    Planilha .xlsx padrão (mesmo formato da exportação de agenda), com as colunas
+                    CD_OPERADORA, CD_CONTRATO, NM_CIDADE, PRODUTO_DE, PRODUTO_PARA, DATA_AGENDAMENTO,
+                    PERIODO e DS_VENDEDOR. Duplicados (mesmo contrato) são removidos automaticamente antes
+                    de gravar. Contratos com data no passado ou em branco são ignorados. Módulo separado,
+                    banco próprio -- não afeta o mailing nem os contratos do CRM principal.
+                </p>
+
+                <form action="/admin/importacao/confirmacao-agenda" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="file" name="arquivo" accept=".xlsx,.xls" class="form-control" style="max-width: 320px;" required>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-cloud-upload-fill"></i> Importar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card card-shadow mb-4">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-stack"></i> Tratamento de Backlog</div>
+
+                {% if request.args.get('erro_backlog') %}
+                <div class="alert alert-danger">{{ request.args.get('erro_backlog') }}</div>
+                {% endif %}
+                {% if request.args.get('backlog_novos') is not none %}
+                <div class="alert alert-success">
+                    Importação concluída: <strong>{{ request.args.get('backlog_elegiveis') }}</strong> elegível(is)
+                    (agenda no passado/sem agenda), <strong>{{ request.args.get('backlog_novos') }}</strong> novo(s),
+                    <strong>{{ request.args.get('backlog_reenfileirados') }}</strong> reenfileirado(s) (atualizados/reabertos),
+                    <strong>{{ request.args.get('backlog_resolvidos') }}</strong> resolvido(s) e retirado(s) da fila
+                    (não voltaram elegíveis ou saíram da planilha),
+                    {{ request.args.get('backlog_sem_ddd') }} sem DDD identificado.
+                </div>
+                {% endif %}
+
+                <p class="text-muted small">
+                    Planilha .xlsx do backlog, com as colunas CD_OPERADORA, CD_CONTRATO, NM_CIDADE,
+                    PRODUTO_DE, PRODUTO_PARA, DATA_AGENDAMENTO, PERIODO, AGING, DATA_ABERTURA_OS e
+                    DS_VENDEDOR. Só entram contratos com AGING "agenda no passado" ou "sem agenda"
+                    (reagendada/nunca agendada) <strong>e</strong> com DATA_ABERTURA_OS de pelo menos 7
+                    dias atrás (D-7, corte recalculado a cada importação) -- os demais (agenda no
+                    futuro/no dia, ou aberto há menos de 7 dias) não entram, e se um contrato já
+                    enfileirado voltar não elegível (ou sumir da planilha), ele é resolvido e sai da fila
+                    automaticamente. Contrato em Aberto Chamado/Retorno nunca é mexido pela importação.
+                    Módulo separado, banco próprio -- não afeta o mailing nem os contratos do CRM
+                    principal (só o fechamento "Agendado" grava uma atividade real no CRM).
+                </p>
+
+                <form action="/admin/importacao/backlog" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="file" name="arquivo" accept=".xlsx,.xls" class="form-control" style="max-width: 320px;" required>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-cloud-upload-fill"></i> Importar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-person-badge-fill"></i> Usuários</div>
+
+                {% if request.args.get('erro_usuarios') %}
+                <div class="alert alert-danger">{{ request.args.get('erro_usuarios') }}</div>
+                {% endif %}
+                {% if request.args.get('usuarios_novos') is not none %}
+                <div class="alert alert-success">
+                    Importação concluída: <strong>{{ request.args.get('usuarios_novos') }}</strong> novo(s),
+                    <strong>{{ request.args.get('usuarios_atualizados') }}</strong> atualizado(s){% if request.args.get('usuarios_reativados') and request.args.get('usuarios_reativados') != '0' %},
+                    <strong>{{ request.args.get('usuarios_reativados') }}</strong> recriado(s) (login que tinha sido Excluído){% endif %},
+                    {{ request.args.get('usuarios_ignorados') }} ignorado(s) (sem nome/login).
+                </div>
+                {% endif %}
+
+                <p class="text-muted small">
+                    Planilha .xlsx ou .csv com as colunas: Nome, Login, Email, Perfil (Operador / Supervisor /
+                    Adm / Analista / Analista_II / Visualizacao) e opcionalmente Data Nascimento (DD/MM/AAAA). Usuário novo
+                    entra com senha inicial igual ao login (avise a pessoa pra trocar no primeiro acesso).
+                    Login que já existe é atualizado — a senha nunca é mexida na atualização. Login que foi
+                    <strong>Excluído</strong> na tela de Supervisão volta a funcionar se reimportado aqui (conta
+                    reativada, com senha inicial igual ao login de novo).
+                </p>
+
+                <form id="formImportUsuarios" action="/admin/importacao/usuarios" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="file" name="arquivo" accept=".xlsx,.xls,.csv" class="form-control" style="max-width: 320px;" required>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-cloud-upload-fill"></i> Importar usuários</button>
+                </form>
+                <div class="progress mt-2 d-none" id="progressImportUsuarios" style="height: 6px;">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-check2-circle"></i> Execuções (OS do CRM oficial)</div>
+
+                {% if request.args.get('erro_execucoes') %}
+                <div class="alert alert-danger">{{ request.args.get('erro_execucoes') }}</div>
+                {% endif %}
+                {% if request.args.get('execucoes_novos') is not none %}
+                <div class="alert alert-success">
+                    Importação concluída: <strong>{{ request.args.get('execucoes_novos') }}</strong> nova(s),
+                    <strong>{{ request.args.get('execucoes_atualizados') }}</strong> atualizada(s),
+                    {{ request.args.get('execucoes_ignorados') }} ignorada(s) (sem contrato/código de cidade/data de baixa),
+                    {{ request.args.get('execucoes_erros') }} com erro.
+                </div>
+                {% endif %}
+
+                <p class="text-muted small">
+                    CSV extraído diariamente do CRM oficial (D-1) com as OS's de mudança de pacote baixadas
+                    (executadas). Colunas obrigatórias: NR_CONTRATO, CD_OPERADORA, DH_BAIXA_ORDEM_SERVICO,
+                    NR_ORDEM_SERVICO. Reimportar o mesmo dia não duplica — a identidade de cada execução é
+                    código de cidade + contrato + data de baixa.
+                </p>
+
+                <form id="formImportExecucoes" action="/admin/importacao/execucoes" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="file" name="arquivo" accept=".csv,.xlsx,.xls" class="form-control" style="max-width: 320px;" required>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-cloud-upload-fill"></i> Importar execuções</button>
+                </form>
+                <div class="progress mt-2 d-none" id="progressImportExecucoes" style="height: 6px;">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <p class="mt-2 mb-0"><a href="/admin/cidades-operadora"><i class="bi bi-signpost-split-fill"></i> Gerenciar de-para código de cidade</a></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-calendar-x-fill"></i> Quebra de Agenda</div>
+
+                {% if request.args.get('erro_quebra') %}
+                <div class="alert alert-danger">{{ request.args.get('erro_quebra') }}</div>
+                {% endif %}
+                {% if request.args.get('quebra_novos') is not none %}
+                <div class="alert alert-success">
+                    Importação concluída: <strong>{{ request.args.get('quebra_novos') }}</strong> nova(s),
+                    <strong>{{ request.args.get('quebra_atualizados') }}</strong> atualizada(s),
+                    {{ request.args.get('quebra_ignorados') }} ignorada(s) (sem OS/data/tipo de tratamento),
+                    {{ request.args.get('quebra_erros') }} com erro,
+                    {{ request.args.get('quebra_duplicadas_removidas') }} duplicada(s) removida(s)
+                    (mesmo contrato/mesma data, ficou só a de OS mais recente).
+                </div>
+                {% endif %}
+
+                <p class="text-muted small">
+                    Planilha "amostra_qualificada" (mesmo layout todo dia -- pode reenviar o acumulado do mês
+                    inteiro, reimportar não duplica). Colunas obrigatórias: COD_OS, CONTRATO, COD_OPERADORA,
+                    TIPO_TRATAMENTO, DAT_AGENDA. Identidade de cada linha: COD_OS.
+                </p>
+
+                <form id="formImportQuebra" action="/admin/importacao/quebra" method="POST" enctype="multipart/form-data" class="d-flex gap-2 align-items-center flex-wrap">
+                    <input type="file" name="arquivo" accept=".csv,.xlsx,.xls" class="form-control" style="max-width: 320px;" required>
+                    <button type="submit" class="btn btn-danger"><i class="bi bi-cloud-upload-fill"></i> Importar quebra</button>
+                </form>
+                <div class="progress mt-2 d-none" id="progressImportQuebra" style="height: 6px;">
+                    <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                </div>
+                <p class="mt-2 mb-0"><a href="/quebra/resultado"><i class="bi bi-bar-chart-fill"></i> Ver resultado da quebra</a></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Barra de progresso do upload nos 4 forms de importação -- pedido do
+    // Bruno, 2026-08-29. Usa XHR (não fetch) porque só o XHR expõe evento de
+    // progresso do UPLOAD (xhr.upload.onprogress); ao terminar, segue pra
+    // mesma URL de redirect que o servidor devolveria num submit normal
+    // (querystring com os contadores novos/atualizados/erros).
+    function habilitarBarraProgressoUpload(idForm, idBarra) {
+        var form = document.getElementById(idForm);
+        if (!form) return;
+        var wrap = document.getElementById(idBarra);
+        var barra = wrap.querySelector('.progress-bar');
+        var botao = form.querySelector('button[type="submit"]');
+
+        form.addEventListener('submit', function (evento) {
+            evento.preventDefault();
+            var arquivoInput = form.querySelector('input[type="file"]');
+            if (!arquivoInput.value) {
+                form.submit();
+                return;
+            }
+
+            var dadosForm = new FormData(form);
+            var xhr = new XMLHttpRequest();
+            xhr.open(form.method, form.action, true);
+
+            wrap.classList.remove('d-none');
+            barra.style.width = '0%';
+            barra.textContent = '0%';
+            botao.disabled = true;
+
+            xhr.upload.addEventListener('progress', function (evento) {
+                if (evento.lengthComputable) {
+                    var pct = Math.round((evento.loaded / evento.total) * 100);
+                    barra.style.width = pct + '%';
+                    barra.textContent = pct + '%';
+                }
+            });
+
+            xhr.onload = function () {
+                window.location = xhr.responseURL || form.action;
+            };
+            xhr.onerror = function () {
+                botao.disabled = false;
+                wrap.classList.add('d-none');
+                alert('Falha no upload. Tenta de novo.');
+            };
+
+            xhr.send(dadosForm);
+        });
+    }
+
+    habilitarBarraProgressoUpload('formImportMailing', 'progressImportMailing');
+    habilitarBarraProgressoUpload('formImportUsuarios', 'progressImportUsuarios');
+    habilitarBarraProgressoUpload('formImportExecucoes', 'progressImportExecucoes');
+    habilitarBarraProgressoUpload('formImportQuebra', 'progressImportQuebra');
+</script>
+{% endblock %}

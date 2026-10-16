@@ -1,0 +1,115 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-calendar3"></i> Escalas</h2>
+        {% if usuario_logado['perfil'] == 'ADM' %}
+        <form action="/escalas/aplicar_padrao_em_massa" method="POST" class="mb-3"
+              onsubmit="return confirm('Aplicar Seg-Sex 08h-17h48 pra todo Operador que ainda não tem escala salva? Quem já tem escala não é alterado.');">
+            <button type="submit" class="btn btn-outline-dark btn-sm">
+                <i class="bi bi-magic"></i> Aplicar padrão Seg-Sex 08h-17h48 pra quem ainda não tem escala salva
+            </button>
+        </form>
+        {% endif %}
+        <hr>
+        {% for u in usuarios %}
+        {% set e = escalas.get(u['id']) %}
+        <div class="border rounded p-3 mb-3">
+            <h5>{{ u['nome'] }}</h5>
+            <form action="/escalas/salvar" method="POST" class="row g-2 align-items-end">
+                <input type="hidden" name="usuario_id" value="{{ u['id'] }}">
+                <div class="col-12">
+                    {% for dia in dias_semana %}
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" name="dias" value="{{ dia }}"
+                            {% if (e and dia in (e['dias_trabalho'] or '').split(',')) or (not e and u['perfil'] == 'OPERADOR' and dia in ['SEG','TER','QUA','QUI','SEX']) %}checked{% endif %}>
+                        <label class="form-check-label">{{ dia }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Início</label>
+                    <input type="time" name="hora_inicio" class="form-control" value="{{ e['hora_inicio'] if e else '08:00' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fim</label>
+                    <input type="time" name="hora_fim" class="form-control" value="{{ e['hora_fim'] if e else '17:48' }}">
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-danger">Salvar escala</button>
+                </div>
+            </form>
+
+            <hr>
+            <h6 class="mt-2"><i class="bi bi-airplane-fill"></i> Férias</h6>
+            {% if e and e['ferias_inicio'] %}
+            <p class="small text-muted mb-2">Período atual: {{ e['ferias_inicio'] }} até {{ e['ferias_fim'] }}</p>
+            {% endif %}
+            <form action="/escalas/ferias/salvar" method="POST" class="row g-2 align-items-end">
+                <input type="hidden" name="usuario_id" value="{{ u['id'] }}">
+                <div class="col-md-4">
+                    <label class="form-label">Início</label>
+                    <input type="date" name="ferias_inicio" class="form-control" value="{{ e['ferias_inicio'] if e else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Fim</label>
+                    <input type="date" name="ferias_fim" class="form-control" value="{{ e['ferias_fim'] if e else '' }}">
+                </div>
+                <div class="col-md-4 d-flex gap-2">
+                    <button type="submit" class="btn btn-outline-primary">Salvar férias</button>
+                    {% if e and e['ferias_inicio'] %}
+                    <button type="submit" formaction="/escalas/ferias/limpar" class="btn btn-outline-secondary">Limpar</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h5><i class="bi bi-calendar-x-fill"></i> Feriados / Folgas Coletivas</h5>
+        <p class="text-muted small">
+            Um dia marcado aqui não conta como ausência no gráfico de Escalados x Presentes x Ausentes --
+            o dia inteiro some do cálculo de absenteísmo, em vez de contar 100% de falta.
+        </p>
+        <hr>
+        {% if usuario_logado['perfil'] == 'ADM' %}
+        <form action="/escalas/feriados/adicionar" method="POST" class="d-flex gap-2 mb-3 flex-wrap">
+            <input type="date" name="data" class="form-control" style="max-width: 180px;" required>
+            <select name="tipo" class="form-select" style="max-width: 180px;">
+                <option value="Feriado">Feriado</option>
+                <option value="Folga Coletiva">Folga Coletiva</option>
+            </select>
+            <input type="text" name="descricao" class="form-control" style="max-width: 250px;" placeholder="Descrição (opcional)">
+            <button type="submit" class="btn btn-danger"><i class="bi bi-plus-lg"></i> Adicionar</button>
+        </form>
+        {% endif %}
+        {% if feriados %}
+        <table class="table table-sm align-middle" style="max-width: 700px;">
+            <thead><tr><th>Data</th><th>Tipo</th><th>Descrição</th><th></th></tr></thead>
+            <tbody>
+                {% for f in feriados %}
+                <tr>
+                    <td>{{ f['data'] }}</td>
+                    <td>{{ f['tipo'] }}</td>
+                    <td>{{ f['descricao'] or '—' }}</td>
+                    <td>
+                        {% if usuario_logado['perfil'] == 'ADM' %}
+                        <form action="/escalas/feriados/{{ f['id'] }}/remover" method="POST">
+                            <button type="submit" class="btn btn-sm btn-outline-dark">Remover</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted small mb-0">Nenhum feriado/folga coletiva cadastrado.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,239 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band">
+    <div class="hero-eyebrow">Tempo real</div>
+    <h1>Supervisão da equipe</h1>
+</div>
+
+{% if request.args.get('aniversarios_verificados') %}
+<div class="alert alert-success">Verificação feita! Se alguém faz aniversário hoje (e não pediu pra ficar de fora), já foi postado em Informações.</div>
+{% endif %}
+
+<div class="resumo-row mb-3">
+    <div class="resumo-chip"><span class="ponto" style="--dot: var(--ok);"></span> <span class="num">{{ resumo.em_atendimento }}</span> em atendimento</div>
+    <div class="resumo-chip"><span class="ponto" style="--dot: var(--red);"></span> <span class="num">{{ resumo.ausentes }}</span> ausente</div>
+    <div class="resumo-chip"><span class="ponto" style="--dot: var(--red-dark);"></span> <span class="num">{{ resumo.pausa_excedida }}</span> pausa excedida</div>
+    <div class="resumo-chip"><span class="ponto" style="--dot: #1D4ED8;"></span> <span class="num">{{ resumo.em_pausa }}</span> em pausa</div>
+    <div class="resumo-chip"><span class="ponto" style="--dot: #7C3AED;"></span> <span class="num">{{ resumo.ferias }}</span> férias</div>
+    <div class="resumo-chip"><span class="ponto" style="--dot: var(--warn);"></span> <span class="num">{{ resumo.fora_escala }}</span> fora da escala</div>
+    <div class="resumo-chip"><span class="ponto" style="--dot: var(--gray-600);"></span> <span class="num">{{ resumo.folga }}</span> folga</div>
+</div>
+
+<div class="d-flex justify-content-end mb-4 gap-2">
+    <a href="/supervisao/faltas" class="btn btn-sm btn-outline-primary"><i class="bi bi-calendar-x-fill"></i> Pendências de registro de falta</a>
+    <a href="/supervisao/faltas-lancadas" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil-square"></i> Editar / excluir faltas lançadas</a>
+    <form action="/supervisao/verificar_aniversariantes" method="POST">
+        <button type="submit" class="btn btn-sm btn-outline-dark"><i class="bi bi-gift-fill"></i> Verificar aniversariantes agora</button>
+    </form>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-people-fill"></i> Equipe</div>
+        <table class="table align-middle">
+            <thead><tr><th>Operador</th><th>Perfil</th><th>Status</th><th>Timeline</th><th>Ação</th></tr></thead>
+            <tbody>
+                {% for s in status_list %}
+                <tr>
+                    <td>{{ s.usuario['nome'] }}</td>
+                    <td>{{ s.usuario['perfil'] | exibir_perfil }}</td>
+                    <td>
+                        <span class="status-pill {% if s.cor == 'vermelho' %}status-vermelho{% elif s.cor == 'amarelo' %}status-amarelo{% elif s.cor == 'azul' %}status-azul{% elif s.cor == 'verde' %}status-verde{% else %}status-cinza{% endif %}">{{ s.status }}</span>
+                        {% set aus = ausencias_hoje.get(s.usuario['id']) %}
+                        {% if aus %}
+                        <br><small class="text-muted">{{ aus['motivo'] }}{% if aus['submotivo'] %} — {{ aus['submotivo'] }}{% endif %}</small>
+                        {% endif %}
+                    </td>
+                    <td><a href="/supervisao/timeline/{{ s.usuario['id'] }}" class="btn btn-sm btn-outline-dark">Ver histórico do dia</a></td>
+                    <td class="d-flex gap-1 flex-wrap">
+                        {% if s.usuario['id'] == usuario_logado_id %}
+                            <span class="text-muted small">—</span>
+                        {% else %}
+                            {% if s.usuario['ativo'] %}
+                            <form action="/supervisao/desligar/{{ s.usuario['id'] }}" method="POST"
+                                  onsubmit="return confirm('Desligar {{ s.usuario['nome'] }}? As tarefas em andamento dela voltam pra fila. Ela some da lista principal, mas continua aparecendo aqui (inativa) e pode ser reativada depois.');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger">Desligar</button>
+                            </form>
+                            {% else %}
+                            <form action="/supervisao/reativar/{{ s.usuario['id'] }}" method="POST">
+                                <button type="submit" class="btn btn-sm btn-outline-success">Reativar</button>
+                            </form>
+                            {% endif %}
+                            {% if s.usuario['perfil'] in ['OPERADOR', 'ANALISTA', 'ANALISTA_II', 'VISUALIZACAO'] or (s.usuario['perfil'] == 'SUPERVISOR' and usuario_logado['perfil'] == 'ADM') %}
+                            <form action="/supervisao/resetar_senha/{{ s.usuario['id'] }}" method="POST"
+                                  onsubmit="return confirm('Resetar a senha de {{ s.usuario['nome'] }}? A senha inicial volta a ser o login dela, e ela vai ser obrigada a trocar no próximo acesso.');">
+                                <button type="submit" class="btn btn-sm btn-outline-warning">Resetar senha</button>
+                            </form>
+                            {% endif %}
+                            {% if usuario_logado['perfil'] == 'ADM' %}
+                            <form action="/supervisao/excluir/{{ s.usuario['id'] }}" method="POST"
+                                  onsubmit="return confirm('Excluir {{ s.usuario['nome'] }} da ferramenta? Diferente de Desligar, essa ação some com o nome dela desta lista de vez (sem opção de reativar por aqui) e redistribui as tarefas em andamento dela pra fila. O histórico de atendimentos dela NÃO é apagado. Confirma?');">
+                                <button type="submit" class="btn btn-sm btn-outline-dark">Excluir</button>
+                            </form>
+                            {% endif %}
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                    onclick="abrirModalAusencia({{ s.usuario['id'] }}, '{{ s.usuario['nome'] }}')">
+                                {% if ausencias_hoje.get(s.usuario['id']) %}Editar falta de hoje{% else %}Registrar falta{% endif %}
+                            </button>
+                            {% if s.logado %}
+                            <form action="/supervisao/encerrar_atendimento/{{ s.usuario['id'] }}" method="POST"
+                                  onsubmit="return confirm('Encerrar o atendimento de {{ s.usuario['nome'] }} agora? Isso fecha qualquer pausa em aberto e encerra a sessão dela, útil se ela foi embora e esqueceu logada.');">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary"><i class="bi bi-power"></i> Encerrar atendimento</button>
+                            </form>
+                            {% endif %}
+                            {% if s.usuario['data_nascimento'] %}
+                            <form action="/supervisao/aniversario/{{ s.usuario['id'] }}/alternar" method="POST">
+                                <button type="submit" class="btn btn-sm {{ 'btn-outline-info' if s.usuario['divulgar_aniversario'] else 'btn-outline-secondary' }}"
+                                        title="Aniversário: {{ s.usuario['data_nascimento'][5:7] }}/{{ s.usuario['data_nascimento'][8:10] }}">
+                                    <i class="bi bi-gift-fill"></i> {{ 'Divulgando aniversário' if s.usuario['divulgar_aniversario'] else 'Aniversário oculto' }}
+                                </button>
+                            </form>
+                            {% else %}
+                            <span class="text-muted small" title="Cadastre a data de nascimento pela importação de usuários (planilha) pra liberar essa opção">
+                                <i class="bi bi-gift"></i> Sem data de nascimento
+                            </span>
+                            {% endif %}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="modalAusencia" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Registrar falta — <span id="modalAusenciaNome"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formAusencia" method="POST">
+                <input type="hidden" name="voltar_para" value="/supervisao">
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">De</label>
+                            <input type="date" name="data_de" id="inputDataDeAusencia" class="form-control"
+                                   min="{{ data_minima_ausencia }}"
+                                   onchange="document.getElementById('inputDataAteAusencia').value = this.value" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Até</label>
+                            <input type="date" name="data_ate" id="inputDataAteAusencia" class="form-control" required>
+                        </div>
+                        <div class="form-text">Pra registrar mais de um dia de uma vez (ex: um atestado de vários dias), basta mudar "Até".</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Motivo</label>
+                        <select name="motivo" id="selectMotivoAusencia" class="form-select" onchange="atualizarSubmotivo()" required>
+                            <option value="">Selecione...</option>
+                            <option value="Falta Justificada">Falta Justificada</option>
+                            <option value="Injustificada">Injustificada</option>
+                            <option value="Treinamento">Treinamento</option>
+                            <option value="Férias">Férias</option>
+                            <option value="Afastamento">Afastamento</option>
+                            {% for m in motivos_ausencia_extras %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3" id="campoSubmotivoAusencia" style="display:none;">
+                        <label class="form-label">Submotivo</label>
+                        <select name="submotivo" id="selectSubmotivoAusencia" class="form-select" onchange="atualizarObservacaoObrigatoria()">
+                            <option value="">Selecione...</option>
+                            <option>Atestado</option>
+                            <option>Doação de Sangue</option>
+                            <option>Motivo Escolar</option>
+                            <option>Alistamento Militar</option>
+                            <option>Treinamento Eleitoral</option>
+                            <option>Outros</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" id="labelObservacaoAusencia">Observações</label>
+                        <textarea name="observacao" id="observacaoAusencia" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-danger">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    let modalAusenciaAberta = false;
+    const HOJE_STR = "{{ hoje }}";
+    // Registros de hoje, pra pré-preencher o modal quando já existe uma falta
+    // registrada nesse dia (em vez de abrir em branco por cima dela).
+    const AUSENCIAS_HOJE = {{ ausencias_hoje_js | tojson }};
+
+    function abrirModalAusencia(usuarioId, nome, dataDe, dataAte) {
+        dataDe = dataDe || HOJE_STR;
+        dataAte = dataAte || dataDe;
+        document.getElementById('modalAusenciaNome').innerText = nome;
+        document.getElementById('formAusencia').action = '/supervisao/ausencia/' + usuarioId;
+        document.getElementById('inputDataDeAusencia').value = dataDe;
+        document.getElementById('inputDataAteAusencia').value = dataAte;
+
+        var existente = (dataDe === HOJE_STR && dataAte === HOJE_STR) ? AUSENCIAS_HOJE[String(usuarioId)] : null;
+        document.getElementById('selectMotivoAusencia').value = existente ? existente.motivo : '';
+        atualizarSubmotivo();
+        document.getElementById('selectSubmotivoAusencia').value = existente ? existente.submotivo : '';
+        document.getElementById('observacaoAusencia').value = existente ? existente.observacao : '';
+        atualizarObservacaoObrigatoria();
+
+        var modal = new bootstrap.Modal(document.getElementById('modalAusencia'));
+        modal.show();
+    }
+
+    document.getElementById('modalAusencia').addEventListener('show.bs.modal', function () {
+        modalAusenciaAberta = true;
+    });
+    document.getElementById('modalAusencia').addEventListener('hidden.bs.modal', function () {
+        modalAusenciaAberta = false;
+    });
+
+    // Atualiza a tela sozinha a cada 1 min, pra manter os status em dia --
+    // mas não interrompe se tiver o modal de falta aberto (edição em andamento).
+    // Os botões de Desligar/Resetar senha usam confirm(), que já trava o
+    // JavaScript sozinho enquanto o alerta está na tela, então já ficam protegidos.
+    setInterval(function () {
+        if (!modalAusenciaAberta) {
+            location.reload();
+        }
+    }, 60000);
+
+    function atualizarSubmotivo() {
+        var motivo = document.getElementById('selectMotivoAusencia').value;
+        var campo = document.getElementById('campoSubmotivoAusencia');
+        var select = document.getElementById('selectSubmotivoAusencia');
+        if (motivo === 'Falta Justificada') {
+            campo.style.display = 'block';
+            select.required = true;
+        } else {
+            campo.style.display = 'none';
+            select.required = false;
+            select.value = '';
+        }
+        atualizarObservacaoObrigatoria();
+    }
+
+    function atualizarObservacaoObrigatoria() {
+        var submotivo = document.getElementById('selectSubmotivoAusencia').value;
+        var textarea = document.getElementById('observacaoAusencia');
+        var label = document.getElementById('labelObservacaoAusencia');
+        if (submotivo === 'Outros') {
+            textarea.required = true;
+            label.innerHTML = 'Observações (obrigatório para "Outros")';
+        } else {
+            textarea.required = false;
+            label.innerHTML = 'Observações';
+        }
+    }
+</script>
+{% endblock %}

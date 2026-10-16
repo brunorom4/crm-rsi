@@ -1,0 +1,56 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2>📋 Agendados por data
+            {% if resultados %}
+            <span class="badge bg-danger" style="font-size: 14px; vertical-align: middle;">{{ resultados|length }} contrato{{ 's' if resultados|length != 1 else '' }}</span>
+            {% endif %}
+        </h2>
+        <hr>
+        <form method="GET" class="d-flex gap-2 mb-4 align-items-end">
+            <div>
+                <label class="form-label">Data</label>
+                <input type="date" name="data" class="form-control" value="{{ data_escolhida }}">
+            </div>
+            <button type="submit" class="btn btn-danger">Buscar</button>
+            {% if resultados %}
+            <button type="button" class="btn btn-outline-dark" onclick="copiarTabela()">📋 Copiar tabela</button>
+            {% endif %}
+        </form>
+
+        {% if resultados %}
+        <table class="table align-middle" id="tabela-agendados">
+            <thead><tr><th>Cidade</th><th>Contrato</th><th>Data agendada</th><th>Período</th><th>Tratado por</th><th>Observações</th></tr></thead>
+            <tbody>
+                {% for r in resultados %}
+                <tr>
+                    <td>{{ r['cidade'] }}</td>
+                    <td>{{ r['contrato'] }}</td>
+                    <td>{{ r['data_agendamento'] }}</td>
+                    <td>{{ r['janela_agendamento'] }}</td>
+                    <td>{{ r['tratado_por'] }}</td>
+                    <td>{{ r['observacao'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">Nenhum agendamento pra essa data.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    function copiarTabela() {
+        const tabela = document.getElementById('tabela-agendados');
+        let texto = '';
+        for (const linha of tabela.rows) {
+            const celulas = Array.from(linha.cells).map(c => c.innerText);
+            texto += celulas.join('\t') + '\n';
+        }
+        copiarTexto(texto, 'Tabela copiada! Já pode colar no Excel.');
+    }
+</script>
+{% endblock %}

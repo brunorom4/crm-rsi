@@ -1,0 +1,113 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band" style="margin-bottom: 24px;">
+    <div class="hero-eyebrow">Sistema</div>
+    <h1><i class="bi bi-clock-history"></i> Notas de Versão</h1>
+    <p>Histórico de mudanças e correções da ferramenta</p>
+</div>
+
+<style>
+    .lista-releases { max-width: 720px; }
+    .release-item {
+        display: flex; gap: 18px; padding: 18px 0;
+        border-bottom: 1px solid var(--gray-300);
+    }
+    .release-item:last-child { border-bottom: none; }
+    .release-versao {
+        flex-shrink: 0; width: 68px; text-align: center;
+        font-family: 'Manrope', sans-serif; font-weight: 800; font-size: 15px;
+        color: var(--red); padding-top: 2px;
+    }
+    .release-corpo { flex: 1; }
+    .release-descricao { font-size: 14.5px; color: var(--ink); font-weight: 600; margin-bottom: 3px; }
+    .release-data { font-size: 12.5px; color: var(--gray-600); }
+
+    html[data-theme="dark"] .release-item { border-color: #313138; }
+    html[data-theme="dark"] .release-descricao { color: #E6E6E9; }
+</style>
+
+<div class="card card-shadow" style="padding: 8px 24px;">
+    <div class="lista-releases">
+        {% for release in releases %}
+        <div class="release-item" id="release-view-{{ release.id }}">
+            <div class="release-versao">v{{ release.versao }}</div>
+            <div class="release-corpo">
+                <div class="release-descricao">{{ release.descricao }}</div>
+                <div class="release-data">{{ release.data }}</div>
+            </div>
+            {% if usuario_logado and usuario_logado['perfil'] == 'ADM' %}
+            <div class="flex-shrink-0">
+                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="mostrarEdicaoRelease({{ release.id }})" title="Editar">
+                    <i class="bi bi-pencil"></i>
+                </button>
+            </div>
+            {% endif %}
+        </div>
+        {% if usuario_logado and usuario_logado['perfil'] == 'ADM' %}
+        <div class="release-item" id="release-edit-{{ release.id }}" style="display:none; background: var(--gray-100);">
+            <form method="POST" action="/notas-de-versao/{{ release.id }}/editar" class="row g-2 align-items-end w-100">
+                <div class="col-2">
+                    <label class="form-label small mb-1">Versão</label>
+                    <input type="text" name="versao" class="form-control form-control-sm" value="{{ release.versao }}" required>
+                </div>
+                <div class="col-3">
+                    <label class="form-label small mb-1">Data</label>
+                    <input type="text" name="data" class="form-control form-control-sm" value="{{ release.data }}" required>
+                </div>
+                <div class="col-5">
+                    <label class="form-label small mb-1">Descrição</label>
+                    <input type="text" name="descricao" class="form-control form-control-sm" value="{{ release.descricao }}" required>
+                </div>
+                <div class="col-2 d-flex gap-1">
+                    <button type="submit" class="btn btn-sm btn-danger flex-fill">Salvar</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="esconderEdicaoRelease({{ release.id }})">✕</button>
+                </div>
+            </form>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    function mostrarEdicaoRelease(id) {
+        document.getElementById('release-view-' + id).style.display = 'none';
+        document.getElementById('release-edit-' + id).style.display = 'flex';
+    }
+    function esconderEdicaoRelease(id) {
+        document.getElementById('release-edit-' + id).style.display = 'none';
+        document.getElementById('release-view-' + id).style.display = 'flex';
+    }
+</script>
+
+{% if usuario_logado and usuario_logado['perfil'] == 'ADM' %}
+<div class="card card-shadow mt-3" style="max-width: 720px;">
+    <div class="card-body">
+        <div class="section-title mb-3" style="font-size: 13px; color: var(--gray-600);">
+            <i class="bi bi-plus-circle"></i> Adicionar release
+        </div>
+        {% if request.args.get('erro') %}
+        <div class="alert alert-warning py-2 mb-3" style="font-size: 13px;">{{ request.args.get('erro') }}</div>
+        {% endif %}
+        <form method="POST" action="/notas-de-versao/adicionar" class="row g-2 align-items-end">
+            <div class="col-2">
+                <label class="form-label small mb-1">Versão</label>
+                <input type="text" name="versao" class="form-control form-control-sm" placeholder="1.7" required>
+            </div>
+            <div class="col-3">
+                <label class="form-label small mb-1">Data</label>
+                <input type="text" name="data" class="form-control form-control-sm" placeholder="05/09/2026" required>
+            </div>
+            <div class="col-5">
+                <label class="form-label small mb-1">Descrição</label>
+                <input type="text" name="descricao" class="form-control form-control-sm" placeholder="Resumo curto da mudança" required>
+            </div>
+            <div class="col-2">
+                <button type="submit" class="btn btn-sm btn-danger w-100">Adicionar</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

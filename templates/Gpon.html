@@ -1,0 +1,308 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band">
+    <div class="hero-eyebrow">{{ 'Tratamento de contrato' if pode_tratar else 'Fila de análise' }}</div>
+    <h1><i class="bi bi-broadcast"></i> Tratamento GPON Indisponível</h1>
+    <p>{{ 'Casos tabulados como GPON Indisponível pelos operadores' if pode_tratar else 'Acompanhamento e tratamento da fila de análise' }}</p>
+</div>
+
+{% if not pode_tratar %}
+<form method="GET" class="d-flex gap-2 mb-4 align-items-center flex-wrap" style="margin-top: -18px; position: relative; z-index: 2;">
+    <div class="input-group" style="width: auto;">
+        <span class="input-group-text">De</span>
+        <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+    </div>
+    <div class="input-group" style="width: auto;">
+        <span class="input-group-text">Até</span>
+        <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+    </div>
+    <select name="status" class="form-select" style="width: auto;">
+        <option value="ABERTOS" {% if status_filtro == 'ABERTOS' %}selected{% endif %}>Pendente / Em andamento</option>
+        <option value="CONCLUIDO" {% if status_filtro == 'CONCLUIDO' %}selected{% endif %}>Concluído</option>
+        <option value="TODOS" {% if status_filtro == 'TODOS' %}selected{% endif %}>Todos</option>
+    </select>
+    <input type="text" name="contrato" class="form-control" style="width: auto;" placeholder="Buscar contrato" value="{{ contrato_filtro or '' }}">
+    <button type="submit" class="btn btn-light border"><i class="bi bi-funnel-fill"></i> Filtrar</button>
+</form>
+{% endif %}
+
+<div class="row g-3 kpi-row mb-2">
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-hourglass-split"></i></div>
+            <div class="kpi-titulo">Aguardando análise (agora)</div>
+            <div class="kpi">{{ contadores.aguardando }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: #1D4ED8;"><i class="bi bi-search"></i></div>
+            <div class="kpi-titulo">Em análise (agora)</div>
+            <div class="kpi">{{ contadores.em_analise }}</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--warn);"><i class="bi bi-arrow-repeat"></i></div>
+            <div class="kpi-titulo">Follow-up pendente (agora)</div>
+            <div class="kpi">{{ contadores.follow_up_pendente }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="section-title mt-3"><i class="bi bi-bar-chart-line-fill"></i> Volume por tipo de fechamento no período</div>
+<div class="row g-3 mb-4">
+    <div class="col-md-3 col-6">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--ok);"><i class="bi bi-calendar-check"></i></div>
+            <div class="kpi-titulo">Agendados</div>
+            <div class="kpi">{{ contadores.agendado_via_gpon }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: #1D4ED8;"><i class="bi bi-unlock-fill"></i></div>
+            <div class="kpi-titulo">HP liberado, não agendou</div>
+            <div class="kpi">{{ contadores.hp_liberado }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-lock-fill"></i></div>
+            <div class="kpi-titulo">Mantido bloqueado</div>
+            <div class="kpi">{{ contadores.mantido_bloqueado }}</div>
+        </div>
+    </div>
+    <div class="col-md-3 col-6">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--red);"><i class="bi bi-shield-lock-fill"></i></div>
+            <div class="kpi-titulo">Solicitado bloqueio</div>
+            <div class="kpi">{{ contadores.solicitado_bloqueio }}</div>
+        </div>
+    </div>
+</div>
+
+{% if fila is not none %}
+<!-- Visão do ADM: lista da fila, sem tratar -->
+<div class="card card-shadow">
+    <div class="card-body">
+        <h5>Fila de análise</h5>
+        <hr>
+        {% if fila %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead><tr><th>Contrato</th><th>Cidade</th><th>Status</th><th>Analista</th><th></th></tr></thead>
+                <tbody>
+                    {% for f in fila %}
+
+                    <tr>
+                        <td>{{ f['contrato'] }}</td>
+                        <td>{{ f['cidade'] }}</td>
+                        <td>
+                            {% if f['status'] == 'EM_ANALISE_GPON' %}Em andamento
+                            {% elif f['status'] == 'CONCLUIDO' %}Concluído
+                            {% else %}Pendente{% endif %}
+                        </td>
+                        <td>{{ f['operador'] or '—' }}</td>
+                        <td>
+                            <a href="/gpon/detalhe/{{ f['id'] }}" class="btn btn-sm btn-outline-dark">Ver detalhes</a>
+                            {% if pode_tratar_da_fila %}
+                                {% if f['status'] == 'CONCLUIDO' %}
+                                <form action="/gpon/tratar_especifico/{{ f['id'] }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Reabrir</button>
+                                </form>
+                                {% else %}
+                                <form action="/gpon/tratar_especifico/{{ f['id'] }}" method="POST" class="d-inline">
+                                    <button type="submit" class="btn btn-sm btn-danger">Tratar</button>
+                                </form>
+                                {% endif %}
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhum contrato nessa situação.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if fila is none and not cliente %}
+<div class="card card-shadow">
+    <div class="card-body text-center text-muted py-5">
+        {% if modo_detalhe %}
+        <p class="mb-0">Contrato não encontrado.</p>
+        {% else %}
+        <p class="mb-0">Nenhum contrato aguardando análise no momento.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% if cliente %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <h2>{{ cliente['cliente'] }}</h2>
+            <a href="/contrato/{{ cliente['contrato'] }}/timeline" target="_blank" class="btn btn-sm btn-outline-dark">
+                <i class="bi bi-clock-history"></i> Ver histórico completo
+            </a>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-3"><strong>Contrato</strong><br>{{ cliente['contrato'] }}</div>
+            <div class="col-md-3"><strong>Cidade</strong><br>{{ cliente['cidade'] }}</div>
+            <div class="col-md-3"><strong>Node</strong><br>{{ cliente['node'] }}</div>
+            <div class="col-md-3"><strong>Imóvel</strong><br>{{ cliente['codigo_imovel'] }}</div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-9"><strong>Endereço</strong><br>{{ cliente['endereco'] }}{% if cliente['complemento'] %} — {{ cliente['complemento'] }}{% endif %}</div>
+        </div>
+        <hr class="my-4">
+        <div class="row">
+            <div class="col-md-3"><strong>Celular</strong><br>{{ cliente['telefone_celular'] }}</div>
+            <div class="col-md-3"><strong>Residencial</strong><br>{{ cliente['telefone_residencial'] }}</div>
+            <div class="col-md-3"><strong>Comercial</strong><br>{{ cliente['telefone_comercial'] }}</div>
+            <div class="col-md-3"><strong>E-mail</strong><br>{{ cliente['email'] }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#linhaDoTempoGpon">
+            <i class="bi bi-clock-history"></i> Histórico de tratamento ({{ historico|length }})
+        </button>
+        <div class="collapse mt-3 show" id="linhaDoTempoGpon">
+            {% if historico %}
+            <table class="table table-sm">
+                <thead><tr><th>Data</th><th>Quem tratou</th><th>Tabulação</th><th>Observação</th></tr></thead>
+                <tbody>
+                    {% for h in historico %}
+                    <tr>
+                        <td>{{ h['data_inicio'] }}</td>
+                        <td>{{ h['operador'] }}</td>
+                        <td>{{ h['tabulacao'] }}</td>
+                        <td>
+                            {{ h['observacao'] }}
+                            {% set nome_print = extrair_nome_evidencia_gpon(h['observacao']) %}
+                            {% if nome_print %}
+                            <a href="/uploads/{{ nome_print }}" target="_blank" class="ms-1"><i class="bi bi-paperclip"></i> Ver print</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted mb-0">Sem histórico anterior.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if pode_tratar %}
+<form action="/gpon/salvar" method="POST">
+    <input type="hidden" name="id_cliente" value="{{ cliente['id'] }}">
+    <div class="card card-shadow">
+        <div class="card-body">
+            <h5><i class="bi bi-check-circle-fill"></i> Análise</h5>
+            <hr>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Motivo</label>
+                <select class="form-select" name="motivo" id="motivoGpon" onchange="atualizarCamposGpon()" required>
+                    <option value="">Selecione uma opção...</option>
+                    <option>Analisado e agendado</option>
+                    <option>Analisado (HP liberado) - Não foi possível agendar</option>
+                    <option>Analisado (Não possui GPON) Manter bloqueado</option>
+                    <option>Analisado (Não possui GPON) Solicitado Bloqueio</option>
+                    <option>Análise Pendente</option>
+                </select>
+            </div>
+
+            <div id="gpon_campo_agendado" style="display:none;" class="mb-3 p-3 bg-light border rounded">
+                <h6>Detalhes do Agendamento</h6>
+                <label class="mt-2">Responsável (Cliente)</label>
+                <input type="text" name="resp_cliente" class="form-control mb-2">
+                <label>Data do Agendamento</label>
+                <input type="date" name="data_agendamento" id="gpon_data_agendamento" class="form-control mb-2">
+                <label>Janela</label>
+                <select name="janela_agendamento" class="form-select mb-2">
+                    <option>08h as 12h</option>
+                    <option>12h as 15h</option>
+                    <option>15h as 18h</option>
+                </select>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="flag_mdu" id="gpon_mdu">
+                    <label class="form-check-label" for="gpon_mdu">MDU</label>
+                </div>
+            </div>
+
+            <div id="gpon_campo_pendente" style="display:none;" class="mb-3 p-3 bg-light border rounded">
+                <h6>Análise Pendente -- previsão de retorno (opcional)</h6>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <label>Data</label>
+                        <input type="date" name="retorno_data" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Hora</label>
+                        <input type="time" name="retorno_hora" class="form-control">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Observações</label>
+                <textarea name="observacao" class="form-control" rows="3"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-danger w-100">Salvar e continuar</button>
+        </div>
+    </div>
+</form>
+
+<script>
+    document.getElementById('gpon_data_agendamento').min = new Date().toISOString().split('T')[0];
+
+    function atualizarCamposGpon() {
+        const motivo = document.getElementById('motivoGpon').value;
+        document.getElementById('gpon_campo_agendado').style.display = (motivo === 'Analisado e agendado') ? 'block' : 'none';
+        document.getElementById('gpon_campo_pendente').style.display = (motivo === 'Análise Pendente') ? 'block' : 'none';
+
+        document.querySelectorAll('#gpon_campo_agendado [required]').forEach(el => el.required = false);
+        if (motivo === 'Analisado e agendado') {
+            document.querySelector('#gpon_campo_agendado input[name="resp_cliente"]').required = true;
+            document.querySelector('#gpon_campo_agendado input[name="data_agendamento"]').required = true;
+        }
+    }
+</script>
+{% endif %}
+{% endif %}
+
+{% if texto_agendamento %}
+<div class="modal fade" id="modalTextoAgendamentoGpon" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header"><h5 class="modal-title"><i class="bi bi-calendar-check"></i> Ocorrência do agendamento</h5></div>
+            <div class="modal-body">
+                <textarea id="textoAgendamentoGponGerado" class="form-control" rows="7" readonly>{{ texto_agendamento }}</textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-dark" onclick="copiarTexto(document.getElementById('textoAgendamentoGponGerado').value, 'Texto copiado!')"><i class="bi bi-clipboard"></i> Copiar texto</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        new bootstrap.Modal(document.getElementById('modalTextoAgendamentoGpon')).show();
+    });
+</script>
+{% endif %}
+
+{% endblock %}

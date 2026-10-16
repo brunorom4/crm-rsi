@@ -1,0 +1,27 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <a href="/noticias" class="text-decoration-none text-muted small"><i class="bi bi-arrow-left"></i> Voltar pra Informações</a>
+        <div class="d-flex justify-content-between align-items-start mt-3">
+            <h2 class="mb-0">{{ noticia['titulo'] }}</h2>
+            {% if pode_postar %}
+            <div class="d-flex gap-2 flex-shrink-0 ms-3">
+                <a href="/noticias/{{ noticia['id'] }}/editar" class="btn btn-sm btn-outline-dark"><i class="bi bi-pencil-fill"></i> Editar</a>
+                <form action="/noticias/{{ noticia['id'] }}/excluir" method="POST" onsubmit="return confirm('Excluir essa notícia? Isso não pode ser desfeito.');">
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i> Excluir</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+        <div class="text-muted small mb-4">{{ noticia['autor'] }} — {{ noticia['data_publicacao'][:16] }}</div>
+        <div class="ql-snow">
+            <div class="ql-editor" style="padding: 0;">
+                {{ noticia['conteudo_html'] | safe }}
+            </div>
+        </div>
+    </div>
+</div>
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+{% endblock %}

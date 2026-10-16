@@ -1,0 +1,48 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<a href="/noticias/relatorio" class="text-decoration-none text-muted small"><i class="bi bi-arrow-left"></i> Voltar pro relatório</a>
+<h2 class="mt-2 mb-4">{{ noticia['titulo'] }}</h2>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-check-circle-fill" style="color: var(--ok);"></i> Já leram ({{ leram|length }})</div>
+                {% if leram %}
+                <table class="table table-sm">
+                    <tbody>
+                        {% for u in leram %}
+                        <tr>
+                            <td>{{ u['nome'] }}</td>
+                            <td class="text-muted small text-end">{{ leituras[u['id']][:16] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted mb-0">Ninguém leu ainda.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-x-circle-fill" style="color: var(--red);"></i> Ainda não leram ({{ nao_leram|length }})</div>
+                {% if nao_leram %}
+                <table class="table table-sm">
+                    <tbody>
+                        {% for u in nao_leram %}
+                        <tr><td>{{ u['nome'] }}</td><td class="text-muted small text-end">{{ u['perfil'] | exibir_perfil }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted mb-0">Todo mundo já leu!</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

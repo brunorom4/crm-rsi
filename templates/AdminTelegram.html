@@ -1,0 +1,87 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-send-fill"></i> Bot do Telegram</h2>
+        <hr>
+        <p class="text-muted">
+            Manda o ranking de fechamentos e agendamentos (dia e mês, com comparação e projeção)
+            pro grupo/chat configurado. Envia sozinho no horário escolhido, e qualquer pessoa no
+            chat pode pedir na hora mandando <code>/relatorio</code> pro bot.
+        </p>
+
+        {% if request.args.get('enviado') %}
+        <div class="alert alert-success">Relatório de teste enviado com sucesso!</div>
+        {% endif %}
+        {% if request.args.get('erro_descoberta') %}
+        <div class="alert alert-danger">{{ request.args.get('erro_descoberta') }}</div>
+        {% endif %}
+        {% if chat_ids_encontrados %}
+        <div class="alert alert-success">
+            <strong>Encontrei essas conversas recentes com o bot:</strong>
+            <ul class="mb-0 mt-2">
+                {% for id, descricao in chat_ids_encontrados.items() %}
+                <li><code>{{ id }}</code> — {{ descricao }}</li>
+                {% endfor %}
+            </ul>
+            <div class="small mt-2">Copia o ID certo e cola no campo "Chat ID" abaixo.</div>
+        </div>
+        {% endif %}
+
+        <form action="/admin/telegram/salvar" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Token do Bot</label>
+                <input type="text" name="telegram_bot_token" id="campoToken" class="form-control" value="{{ config['telegram_bot_token'] or '' }}" placeholder="123456789:AAExemploDeTokenDoBotFather">
+                <div class="form-text">Gerado pelo @BotFather no Telegram quando você cria o bot.</div>
+            </div>
+
+            <div class="mb-3 p-3 bg-light border rounded">
+                <div class="small text-muted mb-2">
+                    Não sabe o Chat ID? Manda qualquer mensagem pro seu bot pelo app do Telegram
+                    (ou no grupo, se for o caso) e clica aqui — sem precisar abrir o Telegram no navegador.
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-dark" onclick="descobrirChatId()">
+                    <i class="bi bi-search"></i> Descobrir Chat ID
+                </button>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Chat ID</label>
+                <input type="text" name="telegram_chat_id" class="form-control" value="{{ config['telegram_chat_id'] or '' }}" placeholder="-1001234567890 ou 123456789">
+                <div class="form-text">ID do grupo ou da conversa que deve receber o relatório.</div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Horário do envio automático</label>
+                <input type="time" name="telegram_horario_envio" class="form-control" style="max-width: 160px;" value="{{ config['telegram_horario_envio'] or '18:00' }}">
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="telegram_envio_automatico_ativo" id="envioAuto"
+                       {% if config['telegram_envio_automatico_ativo'] is none or config['telegram_envio_automatico_ativo'] %}checked{% endif %}>
+                <label class="form-check-label" for="envioAuto">Envio automático ligado</label>
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-save-fill"></i> Salvar</button>
+        </form>
+
+        <hr>
+        <form action="/admin/telegram/enviar_teste" method="POST">
+            <button type="submit" class="btn btn-outline-dark"><i class="bi bi-send"></i> Enviar relatório de teste agora</button>
+        </form>
+    </div>
+</div>
+
+<form id="formDescobrirChatId" action="/admin/telegram/descobrir_chat_id" method="POST" class="d-none">
+    <input type="hidden" name="telegram_bot_token" id="tokenOcultoDescoberta">
+</form>
+<script>
+    function descobrirChatId() {
+        const token = document.getElementById('campoToken').value.trim();
+        if (!token) {
+            alert('Cola o token do bot no campo acima primeiro.');
+            return;
+        }
+        document.getElementById('tokenOcultoDescoberta').value = token;
+        document.getElementById('formDescobrirChatId').submit();
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,133 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-plus-circle-fill"></i> Nova Monitoria</div>
+
+        <div class="mb-4">
+            <label class="form-label fw-bold">Operador</label>
+            <select id="selectOperador" class="form-select" onchange="carregarMetricas()">
+                <option value="">Selecione...</option>
+                {% for op in operadores %}
+                <option value="{{ op['id'] }}">{{ op['nome'] }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div id="areaMetricas" style="display:none;">
+            <hr>
+            <h6 class="text-muted">Histórico dos últimos 3 meses <span class="small">(comparado com a média de todos os operadores)</span></h6>
+            <div class="row g-3 mb-3" id="cardsMetricas"></div>
+        </div>
+    </div>
+</div>
+
+<form id="formMonitoria" action="/qualidade/salvar" method="POST">
+    <input type="hidden" name="operador_id" id="operadorIdOculto">
+
+    <div class="card card-shadow mb-4">
+        <div class="card-body">
+            <div class="section-title"><i class="bi bi-list-check"></i> Avaliação (Sim / Não)</div>
+            {% for chave, titulo, pergunta in perguntas %}
+            <div class="mb-3 pb-3 border-bottom">
+                <label class="form-label fw-bold mb-1">{{ titulo }}</label>
+                <div class="text-muted small mb-2">{{ pergunta }}</div>
+                <div class="btn-group" role="group">
+                    <input type="radio" class="btn-check" name="{{ chave }}" id="{{ chave }}_sim" value="sim" required>
+                    <label class="btn btn-outline-success" for="{{ chave }}_sim">Sim</label>
+                    <input type="radio" class="btn-check" name="{{ chave }}" id="{{ chave }}_nao" value="nao" required>
+                    <label class="btn btn-outline-danger" for="{{ chave }}_nao">Não</label>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="card card-shadow mb-4">
+        <div class="card-body">
+            <div class="section-title"><i class="bi bi-chat-square-text-fill"></i> Observações</div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Itens Pontuados</label>
+                <textarea name="itens_pontuados" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Pontos Fortes</label>
+                <textarea name="pontos_fortes" class="form-control" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Feedback, performance e plano de ação</label>
+                <div class="text-muted small mb-1">Registre o que foi combinado com o colaborador</div>
+                <textarea name="feedback_plano_acao" class="form-control" rows="4"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Informações Adicionais</label>
+                <textarea name="informacoes_adicionais" class="form-control" rows="3"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <button type="submit" class="btn btn-danger btn-lg mb-4"><i class="bi bi-send-fill"></i> Concluir Monitoria</button>
+    <a href="/qualidade" class="btn btn-outline-dark btn-lg mb-4">Cancelar</a>
+</form>
+
+<script>
+    function cardMetrica(titulo, valor, media, sufixo, quantoMaiorMelhor) {
+        sufixo = sufixo || '';
+        let comparacao = '';
+        let corComparacao = 'var(--gray-600)';
+        if (media !== null && media !== undefined) {
+            const diff = valor - media;
+            const melhor = quantoMaiorMelhor ? diff >= 0 : diff <= 0;
+            corComparacao = melhor ? 'var(--ok)' : 'var(--red)';
+            const seta = diff >= 0 ? '▲' : '▼';
+            comparacao = `<div class="small mt-1" style="color:${corComparacao};">${seta} média geral: ${media}${sufixo}</div>`;
+        }
+        return `
+        <div class="col-md-3">
+            <div class="kpi-card">
+                <div class="kpi-titulo">${titulo}</div>
+                <div class="kpi" style="font-size: 22px;">${valor}${sufixo}</div>
+                ${comparacao}
+            </div>
+        </div>`;
+    }
+
+    function carregarMetricas() {
+        const id = document.getElementById('selectOperador').value;
+        document.getElementById('operadorIdOculto').value = id;
+        const area = document.getElementById('areaMetricas');
+        const cards = document.getElementById('cardsMetricas');
+
+        if (!id) { area.style.display = 'none'; return; }
+
+        cards.innerHTML = '<p class="text-muted">Carregando...</p>';
+        area.style.display = 'block';
+
+        fetch('/qualidade/metricas/' + id)
+            .then(r => r.json())
+            .then(dados => {
+                const m = dados.metricas;
+                const media = dados.media_geral;
+                let html = '';
+                html += cardMetrica('Conversão (Agend./Tratados)', m.conversao_pct, media ? media.conversao_pct : null, '%', true);
+                html += cardMetrica('Tempo médio de tratamento', m.tempo_medio_min, media ? media.tempo_medio_min : null, ' min', false);
+                html += cardMetrica('Pausas excedidas', m.pausas_excedidas, media ? media.pausas_excedidas : null, '', false);
+                html += cardMetrica('Faltas', m.faltas, media ? media.faltas : null, '', false);
+                html += cardMetrica('Atrasos', m.atrasos, media ? media.atrasos : null, '', false);
+                html += cardMetrica('Saídas antecipadas', m.saidas_antecipadas, media ? media.saidas_antecipadas : null, '', false);
+
+                let volumeHtml = '<div class="col-md-6"><div class="kpi-card"><div class="kpi-titulo">Agendamentos por mês (últimos 3 meses)</div>';
+                if (m.agendamentos_por_mes.length) {
+                    volumeHtml += m.agendamentos_por_mes.map(x => `${x.mes}: <strong>${x.qtd}</strong>`).join(' &nbsp;|&nbsp; ');
+                } else {
+                    volumeHtml += '<span class="text-muted">Sem agendamentos no período</span>';
+                }
+                volumeHtml += '</div></div></div>';
+
+                cards.innerHTML = html + volumeHtml;
+            })
+            .catch(() => { cards.innerHTML = '<p class="text-danger">Não foi possível carregar as métricas.</p>'; });
+    }
+</script>
+{% endblock %}

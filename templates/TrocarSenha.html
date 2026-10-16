@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow" style="max-width: 420px;">
+    <div class="card-body">
+        <h2><i class="bi bi-lock-fill"></i> Trocar Senha</h2>
+        {% if obrigatorio %}
+        <div class="alert alert-warning">Por segurança, você precisa trocar sua senha antes de continuar.</div>
+        {% endif %}
+        {% if erro %}
+        <div class="alert alert-danger">{{ erro }}</div>
+        {% endif %}
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label">Senha atual</label>
+                <input type="password" name="senha_atual" class="form-control" required autofocus>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Nova senha</label>
+                <input type="password" name="nova_senha" class="form-control" required minlength="4">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Confirmar nova senha</label>
+                <input type="password" name="confirmar_senha" class="form-control" required minlength="4">
+            </div>
+            <button type="submit" class="btn btn-danger w-100">Salvar nova senha</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

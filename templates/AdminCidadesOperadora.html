@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-signpost-split-fill"></i> De-para: código de cidade → cidade</h2>
+        <hr>
+        <p class="text-muted">
+            O CSV de Execuções (importado em <a href="/admin/importacao">Importação de Dados</a>) traz só o código
+            (CD_OPERADORA) da cidade, não o nome. Cadastre aqui o significado de cada código conforme for lembrando
+            — não precisa ser tudo de uma vez. Código repetido atualiza o nome da cidade.
+        </p>
+
+        <form action="/admin/cidades-operadora/salvar" method="POST" class="d-flex gap-3 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small">Código (CD_OPERADORA)</label>
+                <input type="text" name="cod_operadora" class="form-control" style="max-width: 140px;" required>
+            </div>
+            <div>
+                <label class="form-label small">Cidade</label>
+                <input type="text" name="cidade" class="form-control" style="max-width: 280px;" required>
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-save-fill"></i> Salvar</button>
+        </form>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-check-circle-fill"></i> Mapeados ({{ mapeados | length }})</div>
+                {% if mapeados %}
+                <table class="table align-middle">
+                    <thead><tr><th>Código</th><th>Cidade</th><th></th></tr></thead>
+                    <tbody>
+                        {% for m in mapeados %}
+                        <tr>
+                            <td>{{ m['cod_operadora'] }}</td>
+                            <td>{{ m['cidade'] }}</td>
+                            <td>
+                                <form action="/admin/cidades-operadora/excluir/{{ m['cod_operadora'] }}" method="POST" onsubmit="return confirm('Remover o mapeamento do código {{ m['cod_operadora'] }}?');">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">Nenhum código mapeado ainda.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-question-circle-fill"></i> Ainda sem cidade ({{ nao_mapeados | length }})</div>
+                <p class="text-muted small">
+                    Códigos que já apareceram em execuções importadas mas ainda não têm cidade cadastrada. As
+                    execuções desses códigos continuam contando normalmente nos totais — só aparecem sem o nome da
+                    cidade até você completar aqui.
+                </p>
+                {% if nao_mapeados %}
+                <table class="table align-middle">
+                    <thead><tr><th>Código</th><th>Qtd. de execuções</th></tr></thead>
+                    <tbody>
+                        {% for n in nao_mapeados %}
+                        <tr>
+                            <td>{{ n['cod_operadora'] }}</td>
+                            <td>{{ n['qtd'] }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">Nenhum código pendente — tudo mapeado.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

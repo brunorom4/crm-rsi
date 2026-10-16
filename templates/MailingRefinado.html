@@ -1,0 +1,127 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<a href="/" class="btn btn-sm btn-outline-secondary mb-3">← Voltar pro Dashboard</a>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-people-fill"></i> Detalhamento Lista de Trabalho</h2>
+        <hr>
+
+        <div class="row g-3">
+            <div class="col-6 col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-card-list"></i></div>
+                    <div class="kpi-titulo">Total na base</div>
+                    <div class="kpi">{{ mailing_refinado.geral.total }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--warn);"><i class="bi bi-check2-circle"></i></div>
+                    <div class="kpi-titulo">Tratados</div>
+                    <div class="kpi">{{ mailing_refinado.geral.tratado }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% macro tabela_grupo(titulo, icone, linhas, coluna_chave) %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi {{ icone }}"></i> {{ titulo }}</div>
+        {% if linhas %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr><th>{{ coluna_chave }}</th><th>Total</th><th>Tratados</th></tr>
+                </thead>
+                <tbody>
+                    {% for l in linhas %}
+                    <tr>
+                        <td>{{ l.chave }}</td>
+                        <td>{{ l.total }}</td>
+                        <td>{{ l.tratado }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Sem dados.</p>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        {{ tabela_grupo("Por cidade", "bi-geo-alt-fill", mailing_refinado.por_cidade, "Cidade") }}
+    </div>
+    <div class="col-lg-6">
+        {{ tabela_grupo("Por DDD", "bi-telephone-fill", mailing_refinado.por_ddd, "DDD") }}
+    </div>
+    <div class="col-lg-12">
+        {{ tabela_grupo("Por produto Virtua (velocidade)", "bi-speedometer2", mailing_refinado.por_produto_virtua, "Velocidade") }}
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-diagram-3-fill"></i> Por node (agrupado: DDD → Cidade → Node)</div>
+        {% if mailing_refinado.por_node %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr><th style="width: 50%;">Grupo</th><th>Total</th><th>Tratados</th></tr>
+                </thead>
+                <tbody>
+                    {% for ddd in mailing_refinado.por_node %}
+                    {% set ddd_id = "ddd" ~ loop.index %}
+                    <tr class="table-light" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#{{ ddd_id }}">
+                        <td><i class="bi bi-plus-square"></i> <strong>{{ ddd.chave }}</strong></td>
+                        <td><strong>{{ ddd.total }}</strong></td>
+                        <td><strong>{{ ddd.tratado }}</strong></td>
+                    </tr>
+                    <tr class="collapse" id="{{ ddd_id }}">
+                        <td colspan="3" class="p-0">
+                            <table class="table table-sm mb-0">
+                                <tbody>
+                                    {% for cidade in ddd.cidades %}
+                                    {% set cidade_id = ddd_id ~ "_c" ~ loop.index %}
+                                    <tr style="cursor: pointer; background: #f8f9fa;" data-bs-toggle="collapse" data-bs-target="#{{ cidade_id }}">
+                                        <td style="width: 50%; padding-left: 2.5rem;"><i class="bi bi-plus-square"></i> {{ cidade.chave }}</td>
+                                        <td>{{ cidade.total }}</td>
+                                        <td>{{ cidade.tratado }}</td>
+                                    </tr>
+                                    <tr class="collapse" id="{{ cidade_id }}">
+                                        <td colspan="3" class="p-0">
+                                            <table class="table table-sm mb-0">
+                                                <tbody>
+                                                    {% for node in cidade.nodes %}
+                                                    <tr>
+                                                        <td style="width: 50%; padding-left: 4.5rem;">{{ node.chave }}</td>
+                                                        <td>{{ node.total }}</td>
+                                                        <td>{{ node.tratado }}</td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                </tbody>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Sem dados.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

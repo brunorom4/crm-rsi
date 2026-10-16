@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2>Resultado da importação</h2>
+        <hr>
+
+        {% if erro %}
+        <div class="alert alert-danger">{{ erro }}</div>
+        {% endif %}
+
+        {% if atribuidos_direto %}
+        <h5 class="text-success"><i class="bi bi-check-circle-fill"></i> Atribuídos direto ({{ atribuidos_direto|length }})</h5>
+        <ul>
+            {% for a in atribuidos_direto %}<li>{{ a }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if transferencias_solicitadas %}
+        <h5 class="text-warning"><i class="bi bi-arrow-left-right"></i> Solicitações de transferência enviadas ({{ transferencias_solicitadas|length }})</h5>
+        <ul>
+            {% for t in transferencias_solicitadas %}<li>{{ t }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+
+        {% if erros %}
+        <h5 class="text-danger"><i class="bi bi-exclamation-triangle-fill"></i> Erros ({{ erros|length }})</h5>
+        <ul>
+            {% for e in erros %}<li>{{ e }}</li>{% endfor %}
+        </ul>
+        {% endif %}
+
+        <a href="/tarefas/nova" class="btn btn-outline-dark mt-3">← Enviar outra planilha</a>
+    </div>
+</div>
+{% endblock %}

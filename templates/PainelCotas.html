@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Painel de Cotas — Claro</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="shortcut icon" href="/static/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --claro-vermelho: #DA291C;
+        --claro-vermelho-forte: #ED1C24;
+        --claro-vermelho-escuro: #AF272F;
+        --claro-laranja: #F5842B;
+        --claro-preto: #2D2926;
+        --claro-cinza: #A7A8AA;
+        --claro-cinza-claro: #f4f5f7;
+        --status-aberta: #1e7e34;
+        --status-aberta-bg: #e6f4ea;
+        --status-fechada: var(--claro-vermelho-escuro);
+        --status-fechada-bg: #fbe9ea;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Poppins', Arial, Helvetica, sans-serif;
+        background: var(--claro-cinza-claro);
+        margin: 0;
+        color: var(--claro-preto);
+    }
+
+    /* ---- cabeçalho com a marca Claro ---- */
+    .topo-claro {
+        background: linear-gradient(135deg, var(--claro-vermelho-forte) 0%, var(--claro-vermelho) 55%, var(--claro-vermelho-escuro) 100%);
+        padding: 18px 28px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 2px 10px rgba(175,39,47,0.25);
+    }
+    .topo-claro img.logo {
+        height: 42px;
+        width: 42px;
+        object-fit: contain;
+        filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25));
+    }
+    .topo-claro .titulos h1 {
+        color: #fff;
+        font-size: 20px;
+        font-weight: 800;
+        margin: 0;
+        letter-spacing: 0.2px;
+    }
+    .topo-claro .titulos .subtitulo {
+        color: rgba(255,255,255,0.88);
+        font-size: 12.5px;
+        margin-top: 2px;
+    }
+    .topo-claro .titulos .subtitulo a {
+        color: #fff;
+        font-weight: 600;
+        text-decoration: none;
+        border-bottom: 1px solid rgba(255,255,255,0.5);
+    }
+    .topo-claro .titulos .subtitulo a:hover { border-bottom-color: #fff; }
+
+    .conteudo { padding: 24px 28px 40px; max-width: 1200px; margin: 0 auto; }
+
+    .caixa-upload {
+        background: #fff; border: 1px solid #e7e5e4; border-radius: 10px;
+        padding: 16px 18px; margin-bottom: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .caixa-upload form { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .caixa-upload label { font-weight: 600; font-size: 13.5px; }
+    .caixa-upload button {
+        background: linear-gradient(135deg, var(--claro-vermelho-forte), var(--claro-vermelho-escuro));
+        color: #fff; border: none; padding: 9px 20px; border-radius: 7px;
+        cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit;
+        transition: filter 0.15s, transform 0.1s;
+    }
+    .caixa-upload button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .ultima-importacao { font-size: 12px; color: #8a8580; margin-top: 8px; }
+
+    .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; font-weight: 500; }
+    .flash-sucesso { background: var(--status-aberta-bg); color: var(--status-aberta); border: 1px solid #b7e0c4; }
+    .flash-erro { background: var(--status-fechada-bg); color: var(--status-fechada); border: 1px solid #eabfc2; }
+
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; margin-bottom: 30px; }
+    .card { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; }
+    .card-header {
+        padding: 11px 14px; font-weight: 700; font-size: 15px;
+        background: var(--claro-preto); color: #fff; letter-spacing: 0.2px;
+    }
+    .card-body { padding: 12px 14px; }
+    .classe-linha { padding: 9px 11px; border-radius: 8px; margin-bottom: 7px; border-left: 4px solid transparent; }
+    .classe-linha:last-child { margin-bottom: 0; }
+    .aberta { background: var(--status-aberta-bg); border-left-color: var(--status-aberta); }
+    .fechada { background: var(--status-fechada-bg); border-left-color: var(--status-fechada); }
+    .classe-topo { display: flex; justify-content: space-between; align-items: baseline; }
+    .classe-nome { font-size: 13px; font-weight: 600; }
+    .classe-horas { font-size: 13px; font-weight: 700; }
+    .aberta .classe-horas { color: var(--status-aberta); }
+    .classe-detalhe { font-size: 12px; color: #55504b; margin-top: 3px; }
+    .fechada .classe-detalhe { color: var(--status-fechada); font-weight: 600; }
+
+    h2.secao { font-size: 16px; font-weight: 700; color: var(--claro-preto); margin: 8px 0 14px; }
+    .btn-expandir {
+        background: #fff; color: var(--claro-vermelho); border: 1.5px solid var(--claro-vermelho);
+        padding: 7px 16px; border-radius: 7px; cursor: pointer; font-size: 13px; font-weight: 600;
+        font-family: inherit; transition: background 0.15s, color 0.15s;
+    }
+    .btn-expandir:hover { background: var(--claro-vermelho); color: #fff; }
+
+    details.heatmap-cidade { background: #fff; border-radius: 10px; margin-bottom: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    details.heatmap-cidade summary { padding: 11px 14px; font-weight: 700; cursor: pointer; color: var(--claro-preto); }
+    details.heatmap-cidade summary:hover { color: var(--claro-vermelho); }
+    .heatmap-wrap { overflow-x: auto; padding: 0 14px 14px 14px; }
+    table.heatmap { border-collapse: collapse; font-size: 12px; white-space: nowrap; }
+    table.heatmap th, table.heatmap td { padding: 5px 9px; border: 1px solid #eee; text-align: center; }
+    table.heatmap th { background: #faf9f8; font-weight: 600; color: var(--claro-preto); }
+    .cel-aberta { background: var(--status-aberta-bg); color: var(--status-aberta); }
+    .cel-fechada { background: var(--status-fechada-bg); color: var(--status-fechada); }
+    .cel-vazia { background: #fafafa; color: #ccc; }
+    .cel-status { font-weight: 700; font-size: 12px; }
+    .cel-disp { font-size: 10px; opacity: 0.85; }
+
+    .sem-dados { background: #fff; border-radius: 10px; padding: 36px; text-align: center; color: #8a8580; }
+
+    .rodape-marca {
+        max-width: 1200px; margin: 30px auto 0; padding: 0 28px 10px;
+        display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+        color: #b3aeaa; font-size: 11px;
+    }
+    .rodape-marca svg { display: block; }
+</style>
+</head>
+<body>
+
+<div class="topo-claro">
+    <img class="logo" src="/static/logo-claro.png" alt="Claro" onerror="this.style.display='none'">
+    <div class="titulos">
+        <h1>Painel de Cotas</h1>
+        <div class="subtitulo">
+            Consolidado por cidade — visão rápida do status atual e histórico detalhado.
+            &nbsp;·&nbsp; <a href="/portal">← Voltar ao portal</a>
+            &nbsp;·&nbsp; <a href="/portal/painel-cotas/historico">📊 Histórico do mês</a>
+            {% if usuario_logado and usuario_logado['perfil'] == 'ADM' %}
+                &nbsp;·&nbsp; <a href="/portal/painel-cotas/config">⚙ Configurar extração</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="conteudo">
+
+{% with mensagens = get_flashed_messages(with_categories=true) %}
+  {% for categoria, msg in mensagens %}
+    <div class="flash flash-{{ categoria }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="caixa-upload">
+    <form method="POST" action="/portal/painel-cotas/upload" enctype="multipart/form-data">
+        <label for="arquivo">Importar CSV consolidado:</label>
+        <input type="file" id="arquivo" name="arquivo" accept=".csv" required>
+        <button type="submit">Importar</button>
+    </form>
+    {% if ultima_importacao %}
+        <div class="ultima-importacao">Última importação: {{ ultima_importacao.strftime('%d/%m/%Y %H:%M') }}</div>
+    {% else %}
+        <div class="ultima-importacao">Nenhum arquivo importado ainda.</div>
+    {% endif %}
+</div>
+
+{% if erro %}
+    <div class="flash flash-erro">{{ erro }}</div>
+{% elif not tem_dados %}
+    <div class="sem-dados">Importe o CSV consolidado acima para ver o painel.</div>
+{% else %}
+
+    <div class="cards-grid">
+    {% for card in cards %}
+        <div class="card">
+            <div class="card-header">{{ card.cidade }}</div>
+            <div class="card-body">
+                {% for c in card.classes %}
+                    <div class="classe-linha {{ 'aberta' if c.tem_janela else 'fechada' }}">
+                        <div class="classe-topo">
+                            <span class="classe-nome">{{ c.classe }}</span>
+                            {% if c.tem_janela %}
+                                <span class="classe-horas">em {{ c.horas_ate }}h</span>
+                            {% endif %}
+                        </div>
+                        {% if c.tem_janela %}
+                            <div class="classe-detalhe">
+                                Próx. aberta: <strong>{{ c.data_fmt }} · {{ c.janela }}</strong>
+                                &nbsp;·&nbsp; {{ c.ativ_disp }} vaga(s)
+                            </div>
+                        {% else %}
+                            <div class="classe-detalhe">Sem janela aberta no período importado</div>
+                        {% endif %}
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    {% endfor %}
+    </div>
+
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-top:8px;">
+        <h2 class="secao" style="margin:0;">Detalhado</h2>
+        <button type="button" id="btn-expandir-tudo" class="btn-expandir" onclick="alternarTudo()">Expandir tudo</button>
+    </div>
+    {% for h in heatmaps %}
+        <details class="heatmap-cidade">
+            <summary>{{ h.cidade }}</summary>
+            <div class="heatmap-wrap">
+                <table class="heatmap">
+                    <thead>
+                        <tr>
+                            <th>Classe</th>
+                            {% for col in h.colunas %}<th>{{ col }}</th>{% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for linha in h.linhas %}
+                        <tr>
+                            <td><strong>{{ linha.classe }}</strong></td>
+                            {% for cel in linha.celulas %}
+                                {% if cel is none %}
+                                    <td class="cel-vazia">—</td>
+                                {% else %}
+                                    <td class="{{ 'cel-aberta' if cel.aberta else 'cel-fechada' }}">
+                                        <div class="cel-status">{{ cel.status }}</div>
+                                        <div class="cel-disp">{{ cel.ativ_disp }} disp.</div>
+                                    </td>
+                                {% endif %}
+                            {% endfor %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
+    {% endfor %}
+
+{% endif %}
+
+</div>
+
+<div class="rodape-marca">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <circle cx="7" cy="17" r="3.2" stroke="#c9c4c0" stroke-width="2"/>
+        <rect x="10.2" y="4" width="2.4" height="6.5" rx="1" fill="#c9c4c0" transform="rotate(0 11.4 7)"/>
+        <rect x="15.5" y="6.2" width="2.4" height="7.5" rx="1" fill="#c9c4c0" transform="rotate(45 16.7 10)"/>
+        <rect x="14" y="16" width="6" height="2.2" rx="1" fill="#c9c4c0"/>
+    </svg>
+    Claro · CRM RSI
+</div>
+
+<script>
+function alternarTudo() {
+    var detalhes = document.querySelectorAll('details.heatmap-cidade');
+    var btn = document.getElementById('btn-expandir-tudo');
+    var vaiExpandir = btn.textContent.trim() === 'Expandir tudo';
+    detalhes.forEach(function (d) { d.open = vaiExpandir; });
+    btn.textContent = vaiExpandir ? 'Recolher tudo' : 'Expandir tudo';
+}
+</script>
+</body>
+</html>

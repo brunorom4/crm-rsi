@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band">
+    <div class="hero-eyebrow">Informações</div>
+    <h1><i class="bi bi-bar-chart-line-fill"></i> Relatório de leitura</h1>
+</div>
+
+<div class="card card-shadow" style="margin-top: -22px; position: relative; z-index: 2;">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-megaphone-fill"></i> Notícias publicadas</div>
+        {% if lista %}
+        <table class="table align-middle">
+            <thead><tr><th>Título</th><th>Autor</th><th>Data</th><th>Leitura</th><th></th></tr></thead>
+            <tbody>
+                {% for n in lista %}
+                <tr>
+                    <td>{{ n['titulo'] }}</td>
+                    <td>{{ n['autor'] }}</td>
+                    <td>{{ n['data_publicacao'][:16] }}</td>
+                    <td>{{ n['qtd_lida'] }} de {{ total_usuarios }}</td>
+                    <td><a href="/noticias/{{ n['id'] }}/leitores" class="btn btn-sm btn-outline-dark">Ver quem leu</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma notícia publicada ainda.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

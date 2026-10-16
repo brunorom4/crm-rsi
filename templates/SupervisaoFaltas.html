@@ -1,0 +1,175 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band">
+    <div class="hero-eyebrow">Supervisão</div>
+    <h1>Pendências de registro de falta</h1>
+</div>
+
+<div class="d-flex justify-content-end mb-2">
+    <a href="/supervisao/faltas-lancadas" class="btn btn-sm btn-outline-primary me-2"><i class="bi bi-pencil-square"></i> Editar / excluir faltas lançadas</a>
+    <a href="/supervisao" class="btn btn-sm btn-outline-dark"><i class="bi bi-arrow-left"></i> Voltar pra Supervisão</a>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-funnel-fill"></i> Filtro de período</div>
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-auto">
+                <label class="form-label fw-bold">De</label>
+                <input type="date" name="data_de" class="form-control" value="{{ data_de }}"
+                       min="{{ data_minima }}" max="{{ data_maxima }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label fw-bold">Até</label>
+                <input type="date" name="data_ate" class="form-control" value="{{ data_ate }}"
+                       min="{{ data_minima }}" max="{{ data_maxima }}">
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Filtrar</button>
+            </div>
+        </form>
+        <p class="text-muted small mt-2 mb-0">
+            Só é possível revisar até {{ data_maxima[8:10] }}/{{ data_maxima[5:7] }}/{{ data_maxima[0:4] }} (o dia de hoje
+            ainda está em andamento) e no máximo até {{ data_minima[8:10] }}/{{ data_minima[5:7] }}/{{ data_minima[0:4] }}
+            pra trás.
+        </p>
+    </div>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-exclamation-triangle-fill text-warning"></i>
+            {{ total }} pendência{{ 's' if total != 1 else '' }} no período selecionado
+        </div>
+        <p class="text-muted small mb-3">
+            Escalados no período que não têm nenhum login nem falta registrada naquele dia -- clique em "Registrar"
+            pra lançar a falta retroativa direto nesse dia. Dias anteriores (ou iguais) ao cadastro da pessoa no
+            sistema não entram nessa lista.
+        </p>
+        {% if pendencias %}
+        <ul class="list-group list-group-flush">
+            {% for p in pendencias %}
+            <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                <span><strong>{{ p.nome }}</strong> — {{ p.data[8:10] }}/{{ p.data[5:7] }}/{{ p.data[0:4] }}</span>
+                <button type="button" class="btn btn-sm btn-outline-primary"
+                        onclick="abrirModalAusencia({{ p.usuario_id }}, '{{ p.nome }}', '{{ p.data }}', '{{ p.data }}')">
+                    Registrar
+                </button>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma pendência no período selecionado.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="modal fade" id="modalAusencia" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Registrar falta — <span id="modalAusenciaNome"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formAusencia" method="POST">
+                <input type="hidden" name="voltar_para" value="{{ request.full_path }}">
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">De</label>
+                            <input type="date" name="data_de" id="inputDataDeAusencia" class="form-control"
+                                   min="{{ data_minima }}"
+                                   onchange="document.getElementById('inputDataAteAusencia').value = this.value" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Até</label>
+                            <input type="date" name="data_ate" id="inputDataAteAusencia" class="form-control" required>
+                        </div>
+                        <div class="form-text">Pra registrar mais de um dia de uma vez (ex: um atestado de vários dias), basta mudar "Até".</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Motivo</label>
+                        <select name="motivo" id="selectMotivoAusencia" class="form-select" onchange="atualizarSubmotivo()" required>
+                            <option value="">Selecione...</option>
+                            <option value="Falta Justificada">Falta Justificada</option>
+                            <option value="Injustificada">Injustificada</option>
+                            <option value="Treinamento">Treinamento</option>
+                            <option value="Férias">Férias</option>
+                            <option value="Afastamento">Afastamento</option>
+                            {% for m in motivos_ausencia_extras %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3" id="campoSubmotivoAusencia" style="display:none;">
+                        <label class="form-label">Submotivo</label>
+                        <select name="submotivo" id="selectSubmotivoAusencia" class="form-select" onchange="atualizarObservacaoObrigatoria()">
+                            <option value="">Selecione...</option>
+                            <option>Atestado</option>
+                            <option>Doação de Sangue</option>
+                            <option>Motivo Escolar</option>
+                            <option>Alistamento Militar</option>
+                            <option>Treinamento Eleitoral</option>
+                            <option>Outros</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" id="labelObservacaoAusencia">Observações</label>
+                        <textarea name="observacao" id="observacaoAusencia" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-danger">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function abrirModalAusencia(usuarioId, nome, dataDe, dataAte) {
+        document.getElementById('modalAusenciaNome').innerText = nome;
+        document.getElementById('formAusencia').action = '/supervisao/ausencia/' + usuarioId;
+        document.getElementById('inputDataDeAusencia').value = dataDe;
+        document.getElementById('inputDataAteAusencia').value = dataAte;
+
+        document.getElementById('selectMotivoAusencia').value = '';
+        atualizarSubmotivo();
+        document.getElementById('selectSubmotivoAusencia').value = '';
+        document.getElementById('observacaoAusencia').value = '';
+        atualizarObservacaoObrigatoria();
+
+        var modal = new bootstrap.Modal(document.getElementById('modalAusencia'));
+        modal.show();
+    }
+
+    function atualizarSubmotivo() {
+        var motivo = document.getElementById('selectMotivoAusencia').value;
+        var campo = document.getElementById('campoSubmotivoAusencia');
+        var select = document.getElementById('selectSubmotivoAusencia');
+        if (motivo === 'Falta Justificada') {
+            campo.style.display = 'block';
+            select.required = true;
+        } else {
+            campo.style.display = 'none';
+            select.required = false;
+            select.value = '';
+        }
+        atualizarObservacaoObrigatoria();
+    }
+
+    function atualizarObservacaoObrigatoria() {
+        var submotivo = document.getElementById('selectSubmotivoAusencia').value;
+        var textarea = document.getElementById('observacaoAusencia');
+        var label = document.getElementById('labelObservacaoAusencia');
+        if (submotivo === 'Outros') {
+            textarea.required = true;
+            label.innerHTML = 'Observações (obrigatório para "Outros")';
+        } else {
+            textarea.required = false;
+            label.innerHTML = 'Observações';
+        }
+    }
+</script>
+{% endblock %}

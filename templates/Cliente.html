@@ -1,0 +1,653 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <h2>{{ cliente['cliente'] }}</h2>
+            <a href="/contrato/{{ cliente['contrato'] }}/timeline" target="_blank" class="btn btn-sm btn-outline-dark">
+                <i class="bi bi-clock-history"></i> Ver histórico completo
+            </a>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <strong>Contrato</strong><br>
+                {{ cliente['contrato'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Cidade</strong><br>
+                {{ cliente['cidade'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Node</strong><br>
+                {{ cliente['node'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Imóvel</strong><br>
+                {{ cliente['codigo_imovel'] }}
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-9">
+                <strong>Endereço</strong><br>
+                {{ cliente['endereco'] }}{% if cliente['complemento'] %} — {{ cliente['complemento'] }}{% endif %}
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-dark mt-3" onclick="copiarCadastro()"><i class="bi bi-clipboard"></i> Copiar dados cadastrais</button>
+
+        <hr class="my-4">
+
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Status</strong><br>
+                {{ cliente['status'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Tentativa</strong><br>
+                {{ cliente['tentativa'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Operador</strong><br>
+                {{ cliente['operador'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Expiração</strong><br>
+                {{ cliente['data_expiracao'] }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <h5><i class="bi bi-wifi"></i> Internet</h5>
+                <hr>
+                <p>{{ cliente['produto_virtua'] }}</p>
+                <h3 class="text-danger">R$ {{ cliente['valor_virtua'] }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="card card-shadow mb-4" style="border-left: 6px solid #a2001d;">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap">
+        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Valor total que o cliente paga</h5>
+        <h2 class="text-danger mb-0">R$ {{ cliente['valor_total'] }}</h2>
+    </div>
+    <div class="card-body pt-0">
+        <button type="button" class="btn btn-sm btn-outline-dark" onclick="copiarProdutos()"><i class="bi bi-clipboard"></i> Copiar produtos e valores</button>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h5><i class="bi bi-telephone-fill"></i> Contatos</h5>
+        <hr>
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Celular</strong><br>
+                {{ cliente['telefone_celular'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Residencial</strong><br>
+                {{ cliente['telefone_residencial'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Comercial</strong><br>
+                {{ cliente['telefone_comercial'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>E-mail</strong><br>
+                {{ cliente['email'] }}
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-dark mt-3" onclick="copiarContatos()"><i class="bi bi-clipboard"></i> Copiar contatos</button>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#linhaDoTempo">
+            <i class="bi bi-clock-history"></i> Linha do tempo ({{ historico|length }} tratamento{{ 's' if historico|length != 1 else '' }})
+        </button>
+        <div class="collapse mt-3" id="linhaDoTempo">
+            {% if historico %}
+            <table class="table table-sm">
+                <thead><tr><th>Data</th><th>Operador</th><th>Tabulação</th><th>Observação</th></tr></thead>
+                <tbody>
+                    {# data_ordenacao (calculada em _mesclar_historico_com_ajustes a partir de
+                       data_fim), não data_inicio -- ver comentário equivalente em
+                       AtendimentoAvulso.html #}
+                    {% for h in historico %}
+                    <tr>
+                        <td>{{ h['data_ordenacao'] }}</td>
+                        <td>{{ h['operador'] }}</td>
+                        <td>{{ h['tabulacao'] }}</td>
+                        <td>{{ h['observacao'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted mb-0">Esse contrato ainda não tinha sido tratado antes.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <button class="btn btn-outline-dark" type="button" data-bs-toggle="collapse" data-bs-target="#areaScript">
+            <i class="bi bi-pencil-square"></i> Gerar Script de Atendimento
+        </button>
+        <div class="collapse mt-3" id="areaScript">
+            <div id="scriptFormulario">
+                <div class="row mb-3">
+                    <div class="col-md-8">
+                        <label class="form-label fw-bold">Protocolo</label>
+                        <input type="text" id="scriptProtocolo" class="form-control" placeholder="05226.56212.55245" maxlength="17">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold">Você é</label>
+                        <select id="scriptConsultor" class="form-select">
+                            <option value="Consultor">Consultor</option>
+                            <option value="Consultora">Consultora</option>
+                        </select>
+                    </div>
+                </div>
+                <hr>
+                <h6>Situação atual</h6>
+                <div class="row mb-2">
+                    <div class="col-md-8">
+                        <label class="form-label">Produto atual TV</label>
+                        <input type="text" id="scriptAtualProdutoTV" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Valor atual TV</label>
+                        <input type="number" step="0.01" id="scriptAtualValorTV" class="form-control">
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-8">
+                        <label class="form-label">Produto atual Virtua</label>
+                        <input type="text" id="scriptAtualProdutoVirtua" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Valor atual Virtua</label>
+                        <input type="number" step="0.01" id="scriptAtualValorVirtua" class="form-control">
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-8">
+                        <label class="form-label">Produto atual Fone</label>
+                        <input type="text" id="scriptAtualProdutoFone" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Valor atual Fone</label>
+                        <input type="number" step="0.01" id="scriptAtualValorFone" class="form-control">
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 offset-md-8">
+                        <label class="form-label">Valor atual Total</label>
+                        <input type="number" step="0.01" id="scriptAtualValorTotal" class="form-control">
+                    </div>
+                </div>
+                <hr>
+                <h6>Nova oferta</h6>
+                <div class="row mb-2">
+                    <div class="col-md-8">
+                        <label class="form-label">Novo produto TV</label>
+                        <input type="text" id="scriptNovoProdutoTV" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Novo valor TV</label>
+                        <input type="number" step="0.01" id="scriptNovoValorTV" class="form-control">
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-8">
+                        <label class="form-label">Novo produto Virtua</label>
+                        <input type="text" id="scriptNovoProdutoNet" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Novo valor Virtua</label>
+                        <input type="number" step="0.01" id="scriptNovoValorNet" class="form-control">
+                    </div>
+                </div>
+                <div class="row mb-2">
+                    <div class="col-md-8">
+                        <label class="form-label">Novo produto Fone</label>
+                        <input type="text" id="scriptNovoProdutoFone" class="form-control">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Novo valor Fone</label>
+                        <input type="number" step="0.01" id="scriptNovoValorFone" class="form-control">
+                    </div>
+                </div>
+                <div class="row mb-3">
+                    <div class="col-md-4 offset-md-8">
+                        <label class="form-label">Novo valor total</label>
+                        <input type="number" step="0.01" id="scriptNovoValorTotal" class="form-control">
+                    </div>
+                </div>
+                <div class="d-flex flex-wrap gap-2">
+                    {% for s in scripts_atendimento %}
+                    <button type="button" class="btn btn-danger flex-fill" onclick="gerarScript({{ s['id'] }})">{{ s['nome_botao'] }}</button>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div id="scriptResultado" style="display:none;">
+                <textarea id="scriptTexto" class="form-control" rows="18" readonly></textarea>
+                <div class="d-flex gap-2 mt-3 flex-wrap align-items-center">
+                    <button type="button" class="btn btn-outline-dark" onclick="voltarFormularioScript()">← Editar dados</button>
+                    <button type="button" class="btn btn-danger" onclick="copiarScript()"><i class="bi bi-clipboard"></i> Copiar script</button>
+                    <select id="scriptTelefoneEscolhido" class="form-select" style="max-width: 260px;"></select>
+                    <button type="button" class="btn btn-success" onclick="enviarScriptWhatsapp()"><i class="bi bi-whatsapp"></i> Enviar por WhatsApp</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form action="/salvar" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="id_cliente" value="{{ cliente['id'] }}">
+
+    <div class="card card-shadow">
+        <div class="card-body">
+            <h5><i class="bi bi-check-circle-fill"></i> Tratamento</h5>
+            <hr>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Resultado</label>
+                <select class="form-select" name="resultado" id="resultado" onchange="atualizarCampos()" required>
+                    <option value="">Selecione uma opção...</option>
+                    <optgroup label="Fechamento">
+                        <option>Agendado</option>
+                        <option {% if cliente['tentativa'] != 3 %} disabled {% endif %}>Improdutivo</option>
+                        <option>Contrato Coletivo</option>
+                        <option>Contrato Desabilitado</option>
+                        <option>Contrato Desconectado</option>
+                        <option>Mudança de Endereço</option>
+                        <option>GPON Indisponível</option>
+                        <option>Cliente Já Migrado</option>
+                        <option>Recusado - Preço</option>
+                        <option>Recusado - Suspeita de Fraude</option>
+                        <option>Recusado - Não deseja migrar</option>
+                        <option>Recusado - Outros</option>
+                    </optgroup>
+                    <optgroup label="Follow Up">
+                        <option {% if cliente['tentativa'] != 1 %} disabled {% endif %}>2ª Tentativa</option>
+                        <option {% if cliente['tentativa'] != 2 %} disabled {% endif %}>3ª Tentativa</option>
+                        <option>Retorno</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <div id="campo_agendado" style="display: none;" class="mb-3 p-3 bg-light border rounded">
+                <h6>Detalhes do Agendamento</h6>
+                <label class="mt-2">Responsável (Cliente)</label>
+                <input type="text" name="resp_cliente" class="form-control mb-2">
+                <label>Data do Agendamento</label>
+                <input type="date" name="data_agendamento" id="data_agendamento" class="form-control mb-2">
+                <div id="previsao_tempo_info" class="small text-muted mb-2"></div>
+                <label>Janela</label>
+                <select name="janela_agendamento" class="form-select mb-2">
+                    <option>08h as 12h</option>
+                    <option>12h as 15h</option>
+                    <option>15h as 18h</option>
+                </select>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="flag_mdu" id="mdu">
+                    <label class="form-check-label" for="mdu">MDU</label>
+                </div>
+            </div>
+
+            <div id="campo_improdutivo" style="display: none;" class="mb-3 p-3 bg-light border rounded">
+                <div class="form-check text-danger">
+                    <input class="form-check-input" type="checkbox" name="flag_email" id="email">
+                    <label class="form-check-label" for="email"><strong>Obrigatório:</strong> Email Enviado.</label>
+                </div>
+            </div>
+
+            <div id="campo_gpon" style="display: none;" class="mb-3 p-3 bg-light border rounded">
+                <label class="fw-bold">Anexar Captura de Tela (opcional)</label>
+                <input type="file" name="evidencia" id="evidencia" class="form-control mt-2" accept="image/*">
+                <div id="areaColarPrint" tabindex="0"
+                     class="mt-2 p-3 border rounded text-center text-muted"
+                     style="cursor: text; background: #fff;">
+                    <i class="bi bi-clipboard"></i> Ou clique aqui e cole (Ctrl+V) uma captura de tela copiada ou da Ferramenta de Captura
+                </div>
+                <img id="previewPrintColado" style="display:none; max-width: 100%; margin-top: 10px; border-radius: 8px;">
+            </div>
+
+            <div id="campo_retorno" style="display: none;" class="mb-3 p-3 bg-light border rounded">
+                <h6>Agendar Retorno</h6>
+                <div class="row mt-2">
+                    <div class="col-md-6">
+                        <label>Data</label>
+                        <input type="date" name="retorno_data" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label>Horário</label>
+                        <select name="retorno_hora" class="form-select">
+                            <option value="08:00">08:00</option>
+                            <option value="09:00">09:00</option>
+                            <option value="10:00">10:00</option>
+                            <option value="11:00">11:00</option>
+                            <option value="12:00">12:00</option>
+                            <option value="13:00">13:00</option>
+                            <option value="14:00">14:00</option>
+                            <option value="15:00">15:00</option>
+                            <option value="16:00">16:00</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3 mt-3">
+                <label class="form-label fw-bold" id="label_obs">Observação</label>
+                <textarea class="form-control" rows="4" name="observacao" id="observacao"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-danger btn-lg w-100 fw-bold mt-2">Salvar e Próximo Cliente</button>
+        </div>
+    </div>
+</form>
+
+<script>
+    document.getElementById('data_agendamento').valueAsDate = new Date();
+    document.getElementById('data_agendamento').min = new Date().toISOString().split('T')[0];
+
+    function consultarPrevisaoTempo() {
+        var data = document.getElementById('data_agendamento').value;
+        var infoEl = document.getElementById('previsao_tempo_info');
+        if (!data) { infoEl.textContent = ''; return; }
+        infoEl.textContent = 'Consultando previsão do tempo...';
+        fetch('/previsao-tempo?cidade=' + encodeURIComponent(CIDADE_ATUAL) + '&data=' + data)
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (!d.encontrado) {
+                    infoEl.textContent = '';
+                    return;
+                }
+                infoEl.innerHTML = '<i class="bi bi-cloud-rain"></i> Previsão pra ' + data + ' em ' + CIDADE_ATUAL + ': '
+                    + d.condicao + ', ' + d.temp_min + '° a ' + d.temp_max + '°C, ' + d.chance_chuva + '% de chance de chuva';
+            })
+            .catch(function() { infoEl.textContent = ''; });
+    }
+    document.getElementById('data_agendamento').addEventListener('change', consultarPrevisaoTempo);
+
+    function atualizarCampos() {
+        var res = document.getElementById('resultado').value;
+
+        document.getElementById('campo_agendado').style.display = 'none';
+        document.getElementById('campo_improdutivo').style.display = 'none';
+        document.getElementById('campo_gpon').style.display = 'none';
+        document.getElementById('campo_retorno').style.display = 'none';
+        document.getElementById('observacao').required = false;
+        document.getElementById('email').required = false;
+        document.getElementById('evidencia').required = false;
+        document.getElementById('label_obs').innerHTML = "Observação";
+
+        if (res === 'Agendado') {
+            document.getElementById('campo_agendado').style.display = 'block';
+            document.getElementById('observacao').required = true;
+            document.getElementById('label_obs').innerHTML = "Observação (Obrigatório)";
+        } else if (res === 'Improdutivo') {
+            document.getElementById('campo_improdutivo').style.display = 'block';
+            document.getElementById('email').required = true;
+        } else if (res === 'GPON Indisponível') {
+            document.getElementById('campo_gpon').style.display = 'block';
+        } else if (res === 'Retorno') {
+            document.getElementById('campo_retorno').style.display = 'block';
+        } else if (res === 'Recusado - Outros') {
+            document.getElementById('observacao').required = true;
+            document.getElementById('label_obs').innerHTML = "Justificativa (Obrigatório para Recusado - Outros)";
+        }
+    }
+
+    function copiarCadastro() {
+        const dados = [
+            "Cliente: {{ cliente['cliente'] }}",
+            "Contrato: {{ cliente['contrato'] }}",
+            "Cidade: {{ cliente['cidade'] }}",
+            "Node: {{ cliente['node'] }}",
+            "Imóvel: {{ cliente['codigo_imovel'] }}",
+            "Endereço: {{ cliente['endereco'] }}{% if cliente['complemento'] %} — {{ cliente['complemento'] }}{% endif %}"
+        ].join("\n");
+        copiarTexto(dados, "Dados cadastrais copiados!");
+    }
+
+    function copiarContatos() {
+        const dados = [
+            "Celular: {{ cliente['telefone_celular'] }}",
+            "Residencial: {{ cliente['telefone_residencial'] }}",
+            "Comercial: {{ cliente['telefone_comercial'] }}",
+            "E-mail: {{ cliente['email'] }}"
+        ].join("\n");
+        copiarTexto(dados, "Contatos copiados!");
+    }
+
+    function copiarProdutos() {
+        const dados = [
+            "Internet: {{ cliente['produto_virtua'] }} — R$ {{ cliente['valor_virtua'] }}",
+            "Valor total: R$ {{ cliente['valor_total'] }}"
+        ].join("\n");
+        copiarTexto(dados, "Produtos e valores copiados!");
+    }
+
+    // ===== Gerador de Script =====
+    document.addEventListener('DOMContentLoaded', function () {
+        document.getElementById('scriptProtocolo').addEventListener('input', function (e) {
+            let v = e.target.value.replace(/\D/g, '').slice(0, 15);
+            let partes = [v.slice(0, 5), v.slice(5, 10), v.slice(10, 15)].filter(p => p.length > 0);
+            e.target.value = partes.join('.');
+        });
+
+        document.getElementById('areaScript').addEventListener('hidden.bs.collapse', function () {
+            document.getElementById('scriptFormulario').style.display = 'block';
+            document.getElementById('scriptResultado').style.display = 'none';
+            ['scriptProtocolo', 'scriptAtualProdutoTV', 'scriptAtualValorTV', 'scriptAtualProdutoVirtua', 'scriptAtualValorVirtua',
+             'scriptAtualProdutoFone', 'scriptAtualValorFone', 'scriptAtualValorTotal',
+             'scriptNovoProdutoTV', 'scriptNovoValorTV', 'scriptNovoProdutoNet', 'scriptNovoValorNet',
+             'scriptNovoProdutoFone', 'scriptNovoValorFone', 'scriptNovoValorTotal'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+            document.getElementById('scriptConsultor').value = 'Consultor';
+        });
+    });
+
+    // Scripts configurados pelo ADM em Administração > Scripts de Atendimento
+    // (cada um com seu próprio texto usando campos entre colchetes, ex: [cliente]).
+    const SCRIPTS_ATENDIMENTO = {{ scripts_atendimento | tojson }};
+    const NOME_CLIENTE_ATUAL = {{ cliente['cliente'] | tojson }};
+    const CONTRATO_ATUAL = {{ cliente['contrato'] | tojson }};
+    const CIDADE_ATUAL = {{ cliente['cidade'] | tojson }};
+    const TELEFONES_CLIENTE = [
+        { rotulo: "Celular", numero: {{ cliente['telefone_celular'] | tojson }} },
+        { rotulo: "Residencial", numero: {{ cliente['telefone_residencial'] | tojson }} },
+        { rotulo: "Comercial", numero: {{ cliente['telefone_comercial'] | tojson }} },
+    ].filter(t => t.numero && t.numero.replace(/\D/g, '').length >= 10);
+
+    function popularSeletorTelefones() {
+        const sel = document.getElementById('scriptTelefoneEscolhido');
+        sel.innerHTML = '';
+        if (TELEFONES_CLIENTE.length === 0) {
+            sel.innerHTML = '<option value="">Nenhum telefone válido cadastrado</option>';
+            return;
+        }
+        TELEFONES_CLIENTE.forEach((t) => {
+            const opt = document.createElement('option');
+            opt.value = t.numero;
+            opt.textContent = t.rotulo + ': ' + t.numero;
+            sel.appendChild(opt);
+        });
+    }
+
+    function enviarScriptWhatsapp() {
+        const numeroEscolhido = document.getElementById('scriptTelefoneEscolhido').value;
+        if (!numeroEscolhido) {
+            alert('Não tem telefone válido cadastrado pra esse cliente.');
+            return;
+        }
+        // wa.me exige o número completo com código do país -- o cadastro só
+        // guarda DDD + número, sem o "55" na frente, então adiciona aqui.
+        let digitos = numeroEscolhido.replace(/\D/g, '');
+        if (!digitos.startsWith('55')) {
+            digitos = '55' + digitos;
+        }
+        const texto = document.getElementById('scriptTexto').value;
+        const url = 'https://wa.me/' + digitos + '?text=' + encodeURIComponent(texto);
+        window.open(url, '_blank');
+    }
+
+    function montarValoresScript() {
+        const primeiroNomeOperador = "{{ (usuario_logado['nome'].split(' ')[0]) if usuario_logado else '' }}";
+        const numero = (elId) => (parseFloat(document.getElementById(elId).value) || 0).toFixed(2);
+        const texto = (elId) => document.getElementById(elId).value || '';
+        return {
+            protocolo: texto('scriptProtocolo'),
+            cliente: NOME_CLIENTE_ATUAL,
+            contrato: CONTRATO_ATUAL,
+            cidade: CIDADE_ATUAL,
+            operador: primeiroNomeOperador,
+            consultor: texto('scriptConsultor'),
+            atual_produto_tv: texto('scriptAtualProdutoTV'),
+            atual_tv: numero('scriptAtualValorTV'),
+            atual_produto_virtua: texto('scriptAtualProdutoVirtua'),
+            atual_virtua: numero('scriptAtualValorVirtua'),
+            atual_produto_fone: texto('scriptAtualProdutoFone'),
+            atual_fone: numero('scriptAtualValorFone'),
+            atual_total: numero('scriptAtualValorTotal'),
+            novo_produto_tv: texto('scriptNovoProdutoTV'),
+            novo_valor_tv: numero('scriptNovoValorTV'),
+            novo_produto_virtua: texto('scriptNovoProdutoNet'),
+            novo_valor_virtua: numero('scriptNovoValorNet'),
+            novo_produto_fone: texto('scriptNovoProdutoFone'),
+            novo_valor_fone: numero('scriptNovoValorFone'),
+            novo_valor_total: numero('scriptNovoValorTotal'),
+        };
+    }
+
+    function aplicarCamposScript(modelo, valores) {
+        let texto = modelo;
+        Object.keys(valores).forEach((chave) => {
+            const marcador = new RegExp('\\[' + chave + '\\]', 'g');
+            texto = texto.replace(marcador, valores[chave]);
+        });
+        return texto;
+    }
+
+    function gerarScript(idScript) {
+        const script = SCRIPTS_ATENDIMENTO.find((s) => s.id === idScript);
+        if (!script) {
+            alert('Script não encontrado. Fale com o ADM.');
+            return;
+        }
+        const valores = montarValoresScript();
+        const texto = aplicarCamposScript(script.texto, valores);
+
+        document.getElementById('scriptTexto').value = texto;
+        document.getElementById('scriptFormulario').style.display = 'none';
+        document.getElementById('scriptResultado').style.display = 'block';
+        popularSeletorTelefones();
+    }
+
+    function voltarFormularioScript() {
+        document.getElementById('scriptResultado').style.display = 'none';
+        document.getElementById('scriptFormulario').style.display = 'block';
+    }
+
+    function copiarScript() {
+        const area = document.getElementById('scriptTexto');
+        const texto = area.value;
+
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(texto).then(
+                () => alert("Script copiado!"),
+                () => copiarSelecionandoArea(area)
+            );
+        } else {
+            copiarSelecionandoArea(area);
+        }
+
+        function copiarSelecionandoArea(el) {
+            el.focus();
+            el.select();
+            el.setSelectionRange(0, el.value.length); // compatibilidade com celular
+            let deuCerto = false;
+            try {
+                deuCerto = document.execCommand("copy");
+            } catch (erro) {
+                deuCerto = false;
+            }
+            if (deuCerto) {
+                alert("Script copiado!");
+            } else {
+                alert("Não consegui copiar automaticamente. O texto já está selecionado — aperte Ctrl+C agora pra copiar manualmente.");
+            }
+        }
+    }
+    // ===== Colar captura de tela (Ctrl+V) na evidência de GPON =====
+    (function () {
+        var area = document.getElementById('areaColarPrint');
+        var inputArquivo = document.getElementById('evidencia');
+        var preview = document.getElementById('previewPrintColado');
+
+        area.addEventListener('click', function () { area.focus(); });
+
+        area.addEventListener('paste', function (e) {
+            var itens = (e.clipboardData || window.clipboardData).items;
+            for (var i = 0; i < itens.length; i++) {
+                if (itens[i].type.indexOf('image') !== -1) {
+                    var arquivo = itens[i].getAsFile();
+                    var dt = new DataTransfer();
+                    dt.items.add(new File([arquivo], 'captura_colada.png', { type: arquivo.type }));
+                    inputArquivo.files = dt.files;
+
+                    preview.src = URL.createObjectURL(arquivo);
+                    preview.style.display = 'block';
+                    area.innerHTML = '<i class="bi bi-check-circle-fill"></i> Captura colada! (clique aqui e cole outra pra substituir)';
+                    e.preventDefault();
+                }
+            }
+        });
+    })();
+
+</script>
+
+{% if texto_agendamento %}
+<div class="modal fade" id="modalTextoAgendamento" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-calendar-check"></i> Ocorrência do agendamento</h5>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-2">Copie e cole essa ocorrência no sistema de registro.</p>
+                <textarea id="textoAgendamentoGerado" class="form-control" rows="7" readonly>{{ texto_agendamento }}</textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-dark" onclick="copiarTextoAgendamento()"><i class="bi bi-clipboard"></i> Copiar texto</button>
+                <button type="button" class="btn btn-danger" data-bs-dismiss="modal">OK</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    function copiarTextoAgendamento() {
+        const area = document.getElementById('textoAgendamentoGerado');
+        copiarTexto(area.value, "Texto copiado!");
+    }
+    document.addEventListener('DOMContentLoaded', function () {
+        new bootstrap.Modal(document.getElementById('modalTextoAgendamento')).show();
+    });
+</script>
+{% endif %}
+
+{% endblock %}

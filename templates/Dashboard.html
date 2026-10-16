@@ -1,0 +1,745 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band">
+    <div class="hero-eyebrow">{{ data_escolhida }}</div>
+    <h1>{{ 'Seu resumo de atendimentos' if escopo_pessoal else 'Resumo da operação' }}</h1>
+    <p>{{ 'Seus números de hoje' if escopo_pessoal else 'Visão geral do time e da fila de migração' }}</p>
+</div>
+
+{% if not escopo_pessoal %}
+<div class="row g-3 kpi-row mb-4">
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-hourglass-split"></i></div>
+            <div class="kpi-titulo">Pendentes</div>
+            <div class="kpi">{{ pendentes }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--red);"><i class="bi bi-telephone-outbound-fill"></i></div>
+            <div class="kpi-titulo">Em andamento</div>
+            <div class="kpi">{{ andamento }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--warn);"><i class="bi bi-arrow-repeat"></i></div>
+            <div class="kpi-titulo">Enfileirados (follow up)</div>
+            <div class="kpi">{{ enfileirados }}</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--ok);"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="kpi-titulo">Concluídos</div>
+            <div class="kpi">{{ concluidos }}</div>
+        </div>
+    </div>
+</div>
+<p class="text-muted small mb-4"><a href="/dashboard/mailing"><i class="bi bi-people-fill"></i> Ver mailing por cidade, node, DDD, saturação e produto →</a></p>
+{% else %}
+<div class="kpi-row mb-4"></div>
+{% endif %}
+
+{% if meta_execucoes_mes %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card card-shadow">
+            <div class="card-body text-center">
+                <div class="section-title justify-content-center"><i class="bi bi-speedometer2"></i> Execuções: objetivo do dia anterior</div>
+                <div class="gauge-anel" style="--percentual: {{ [percentual_meta_execucoes_dia, 100] | min }}; --cor: {{ 'var(--ok)' if percentual_meta_execucoes_dia >= 100 else 'var(--red)' }};">
+                    <span>{{ percentual_meta_execucoes_dia }}%</span>
+                </div>
+                <div class="text-muted small mt-2">{{ execucoes_ontem.total }} de ~{{ meta_execucoes_dia }} execuções ontem (objetivo diário proporcional da equipe)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-shadow">
+            <div class="card-body text-center">
+                <div class="section-title justify-content-center"><i class="bi bi-speedometer2"></i> Execuções: objetivo do mês</div>
+                <div class="gauge-anel" style="--percentual: {{ [percentual_meta_execucoes_mes, 100] | min }}; --cor: {{ 'var(--ok)' if percentual_meta_execucoes_mes >= 100 else 'var(--red)' }};">
+                    <span>{{ percentual_meta_execucoes_mes }}%</span>
+                </div>
+                <div class="text-muted small mt-2">{{ execucoes_mes.total }} de {{ meta_execucoes_mes }} execuções em {{ mes_referencia }} (equipe)</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if meta_agendados_mes %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card card-shadow">
+            <div class="card-body text-center">
+                <div class="section-title justify-content-center"><i class="bi bi-speedometer2"></i> Agendados: objetivo do dia</div>
+                <div class="gauge-anel" style="--percentual: {{ [percentual_meta_dia, 100] | min }}; --cor: {{ 'var(--ok)' if percentual_meta_dia >= 100 else 'var(--red)' }};">
+                    <span>{{ percentual_meta_dia }}%</span>
+                </div>
+                <div class="text-muted small mt-2">{{ agendados_dia_time }} de ~{{ meta_agendados_dia }} agendados hoje (objetivo diário proporcional da equipe)</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card card-shadow">
+            <div class="card-body text-center">
+                <div class="section-title justify-content-center"><i class="bi bi-speedometer2"></i> Agendados: objetivo do mês</div>
+                <div class="gauge-anel" style="--percentual: {{ [percentual_meta_mes, 100] | min }}; --cor: {{ 'var(--ok)' if percentual_meta_mes >= 100 else 'var(--red)' }};">
+                    <span>{{ percentual_meta_mes }}%</span>
+                </div>
+                <div class="text-muted small mt-2">{{ agendados_mes_time }} de {{ meta_agendados_mes }} agendados em {{ mes_referencia }} (equipe)</div>
+            </div>
+        </div>
+    </div>
+</div>
+<p class="text-muted small mb-4">Conta pela <strong>data em que o agendamento foi feito</strong> -- por isso pode ser diferente da tela "Agendado x Executado", que conta pela data marcada da visita.</p>
+
+<style>
+    .gauge-anel {
+        width: 150px; height: 150px; border-radius: 50%; margin: 8px auto 0;
+        background: conic-gradient(var(--cor) calc(var(--percentual) * 3.6deg), var(--gray-300, #E7E6E2) 0deg);
+        display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .gauge-anel::before {
+        content: ""; position: absolute; width: 114px; height: 114px; border-radius: 50%;
+        background: white;
+    }
+    .gauge-anel span { position: relative; z-index: 1; font-size: 26px; font-weight: 800; color: var(--ink); }
+</style>
+{% endif %}
+
+<form method="GET" class="d-flex gap-2 mb-3 align-items-end flex-wrap">
+    <div>
+        <label class="form-label">Ver dados do dia</label>
+        <input type="date" name="data" class="form-control" value="{{ data_escolhida }}">
+    </div>
+    <div>
+        <label class="form-label">Gráfico -- De</label>
+        <input type="date" name="serie_inicio" class="form-control" value="{{ serie_data_inicio }}">
+    </div>
+    <div>
+        <label class="form-label">Gráfico -- Até</label>
+        <input type="date" name="serie_fim" class="form-control" value="{{ serie_data_fim }}">
+    </div>
+    <button type="submit" class="btn btn-outline-dark">Atualizar</button>
+</form>
+
+{% if serie_labels %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-graph-up-arrow"></i> Agendados x Executados por dia{{ '' if escopo_pessoal else ' -- equipe' }}</div>
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <canvas id="graficoAgendadoExecutadoDia" height="90"></canvas>
+            </div>
+            <div class="col-lg-4">
+                <div class="row g-3 h-100">
+                    <div class="col-6">
+                        <div class="kpi-card">
+                            <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-calendar-event"></i></div>
+                            <div class="kpi-titulo">Projeção do mês -- Agendados</div>
+                            <div class="kpi">{{ projecao_agendados_mes if projecao_agendados_mes is not none else '—' }}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="kpi-card">
+                            <div class="kpi-badge" style="--badge: var(--ok);"><i class="bi bi-check-circle-fill"></i></div>
+                            <div class="kpi-titulo">Projeção do mês -- Execuções</div>
+                            <div class="kpi">{{ projecao_execucoes_mes if projecao_execucoes_mes is not none else '—' }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<form method="GET" class="d-flex gap-2 mb-3 align-items-end flex-wrap">
+    <input type="hidden" name="data" value="{{ data_escolhida }}">
+    <input type="hidden" name="serie_inicio" value="{{ serie_data_inicio }}">
+    <input type="hidden" name="serie_fim" value="{{ serie_data_fim }}">
+    <div>
+        <label class="form-label">Quebra -- De</label>
+        <input type="date" name="quebra_inicio" class="form-control" value="{{ quebra_data_inicio }}">
+    </div>
+    <div>
+        <label class="form-label">Quebra -- Até</label>
+        <input type="date" name="quebra_fim" class="form-control" value="{{ quebra_data_fim }}">
+    </div>
+    <div>
+        <label class="form-label">Granularidade</label>
+        <select name="quebra_granularidade" class="form-select">
+            <option value="dia" {% if quebra_granularidade == 'dia' %}selected{% endif %}>Dia</option>
+            <option value="mes" {% if quebra_granularidade == 'mes' %}selected{% endif %}>Mês</option>
+            <option value="ano" {% if quebra_granularidade == 'ano' %}selected{% endif %}>Ano</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-outline-dark">Atualizar</button>
+</form>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-calendar-x-fill"></i> Quebra de Agenda{{ '' if escopo_pessoal else ' -- Célula Local x Regional' }}</div>
+        <div class="row g-3 mb-3">
+            {% if escopo_pessoal %}
+            <div class="col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--red);"><i class="bi bi-percent"></i></div>
+                    <div class="kpi-titulo">Sua taxa de quebra</div>
+                    <div class="kpi">{{ quebra_indicador.pessoal.taxa if quebra_indicador.pessoal.taxa is not none else '—' }}{{ '%' if quebra_indicador.pessoal.taxa is not none else '' }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-card-list"></i></div>
+                    <div class="kpi-titulo">Total de OS no período</div>
+                    <div class="kpi">{{ quebra_indicador.pessoal.total }}</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--warn);"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                    <div class="kpi-titulo">Com quebra</div>
+                    <div class="kpi">{{ quebra_indicador.pessoal.com_quebra }}</div>
+                </div>
+            </div>
+            {% else %}
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--red);"><i class="bi bi-percent"></i></div>
+                    <div class="kpi-titulo">Taxa Célula Local</div>
+                    <div class="kpi">{{ quebra_indicador.celula_local.taxa if quebra_indicador.celula_local.taxa is not none else '—' }}{{ '%' if quebra_indicador.celula_local.taxa is not none else '' }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-percent"></i></div>
+                    <div class="kpi-titulo">Taxa Regional</div>
+                    <div class="kpi">{{ quebra_indicador.regional.taxa if quebra_indicador.regional.taxa is not none else '—' }}{{ '%' if quebra_indicador.regional.taxa is not none else '' }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--warn);"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                    <div class="kpi-titulo">Com quebra (Célula Local)</div>
+                    <div class="kpi">{{ quebra_indicador.celula_local.com_quebra }}</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--ok);"><i class="bi bi-card-list"></i></div>
+                    <div class="kpi-titulo">Total OS (Célula Local)</div>
+                    <div class="kpi">{{ quebra_indicador.celula_local.total }}</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        <canvas id="graficoQuebraAgenda" height="90"></canvas>
+        {% if not escopo_pessoal %}
+        <p class="text-muted small mt-2 mb-0"><a href="/quebra/resultado">Ver todas as visões da quebra de agenda (por cidade, canal, agrupamento...) →</a></p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="section-title"><i class="bi bi-graph-up"></i> Produtividade {{ 'Dia' if escopo_pessoal else 'da equipe' }}</div>
+
+{% if escopo_pessoal %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card card-shadow text-center">
+            <div class="card-body">
+                <div class="titulo">Finalizados hoje ({{ data_escolhida }})</div>
+                <div class="kpi">{{ finalizados_dia }}</div>
+                <small class="text-muted">Agendados: {{ agendados_dia }} · Conversão: {{ conversao_dia }}%</small>
+            </div>
+        </div>
+        <div class="card card-shadow mt-3">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-clipboard-data-fill"></i> Meus tratamentos em {{ data_escolhida }}</div>
+                <hr>
+                {% if motivos %}
+                {% for m in motivos %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>{{ m['tabulacao'] }}</span>
+                        <span class="text-muted">{{ m['qtd'] }}</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-danger" style="width: {{ (m['qtd'] / total_motivos * 100) | round(1) }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted mb-0">Nenhum atendimento seu registrado nessa data.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card card-shadow text-center">
+            <div class="card-body">
+                <div class="titulo">Finalizados no mês ({{ mes_referencia }})</div>
+                <div class="kpi">{{ finalizados_mes }}</div>
+                <small class="text-muted">Agendados: {{ agendados_mes }} · Conversão: {{ conversao_mes }}%</small>
+            </div>
+        </div>
+        <div class="card card-shadow mt-3">
+            <div class="card-body">
+                <h6>Tratamentos - mês ({{ mes_referencia }})</h6>
+                <hr>
+                {% if motivos_mes %}
+                {% for m in motivos_mes %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>{{ m['tabulacao'] }}</span>
+                        <span class="text-muted">{{ m['qtd'] }}</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-danger" style="width: {{ (m['qtd'] / total_motivos_mes * 100) | round(1) }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted mb-0">Nenhum atendimento registrado nesse mês ainda.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card card-shadow text-center">
+            <div class="card-body">
+                <div class="titulo">Finalizados hoje ({{ data_escolhida }})</div>
+                <div class="kpi">{{ finalizados_dia }}</div>
+                <small class="text-muted">Agendados: {{ agendados_dia }} · Conversão: {{ conversao_dia }}%</small>
+            </div>
+        </div>
+        <div class="card card-shadow mt-3">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-clipboard-data-fill"></i> Tratamentos em {{ data_escolhida }}</div>
+                <hr>
+                {% if motivos %}
+                {% for m in motivos %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>{{ m['tabulacao'] }}</span>
+                        <span class="text-muted">{{ m['qtd'] }}</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-danger" style="width: {{ (m['qtd'] / total_motivos * 100) | round(1) }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted mb-0">Nenhum atendimento registrado nessa data.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card card-shadow text-center">
+            <div class="card-body">
+                <div class="titulo">Finalizados no mês ({{ mes_referencia }})</div>
+                <div class="kpi">{{ finalizados_mes }}</div>
+                <small class="text-muted">Agendados: {{ agendados_mes }} · Conversão: {{ conversao_mes }}%</small>
+            </div>
+        </div>
+        <div class="card card-shadow mt-3">
+            <div class="card-body">
+                <h6>Tratamentos - mês ({{ mes_referencia }})</h6>
+                <hr>
+                {% if motivos_mes %}
+                {% for m in motivos_mes %}
+                <div class="mb-2">
+                    <div class="d-flex justify-content-between">
+                        <span>{{ m['tabulacao'] }}</span>
+                        <span class="text-muted">{{ m['qtd'] }}</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-danger" style="width: {{ (m['qtd'] / total_motivos_mes * 100) | round(1) }}%"></div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p class="text-muted mb-0">Nenhum atendimento registrado nesse mês ainda.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if envelhecimento %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-hourglass-bottom"></i> Lead Time</div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="p-3 rounded {{ 'bg-danger bg-opacity-10' if envelhecimento.qtd_pendente_envelhecido > 0 else 'bg-light' }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-semibold">Nunca contatados</span>
+                        <span class="badge {{ 'bg-danger' if envelhecimento.qtd_pendente_envelhecido > 0 else 'bg-secondary' }} fs-6">{{ envelhecimento.qtd_pendente_envelhecido }}</span>
+                    </div>
+                    <div class="text-muted small mt-1">
+                        esperando há mais de {{ envelhecimento.limite_pendente_dias }} dia{{ 's' if envelhecimento.limite_pendente_dias != 1 else '' }}
+                        (idade média da fila: {{ envelhecimento.media_dias_pendente }} dia{{ 's' if envelhecimento.media_dias_pendente != 1 else '' }})
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded {{ 'bg-danger bg-opacity-10' if envelhecimento.qtd_followup_travado > 0 else 'bg-light' }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-semibold">Parados em follow-up</span>
+                        <span class="badge {{ 'bg-danger' if envelhecimento.qtd_followup_travado > 0 else 'bg-secondary' }} fs-6">{{ envelhecimento.qtd_followup_travado }}</span>
+                    </div>
+                    <div class="text-muted small mt-1">
+                        vencidos há mais de {{ envelhecimento.limite_followup_horas }}h
+                        (atraso médio: {{ envelhecimento.media_horas_atraso_followup }}h)
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if not escopo_pessoal and mapa_calor_cidades %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-geo-alt-fill"></i> Mapa de calor — agendados por cidade (últimos 14 dias)</div>
+        <div id="mapaCalorCidades"></div>
+    </div>
+</div>
+{% endif %}
+
+{% if not escopo_pessoal %}
+<form method="GET" class="d-flex gap-2 mb-3 align-items-end flex-wrap">
+    <input type="hidden" name="data" value="{{ data_escolhida }}">
+    <input type="hidden" name="serie_inicio" value="{{ serie_data_inicio }}">
+    <input type="hidden" name="serie_fim" value="{{ serie_data_fim }}">
+    <div>
+        <label class="form-label">Escala/presença -- De</label>
+        <input type="date" name="grafico_inicio" class="form-control" value="{{ grafico_data_inicio }}">
+    </div>
+    <div>
+        <label class="form-label">Escala/presença -- Até</label>
+        <input type="date" name="grafico_fim" class="form-control" value="{{ grafico_data_fim }}">
+    </div>
+    <button type="submit" class="btn btn-outline-dark">Atualizar</button>
+</form>
+
+{% if grafico_dias %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-bar-chart-line-fill"></i> Operadores: Escalados x Presentes x Ausentes</div>
+        <div class="row">
+            <div class="col-md-9">
+                <canvas id="graficoEscalaPresenca" height="90"></canvas>
+            </div>
+            <div class="col-md-3 d-flex align-items-center justify-content-center">
+                <div class="text-center p-3 border rounded bg-light w-100">
+                    <div class="text-muted small">Absenteísmo do período</div>
+                    <div style="font-size: 2.2rem; font-weight: 700; color: #A2001D;">{{ absenteismo_periodo_pct }}%</div>
+                    <div class="text-muted small">{{ grafico_data_inicio }} a {{ grafico_data_fim }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if hc_ativo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-person-lines-fill"></i> HC Ativo</div>
+        <canvas id="graficoHcAtivo" height="90"></canvas>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<div class="row g-3">
+    <div class="col-12">
+        <div class="card card-shadow">
+            <div class="card-body">
+                {% if escopo_pessoal %}
+                <div class="section-title"><i class="bi bi-clock-history"></i> Clientes tratados em {{ data_escolhida }}</div>
+                <hr>
+                {% if meus_atendimentos %}
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Contrato</th><th>Tabulação</th><th>Início</th><th>Fim</th><th>Duração</th></tr></thead>
+                    <tbody>
+                        {% for a in meus_atendimentos %}
+                        <tr>
+                            <td>{{ a['contrato'] }}</td>
+                            <td>{{ a['tabulacao'] }}</td>
+                            <td>{{ a['data_inicio'] }}</td>
+                            <td>{{ a['data_fim'] }}</td>
+                            <td>{{ '%.1f' | format(a['minutos']) }} min</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">Nenhum atendimento seu registrado nessa data.</p>
+                {% endif %}
+                {% else %}
+                <div class="section-title"><i class="bi bi-people-fill"></i> Tratamento por pessoa em {{ data_escolhida }}</div>
+                <hr>
+                {% if por_pessoa %}
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Operador</th><th>Qtd</th><th>Tempo médio</th><th></th></tr></thead>
+                    <tbody>
+                        {% for p in por_pessoa %}
+                        <tr>
+                            <td>{{ p['operador'] }}</td>
+                            <td>{{ p['qtd'] }}</td>
+                            <td>{{ '%.1f' | format(p['media_minutos']) }} min</td>
+                            <td>
+                                {% if p['usuario_id'] %}
+                                <a href="/dashboard/pessoa/{{ p['usuario_id'] }}?data={{ data_escolhida }}" class="btn btn-sm btn-outline-dark">Detalhes</a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">Nenhum atendimento registrado nessa data.</p>
+                {% endif %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if serie_labels or grafico_dias or quebra_serie %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+{% endif %}
+
+{% if serie_labels %}
+<script>
+    new Chart(document.getElementById('graficoAgendadoExecutadoDia'), {
+        type: 'line',
+        data: {
+            labels: {{ serie_labels | tojson }},
+            datasets: [
+                {
+                    label: 'Agendados',
+                    data: {{ serie_agendados | tojson }},
+                    borderColor: '#3A3A3F',
+                    backgroundColor: '#3A3A3F',
+                    tension: 0.25,
+                },
+                {
+                    label: 'Executados',
+                    data: {{ serie_execucoes | tojson }},
+                    borderColor: '#E4002B',
+                    backgroundColor: '#E4002B',
+                    tension: 0.25,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { beginAtZero: true, ticks: { precision: 0 } },
+            }
+        }
+    });
+</script>
+{% endif %}
+
+{% if not escopo_pessoal and grafico_dias %}
+<script>
+    new Chart(document.getElementById('graficoEscalaPresenca'), {
+        type: 'bar',
+        data: {
+            labels: {{ grafico_dias | tojson }},
+            datasets: [
+                {
+                    label: 'Escalados',
+                    data: {{ grafico_escalados | tojson }},
+                    backgroundColor: '#3A3A3F',
+                    stack: 'escalados',
+                },
+                {
+                    label: 'Presentes',
+                    data: {{ grafico_presentes | tojson }},
+                    backgroundColor: '#1E8E4A',
+                    stack: 'presenca',
+                },
+                {
+                    label: 'Ausentes',
+                    data: {{ grafico_ausentes | tojson }},
+                    backgroundColor: '#A2001D',
+                    stack: 'presenca',
+                },
+                {
+                    type: 'line', label: 'Absenteísmo (%)',
+                    data: {{ grafico_absenteismo_dia | tojson }},
+                    borderColor: '#F2A900', backgroundColor: '#F2A900', tension: 0.2,
+                    yAxisID: 'yPct', pointRadius: 2,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: { stacked: false },
+                y: { beginAtZero: true, ticks: { precision: 0 }, stacked: true },
+                yPct: {
+                    beginAtZero: true, position: 'right', grid: { drawOnChartArea: false },
+                    ticks: { callback: function (v) { return v + '%'; } },
+                    title: { display: true, text: 'Absenteísmo (%)' },
+                },
+            }
+        }
+    });
+</script>
+{% endif %}
+
+{% if hc_ativo %}
+<script>
+    // Rótulo de dado na linha REAL (HC ativo) -- pedido do Bruno, 2026-08-29.
+    // Chart.js não tem rótulo de ponto/linha nativo; em vez de puxar mais uma
+    // dependência externa (chartjs-plugin-datalabels), desenha só o número
+    // certo com um plugin inline, escrito acima de cada ponto da linha REAL.
+    var rotulosReal = {
+        id: 'rotulosReal',
+        afterDatasetsDraw: function (chart) {
+            var dsIndex = chart.data.datasets.findIndex(function (d) { return d.label === 'REAL'; });
+            if (dsIndex === -1) return;
+            var meta = chart.getDatasetMeta(dsIndex);
+            var ctx = chart.ctx;
+            ctx.save();
+            ctx.fillStyle = '#0C2F4C';
+            ctx.font = 'bold 11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            meta.data.forEach(function (ponto, i) {
+                var valor = chart.data.datasets[dsIndex].data[i];
+                ctx.fillText(valor, ponto.x, ponto.y - 6);
+            });
+            ctx.restore();
+        }
+    };
+
+    new Chart(document.getElementById('graficoHcAtivo'), {
+        plugins: [rotulosReal],
+        data: {
+            labels: {{ hc_ativo.dias | tojson }},
+            datasets: [
+                {
+                    type: 'bar', label: 'Contratações', data: {{ hc_ativo.contratacoes | tojson }},
+                    backgroundColor: '#22C3D6', yAxisID: 'yEventos',
+                },
+                {
+                    type: 'bar', label: 'Desligamentos', data: {{ hc_ativo.desligamentos | tojson }},
+                    backgroundColor: '#F2A900', yAxisID: 'yEventos',
+                },
+                {
+                    type: 'bar', label: 'Férias', data: {{ hc_ativo.ferias | tojson }},
+                    backgroundColor: '#7A2E8C', yAxisID: 'yEventos',
+                },
+                {
+                    type: 'bar', label: 'Afastamento', data: {{ hc_ativo.afastamento | tojson }},
+                    backgroundColor: '#EE84C6', yAxisID: 'yEventos',
+                },
+                {
+                    type: 'line', label: 'HC TOTAL', data: {{ hc_ativo.hc_total | tojson }},
+                    borderColor: '#8895A7', backgroundColor: '#8895A7', borderDash: [6, 4], tension: 0.2,
+                    yAxisID: 'yReal', pointRadius: 2,
+                },
+                {
+                    type: 'line', label: 'REAL', data: {{ hc_ativo.real | tojson }},
+                    borderColor: '#0C2F4C', backgroundColor: '#0C2F4C', tension: 0.2,
+                    yAxisID: 'yReal', pointRadius: 3,
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                yEventos: { beginAtZero: true, ticks: { precision: 0 }, position: 'left', title: { display: true, text: 'Eventos do dia' } },
+                yReal: { beginAtZero: true, ticks: { precision: 0 }, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'HC ativo' } },
+            }
+        }
+    });
+</script>
+{% endif %}
+
+{% if quebra_serie %}
+<script>
+    new Chart(document.getElementById('graficoQuebraAgenda'), {
+        type: 'line',
+        data: {
+            labels: {{ quebra_serie.labels | tojson }},
+            datasets: [
+                {% if escopo_pessoal %}
+                {
+                    label: 'Sua taxa de quebra (%)',
+                    data: {{ quebra_serie.pessoal | tojson }},
+                    borderColor: '#E4002B', backgroundColor: '#E4002B', tension: 0.25,
+                },
+                {% else %}
+                {
+                    label: 'Célula Local (%)',
+                    data: {{ quebra_serie.celula_local | tojson }},
+                    borderColor: '#E4002B', backgroundColor: '#E4002B', tension: 0.25,
+                },
+                {
+                    label: 'Regional (%)',
+                    data: {{ quebra_serie.regional | tojson }},
+                    borderColor: '#3A3A3F', backgroundColor: '#3A3A3F', tension: 0.25,
+                },
+                {% endif %}
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: (v) => v + '%' } },
+            }
+        }
+    });
+</script>
+{% endif %}
+
+{% if not escopo_pessoal and mapa_calor_cidades %}
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@6.7.0/dist/apexcharts.min.js"></script>
+<script>
+    new ApexCharts(document.querySelector("#mapaCalorCidades"), {
+        chart: { type: 'heatmap', height: {{ (mapa_calor_cidades | length) * 40 + 60 }}, toolbar: { show: false } },
+        series: {{ mapa_calor_cidades | tojson }},
+        dataLabels: { enabled: false },
+        colors: ['#E4002B'],
+        plotOptions: {
+            heatmap: {
+                colorScale: {
+                    ranges: [
+                        { from: 0, to: 0, color: '#F3F3F1', name: 'sem execução' },
+                        { from: 1, to: 5, color: '#F3B6C0' },
+                        { from: 6, to: 15, color: '#E4657F' },
+                        { from: 16, to: 1000, color: '#A2001D' },
+                    ]
+                }
+            }
+        },
+        xaxis: { labels: { rotate: -45 } },
+    }).render();
+</script>
+{% endif %}
+{% endblock %}

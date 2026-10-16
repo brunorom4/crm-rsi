@@ -1,0 +1,135 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<a href="/qualidade" class="text-decoration-none text-muted small"><i class="bi bi-arrow-left"></i> Voltar</a>
+<h2 class="mt-2 mb-1">Monitoria — {{ m['operador_nome'] }}</h2>
+<div class="text-muted small mb-4">Por {{ m['supervisor_nome'] }} em {{ m['data_monitoria'][:16] }}</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: {% if m['nota_final'] >= 70 %}var(--ok){% elif m['nota_final'] >= 40 %}var(--warn){% else %}var(--red){% endif %};"><i class="bi bi-award-fill"></i></div>
+            <div class="kpi-titulo">Nota final</div>
+            <div class="kpi">{{ m['nota_final'] }}%</div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: {% if m['aceite_status']=='ACEITO' %}var(--ok){% else %}var(--warn){% endif %};"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="kpi-titulo">Status do aceite</div>
+            <div class="kpi" style="font-size: 20px;">{{ 'Aceito' if m['aceite_status']=='ACEITO' else 'Pendente' }}</div>
+        </div>
+    </div>
+</div>
+
+{% if metricas %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-graph-up"></i> Indicadores no momento da monitoria</div>
+        <p class="text-muted small">Últimos 3 meses antes dessa monitoria, comparado com a média de todos os operadores na mesma época.</p>
+        <div class="row g-3">
+            {% set indicadores = [
+                ('Conversão (Agend./Tratados)', metricas.conversao_pct, media_geral.conversao_pct if media_geral else None, '%', true),
+                ('Tempo médio de tratamento', metricas.tempo_medio_min, media_geral.tempo_medio_min if media_geral else None, ' min', false),
+                ('Pausas excedidas', metricas.pausas_excedidas, media_geral.pausas_excedidas if media_geral else None, '', false),
+                ('Faltas', metricas.faltas, media_geral.faltas if media_geral else None, '', false),
+                ('Atrasos', metricas.atrasos, media_geral.atrasos if media_geral else None, '', false),
+                ('Saídas antecipadas', metricas.saidas_antecipadas, media_geral.saidas_antecipadas if media_geral else None, '', false),
+            ] %}
+            {% for titulo, valor, media, sufixo, maior_melhor in indicadores %}
+            <div class="col-md-4 col-6">
+                <div class="kpi-card">
+                    <div class="kpi-titulo">{{ titulo }}</div>
+                    <div class="kpi" style="font-size: 22px;">{{ valor }}{{ sufixo }}</div>
+                    {% if media is not none %}
+                        {% set melhor = (valor >= media) if maior_melhor else (valor <= media) %}
+                        <div class="small mt-1" style="color: {{ 'var(--ok)' if melhor else 'var(--red)' }};">
+                            {{ '▲' if valor >= media else '▼' }} média geral: {{ media }}{{ sufixo }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+            {% if metricas.agendamentos_por_mes %}
+            <div class="col-12">
+                <div class="kpi-card">
+                    <div class="kpi-titulo">Agendamentos por mês</div>
+                    <div>
+                        {% for x in metricas.agendamentos_por_mes %}
+                        {{ x.mes }}: <strong>{{ x.qtd }}</strong>{% if not loop.last %} &nbsp;|&nbsp; {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-list-check"></i> Avaliação</div>
+        <table class="table table-sm">
+            <tbody>
+                {% for chave, titulo, pergunta in perguntas %}
+                <tr>
+                    <td>
+                        <strong>{{ titulo }}</strong><br>
+                        <span class="text-muted small">{{ pergunta }}</span>
+                    </td>
+                    <td class="text-end" style="width: 100px;">
+                        {% if m[chave] %}
+                        <span class="status-pill status-verde">Sim</span>
+                        {% else %}
+                        <span class="status-pill status-vermelho">Não</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-chat-square-text-fill"></i> Observações</div>
+        <p><strong>Itens Pontuados</strong><br>{{ m['itens_pontuados'] or '—' }}</p>
+        <p><strong>Pontos Fortes</strong><br>{{ m['pontos_fortes'] or '—' }}</p>
+        <p><strong>Feedback, performance e plano de ação</strong><br>{{ m['feedback_plano_acao'] or '—' }}</p>
+        <p class="mb-0"><strong>Informações Adicionais</strong><br>{{ m['informacoes_adicionais'] or '—' }}</p>
+    </div>
+</div>
+
+{% if m['aceite_status'] == 'ACEITO' %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-check-circle-fill" style="color: var(--ok);"></i> Aceite registrado</div>
+        <p class="text-muted small mb-1">Em {{ m['aceite_data'][:16] }}</p>
+        {% if m['aceite_observacao'] %}
+        <p class="mb-0"><strong>Observação do colaborador:</strong> {{ m['aceite_observacao'] }}</p>
+        {% endif %}
+    </div>
+</div>
+{% elif eh_dono %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-hand-thumbs-up-fill"></i> Dar aceite nessa monitoria</div>
+        <form action="/qualidade/{{ m['id'] }}/aceitar" method="POST">
+            <div class="mb-3">
+                <label class="form-label">Observações (opcional)</label>
+                <textarea name="aceite_observacao" class="form-control" rows="3" placeholder="Se quiser, deixe um comentário sobre a monitoria..."></textarea>
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-check-circle-fill"></i> Confirmar aceite</button>
+        </form>
+    </div>
+</div>
+{% else %}
+<div class="card card-shadow">
+    <div class="card-body text-muted">
+        <i class="bi bi-hourglass-split"></i> Aguardando aceite do operador.
+    </div>
+</div>
+{% endif %}
+{% endblock %}

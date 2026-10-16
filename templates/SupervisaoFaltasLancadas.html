@@ -1,0 +1,326 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band">
+    <div class="hero-eyebrow">Supervisão</div>
+    <h1>Faltas lançadas</h1>
+</div>
+
+<div class="d-flex justify-content-end mb-2 gap-2">
+    <a href="/supervisao/faltas" class="btn btn-sm btn-outline-primary"><i class="bi bi-calendar-x-fill"></i> Pendências de registro de falta</a>
+    <a href="/supervisao" class="btn btn-sm btn-outline-dark"><i class="bi bi-arrow-left"></i> Voltar pra Supervisão</a>
+</div>
+
+{% with mensagens = get_flashed_messages(with_categories=true) %}
+{% for categoria, mensagem in mensagens %}
+<div class="alert alert-{{ 'success' if categoria == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+    {{ mensagem }}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endfor %}
+{% endwith %}
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-funnel-fill"></i> Filtro</div>
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-auto">
+                <label class="form-label fw-bold">De</label>
+                <input type="date" name="data_de" class="form-control" value="{{ data_de }}" min="{{ data_minima }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label fw-bold">Até</label>
+                <input type="date" name="data_ate" class="form-control" value="{{ data_ate }}" min="{{ data_minima }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label fw-bold">Pessoa</label>
+                <select name="usuario_id" class="form-select">
+                    <option value="">Todas</option>
+                    {% for p in pessoas %}
+                    <option value="{{ p.id }}" {% if usuario_filtro == p.id %}selected{% endif %}>{{ p.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-primary">Filtrar</button>
+            </div>
+        </form>
+        <p class="text-muted small mt-2 mb-0">
+            Mostra faltas já registradas (passadas, de hoje e futuras, como Férias). Dá pra editar ou excluir
+            lançamentos a partir de {{ data_minima[8:10] }}/{{ data_minima[5:7] }}/{{ data_minima[0:4] }}
+            (mesmo limite de 30 dias do registro).
+        </p>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-list-check"></i>
+            {{ lancamentos|length }} lançamento{{ 's' if lancamentos|length != 1 else '' }} no período
+        </div>
+        {% if lancamentos %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Pessoa</th>
+                        <th>Período</th>
+                        <th>Motivo</th>
+                        <th>Observação</th>
+                        <th>Lançado por</th>
+                        <th class="text-end">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in lancamentos %}
+                    <tr>
+                        <td><strong>{{ l.nome }}</strong></td>
+                        <td class="text-nowrap">
+                            {{ l.data_de[8:10] }}/{{ l.data_de[5:7] }}/{{ l.data_de[0:4] }}
+                            {% if l.data_ate != l.data_de %}
+                            a {{ l.data_ate[8:10] }}/{{ l.data_ate[5:7] }}/{{ l.data_ate[0:4] }}
+                            <span class="badge bg-secondary">{{ l.dias }} dias</span>
+                            {% endif %}
+                            {% if l.data_de <= hoje <= l.data_ate %}<span class="badge bg-primary">hoje</span>{% endif %}
+                        </td>
+                        <td>{{ l.motivo }}{% if l.submotivo %} <span class="text-muted">({{ l.submotivo }})</span>{% endif %}</td>
+                        <td class="small">{{ l.observacao }}</td>
+                        <td class="small text-muted text-nowrap">
+                            {{ l.registrado_por }}<br>
+                            {% if l.data_registro %}{{ l.data_registro[8:10] }}/{{ l.data_registro[5:7] }} {{ l.data_registro[11:16] }}{% endif %}
+                        </td>
+                        <td class="text-end text-nowrap">
+                            {% if l.data_ate >= data_minima %}
+                            <button type="button" class="btn btn-sm btn-outline-primary"
+                                    onclick='abrirEditar({{ l | tojson }})'>
+                                <i class="bi bi-pencil-fill"></i> Editar
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    onclick='abrirExcluir({{ l | tojson }})'>
+                                <i class="bi bi-trash-fill"></i> Excluir
+                            </button>
+                            {% else %}
+                            <span class="text-muted small">fora do prazo</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma falta lançada no período.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-clock-history"></i> Últimos ajustes</div>
+        {% if historico %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0 small">
+                <thead>
+                    <tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Período</th><th>Antes</th><th>Depois</th></tr>
+                </thead>
+                <tbody>
+                    {% for h in historico %}
+                    <tr>
+                        <td class="text-nowrap">{{ h.feito_em[8:10] }}/{{ h.feito_em[5:7] }} {{ h.feito_em[11:16] }}</td>
+                        <td>{{ h.feito_por }}</td>
+                        <td>{% if h.acao == 'EXCLUIR' %}<span class="badge bg-danger">Excluiu</span>{% else %}<span class="badge bg-primary">Editou</span>{% endif %}</td>
+                        <td class="text-nowrap">
+                            {{ h.data_de[8:10] }}/{{ h.data_de[5:7] }}{% if h.data_ate != h.data_de %} a {{ h.data_ate[8:10] }}/{{ h.data_ate[5:7] }}{% endif %}
+                        </td>
+                        <td>{{ h.antes }}</td>
+                        <td>{{ h.depois or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhum ajuste feito ainda.</p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal: editar -->
+<div class="modal fade" id="modalEditar" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Editar falta</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/supervisao/faltas-lancadas/editar">
+                <input type="hidden" name="voltar_para" value="{{ request.full_path }}">
+                <input type="hidden" name="ids" id="editarIds">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Pessoa</label>
+                        <select name="usuario_id" id="editarPessoa" class="form-select" onchange="avisoTrocaPessoa()" required>
+                            {% for p in pessoas %}
+                            <option value="{{ p.id }}">{{ p.nome }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text text-warning-emphasis" id="avisoTroca" style="display:none;">
+                            A falta sai de <strong id="avisoTrocaDe"></strong> e passa pra pessoa escolhida.
+                            Se ela já tiver falta em algum desses dias, a antiga é substituída.
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">De</label>
+                            <input type="date" name="data_de" id="editarDe" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Até</label>
+                            <input type="date" name="data_ate" id="editarAte" class="form-control" required>
+                        </div>
+                        <div class="form-text">Pra alterar só parte do lançamento, ajuste De/Até (dentro do período original).</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">Motivo</label>
+                        <select name="motivo" id="selectMotivoAusencia" class="form-select" onchange="atualizarSubmotivo()" required>
+                            <option value="">Selecione...</option>
+                            <option value="Falta Justificada">Falta Justificada</option>
+                            <option value="Injustificada">Injustificada</option>
+                            <option value="Treinamento">Treinamento</option>
+                            <option value="Férias">Férias</option>
+                            <option value="Afastamento">Afastamento</option>
+                            {% for m in motivos_ausencia_extras %}
+                            <option value="{{ m }}">{{ m }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3" id="campoSubmotivoAusencia" style="display:none;">
+                        <label class="form-label">Submotivo</label>
+                        <select name="submotivo" id="selectSubmotivoAusencia" class="form-select" onchange="atualizarObservacaoObrigatoria()">
+                            <option value="">Selecione...</option>
+                            <option>Atestado</option>
+                            <option>Doação de Sangue</option>
+                            <option>Motivo Escolar</option>
+                            <option>Alistamento Militar</option>
+                            <option>Treinamento Eleitoral</option>
+                            <option>Outros</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" id="labelObservacaoAusencia">Observações</label>
+                        <textarea name="observacao" id="observacaoAusencia" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar alteração</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: excluir -->
+<div class="modal fade" id="modalExcluir" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Excluir falta — <span id="excluirNome"></span></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="/supervisao/faltas-lancadas/excluir">
+                <input type="hidden" name="voltar_para" value="{{ request.full_path }}">
+                <input type="hidden" name="ids" id="excluirIds">
+                <div class="modal-body">
+                    <p class="mb-3"><span id="excluirMotivo"></span></p>
+                    <div class="row mb-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">De</label>
+                            <input type="date" name="data_de" id="excluirDe" class="form-control" required>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Até</label>
+                            <input type="date" name="data_ate" id="excluirAte" class="form-control" required>
+                        </div>
+                    </div>
+                    <div class="form-text">Já vem com o lançamento inteiro. Pra excluir só alguns dias, ajuste De/Até.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-danger">Excluir</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const DATA_MINIMA = '{{ data_minima }}';
+    let pessoaOriginal = null;
+
+    function limitarDatas(idDe, idAte, l) {
+        const de = document.getElementById(idDe), ate = document.getElementById(idAte);
+        const minimo = l.data_de < DATA_MINIMA ? DATA_MINIMA : l.data_de;
+        [de, ate].forEach(function (c) { c.min = minimo; c.max = l.data_ate; });
+        de.value = minimo;
+        ate.value = l.data_ate;
+    }
+
+    function abrirEditar(l) {
+        document.getElementById('editarIds').value = l.ids_str;
+        pessoaOriginal = { id: String(l.usuario_id), nome: l.nome };
+        document.getElementById('editarPessoa').value = String(l.usuario_id);
+        avisoTrocaPessoa();
+        limitarDatas('editarDe', 'editarAte', l);
+        document.getElementById('selectMotivoAusencia').value = l.motivo;
+        atualizarSubmotivo();
+        document.getElementById('selectSubmotivoAusencia').value = l.submotivo || '';
+        document.getElementById('observacaoAusencia').value = l.observacao || '';
+        atualizarObservacaoObrigatoria();
+        new bootstrap.Modal(document.getElementById('modalEditar')).show();
+    }
+
+    function avisoTrocaPessoa() {
+        const trocou = pessoaOriginal && document.getElementById('editarPessoa').value !== pessoaOriginal.id;
+        document.getElementById('avisoTroca').style.display = trocou ? 'block' : 'none';
+        if (trocou) document.getElementById('avisoTrocaDe').innerText = pessoaOriginal.nome;
+    }
+
+    function abrirExcluir(l) {
+        document.getElementById('excluirIds').value = l.ids_str;
+        document.getElementById('excluirNome').innerText = l.nome;
+        document.getElementById('excluirMotivo').innerText =
+            l.motivo + (l.submotivo ? ' (' + l.submotivo + ')' : '') + ' — lançado por ' + l.registrado_por;
+        limitarDatas('excluirDe', 'excluirAte', l);
+        new bootstrap.Modal(document.getElementById('modalExcluir')).show();
+    }
+
+    function atualizarSubmotivo() {
+        var motivo = document.getElementById('selectMotivoAusencia').value;
+        var campo = document.getElementById('campoSubmotivoAusencia');
+        var select = document.getElementById('selectSubmotivoAusencia');
+        if (motivo === 'Falta Justificada') {
+            campo.style.display = 'block';
+            select.required = true;
+        } else {
+            campo.style.display = 'none';
+            select.required = false;
+            select.value = '';
+        }
+        atualizarObservacaoObrigatoria();
+    }
+
+    function atualizarObservacaoObrigatoria() {
+        var submotivo = document.getElementById('selectSubmotivoAusencia').value;
+        var textarea = document.getElementById('observacaoAusencia');
+        var label = document.getElementById('labelObservacaoAusencia');
+        if (submotivo === 'Outros') {
+            textarea.required = true;
+            label.innerHTML = 'Observações (obrigatório para "Outros")';
+        } else {
+            textarea.required = false;
+            label.innerHTML = 'Observações';
+        }
+    }
+</script>
+{% endblock %}

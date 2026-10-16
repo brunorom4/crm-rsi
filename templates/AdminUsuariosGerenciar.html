@@ -1,0 +1,85 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-people-fill"></i> Gerenciar Usuários</h2>
+        <p class="text-muted">
+            Corrige dados e perfil, reseta senha, desliga/reativa e exclui -- pra qualquer perfil.
+            (A Supervisão continua cuidando do time de Assistentes no dia a dia; aqui é a visão
+            completa do ADM, com todos os perfis.)
+        </p>
+        <hr>
+        {% if request.args.get('erro') %}
+        <div class="alert alert-danger">{{ request.args.get('erro') }}</div>
+        {% endif %}
+        <input type="text" id="filtroUsuarios" class="form-control mb-3" placeholder="Buscar por nome ou login..." onkeyup="filtrarUsuarios()">
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle" id="tabelaUsuarios">
+                <thead>
+                    <tr>
+                        <th>Nome</th><th>Login</th><th>E-mail</th><th>Celular</th><th>Perfil</th>
+                        <th>Status</th><th colspan="2">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in usuarios %}
+                    <tr class="linha-usuario {{ 'table-secondary' if not u['ativo'] }}">
+                        <form action="/admin/usuarios/{{ u['id'] }}/atualizar-dados" method="POST" class="d-contents">
+                            <td><input type="text" name="nome" class="form-control form-control-sm" value="{{ u['nome'] }}" required></td>
+                            <td><input type="text" name="login" class="form-control form-control-sm" value="{{ u['login'] }}" required></td>
+                            <td><input type="email" name="email" class="form-control form-control-sm" value="{{ u['email'] or '' }}"></td>
+                            <td><input type="text" name="celular" class="form-control form-control-sm" value="{{ u['celular'] or '' }}"></td>
+                            <td>
+                                <select name="perfil" class="form-select form-select-sm">
+                                    {% for p in perfis_existentes %}
+                                    <option value="{{ p }}" {% if u['perfil'] == p %}selected{% endif %}>{{ p }}</option>
+                                    {% endfor %}
+                                </select>
+                            </td>
+                            <td>{{ 'Ativo' if u['ativo'] else 'Desligado' }}</td>
+                            <td><button type="submit" class="btn btn-sm btn-danger">Salvar</button></td>
+                        </form>
+                        <td class="d-flex gap-1 flex-wrap">
+                            <form action="/admin/usuarios/{{ u['id'] }}/resetar-senha" method="POST"
+                                  onsubmit="return confirm('Resetar a senha de {{ u['nome'] }} pro login dela mesma? A pessoa vai precisar trocar no próximo acesso.');">
+                                <button type="submit" class="btn btn-sm btn-outline-dark" title="Resetar senha"><i class="bi bi-key-fill"></i></button>
+                            </form>
+                            {% if u['ativo'] %}
+                            <form action="/admin/usuarios/{{ u['id'] }}/desligar" method="POST"
+                                  onsubmit="return confirm('Desligar {{ u['nome'] }}?');">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary" title="Desligar"><i class="bi bi-person-dash-fill"></i></button>
+                            </form>
+                            {% else %}
+                            <form action="/admin/usuarios/{{ u['id'] }}/reativar" method="POST">
+                                <button type="submit" class="btn btn-sm btn-outline-success" title="Reativar"><i class="bi bi-person-check-fill"></i></button>
+                            </form>
+                            {% endif %}
+                            <form action="/admin/usuarios/{{ u['id'] }}/excluir" method="POST"
+                                  onsubmit="return confirm('Excluir {{ u['nome'] }}? Isso remove ela da lista de vez (o histórico continua íntegro).');">
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="Excluir"><i class="bi bi-trash-fill"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .d-contents { display: contents; }
+</style>
+<script>
+    function filtrarUsuarios() {
+        const termo = document.getElementById('filtroUsuarios').value.toLowerCase();
+        document.querySelectorAll('#tabelaUsuarios tbody tr.linha-usuario').forEach((linha) => {
+            const nome = linha.querySelector('input[name="nome"]').value.toLowerCase();
+            const login = linha.querySelector('input[name="login"]').value.toLowerCase();
+            linha.style.display = (nome.includes(termo) || login.includes(termo)) ? '' : 'none';
+        });
+    }
+</script>
+{% endblock %}

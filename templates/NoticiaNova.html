@@ -1,0 +1,82 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-{{ 'pencil-square' if noticia else 'plus-circle-fill' }}"></i> {{ 'Editar notícia' if noticia else 'Nova notícia' }}</div>
+
+        <form id="formNoticia" action="{{ '/noticias/%d/editar/salvar' % noticia['id'] if noticia else '/noticias/salvar' }}" method="POST" onsubmit="return prepararEnvio()">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Título</label>
+                <input type="text" name="titulo" class="form-control" required maxlength="200" value="{{ noticia['titulo'] if noticia else '' }}">
+            </div>
+
+            <div class="mb-2">
+                <label class="form-label fw-bold">Conteúdo</label>
+                <div class="text-muted small mb-2">
+                    <i class="bi bi-clipboard"></i> Pra anexar uma imagem: use o botão de imagem na barra de ferramentas
+                    (procura nas pastas do computador), ou simplesmente cole (Ctrl+V) uma captura de tela copiada.
+                </div>
+                <div id="editorNoticia" style="height: 340px; background: white;"></div>
+                <input type="hidden" name="conteudo_html" id="conteudoHtmlOculto">
+            </div>
+
+            <button type="submit" class="btn btn-danger mt-3"><i class="bi bi-send-fill"></i> {{ 'Salvar alterações' if noticia else 'Publicar' }}</button>
+            <a href="/noticias" class="btn btn-outline-dark mt-3">Cancelar</a>
+        </form>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.js"></script>
+<script>
+    var quill = new Quill('#editorNoticia', {
+        theme: 'snow',
+        modules: {
+            toolbar: [
+                [{ 'font': [] }],
+                [{ 'size': ['small', false, 'large', 'huge'] }],
+                ['bold', 'italic', 'underline'],
+                [{ 'color': [] }, { 'background': [] }],
+                [{ 'align': [] }],
+                ['image'],
+                ['clean'],
+            ]
+        }
+    });
+
+    {% if noticia %}
+    quill.root.innerHTML = {{ noticia['conteudo_html'] | tojson }};
+    {% endif %}
+
+    // Colar imagem (Ctrl+V), igual a captura de tela do GPON Indisponível
+    quill.root.addEventListener('paste', function (e) {
+        var itens = (e.clipboardData || window.clipboardData).items;
+        for (var i = 0; i < itens.length; i++) {
+            if (itens[i].type.indexOf('image') !== -1) {
+                var arquivo = itens[i].getAsFile();
+                var leitor = new FileReader();
+                leitor.onload = function (evento) {
+                    var range = quill.getSelection(true) || { index: quill.getLength() };
+                    quill.insertEmbed(range.index, 'image', evento.target.result);
+                    quill.setSelection(range.index + 1);
+                };
+                leitor.readAsDataURL(arquivo);
+                e.preventDefault();
+                break;
+            }
+        }
+    });
+
+    function prepararEnvio() {
+        var conteudo = quill.root.innerHTML;
+        if (quill.getText().trim().length === 0 && !conteudo.includes('<img')) {
+            alert('Escreva algo (ou anexe uma imagem) antes de publicar.');
+            return false;
+        }
+        document.getElementById('conteudoHtmlOculto').value = conteudo;
+        return true;
+    }
+</script>
+{% endblock %}

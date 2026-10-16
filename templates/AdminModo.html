@@ -1,0 +1,218 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-gear-fill"></i> Modo de Trabalho</h2>
+        <hr>
+        <p class="text-muted">
+            <strong>Ativo:</strong> o sistema distribui os contratos automaticamente pra fila de cada operador.<br>
+            <strong>Receptivo:</strong> não existe distribuição automática — o operador busca o contrato manualmente
+            (tela "Buscar Contrato") sempre que precisar.
+        </p>
+        <p>Modo atual: <span class="badge bg-danger">{{ modo_atual }}</span></p>
+
+        <form action="/admin/modo/salvar" method="POST" class="d-flex gap-2 align-items-end">
+            <div>
+                <label class="form-label">Novo modo</label>
+                <select name="modo_trabalho" class="form-select">
+                    <option value="ATIVO" {% if modo_atual == 'ATIVO' %}selected{% endif %}>Ativo</option>
+                    <option value="RECEPTIVO" {% if modo_atual == 'RECEPTIVO' %}selected{% endif %}>Receptivo</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-danger">Salvar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-sun-fill"></i> Link do Sunny</h2>
+        <hr>
+        <p class="text-muted">
+            Link do agente Sunny (Microsoft 365 Copilot / Agent Builder). É esse link que abre
+            quando alguém clica em "Sunny" no menu lateral.
+        </p>
+        <form action="/admin/sunny/salvar" method="POST" class="d-flex gap-2 align-items-end flex-wrap">
+            <div class="flex-grow-1">
+                <label class="form-label">URL do Sunny</label>
+                <input type="url" name="sunny_link" class="form-control" value="{{ sunny_link or '' }}" placeholder="https://m365.cloud.microsoft/chat/agent/...">
+            </div>
+            <button type="submit" class="btn btn-danger">Salvar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-geo-alt-fill"></i> Bloqueio de cidades sem cota</h2>
+        <hr>
+        <p class="text-muted">
+            Marque as cidades onde a distribuição automática deve ficar pausada temporariamente
+            (ex: falta de técnico, evento climático). As cidades não marcadas seguem a distribuição
+            normal, por prioridade. Contratos já em andamento não são afetados.
+        </p>
+        {% if cidades_mailing %}
+        <form action="/admin/cidades_bloqueio/salvar" method="POST">
+            <div class="row">
+                {% for cidade in cidades_mailing %}
+                <div class="col-md-4 mb-2">
+                    <input type="hidden" name="todas_cidades" value="{{ cidade }}">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="cidade_bloqueada" value="{{ cidade }}"
+                               id="cidade_{{ loop.index }}" {% if bloqueios.get(cidade) and bloqueios[cidade]['bloqueado'] %}checked{% endif %}>
+                        <label class="form-check-label" for="cidade_{{ loop.index }}">{{ cidade }}</label>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="submit" class="btn btn-danger mt-3">Salvar bloqueios</button>
+        </form>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma cidade encontrada no mailing.</p>
+        {% endif %}
+    </div>
+</div>
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-speedometer2"></i> Objetivo mensal de agendados</h2>
+        <hr>
+        <p class="text-muted">Usada nos velocímetros do Dashboard, comparando o volume de agendados com esse objetivo.</p>
+        <form action="/admin/meta_agendados/salvar" method="POST" class="d-flex gap-2 align-items-end">
+            <div>
+                <label class="form-label">Objetivo do mês</label>
+                <input type="number" name="meta_agendados_mes" class="form-control" style="max-width: 160px;" min="1" value="{{ meta_agendados_mes }}">
+            </div>
+            <button type="submit" class="btn btn-danger">Salvar</button>
+        </form>
+    </div>
+</div>
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-speedometer2"></i> Objetivo mensal de execuções</h2>
+        <hr>
+        <p class="text-muted">Usada nos velocímetros de Execuções em campo do Dashboard, comparando o volume de OS's executadas com esse objetivo.</p>
+        <form action="/admin/meta_execucoes/salvar" method="POST" class="d-flex gap-2 align-items-end">
+            <div>
+                <label class="form-label">Objetivo do mês</label>
+                <input type="number" name="meta_execucoes_mes" class="form-control" style="max-width: 160px;" min="1" value="{{ meta_execucoes_mes }}">
+            </div>
+            <button type="submit" class="btn btn-danger">Salvar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-exclamation-triangle-fill"></i> Contingência — Transferências</h2>
+        <hr>
+        <p class="text-muted">
+            Quando um contrato já pertence a alguém e outra pessoa cria uma Nova Tarefa pra ele, normalmente isso
+            vira um pedido de transferência esperando aprovação em Transferências. Ligando essa opção, a
+            transferência já acontece direto, sem esperar aprovação manual — use só em momento de pico ou
+            instabilidade, e desligue depois.
+        </p>
+        <form action="/admin/modo/transferencia_auto_aprovar/alternar" method="POST">
+            <button type="submit" class="btn {{ 'btn-danger' if transferencia_auto_aprovar else 'btn-outline-dark' }}">
+                <i class="bi bi-toggle-{{ 'on' if transferencia_auto_aprovar else 'off' }}"></i>
+                {{ 'Contingência LIGADA — transferências automáticas' if transferencia_auto_aprovar else 'Contingência desligada — aprovação manual normal' }}
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-calendar-plus-fill"></i> Motivos de Ausência — Extras</h2>
+        <hr>
+        <p class="text-muted">
+            Os 5 motivos fixos (Falta Justificada, Injustificada, Treinamento, Férias, Afastamento) sempre existem.
+            Aqui você pode cadastrar motivos extras pra situações pontuais (ex: Feriado), que aparecem junto no
+            dropdown de registrar falta.
+        </p>
+        <form action="/admin/motivos-ausencia/adicionar" method="POST" class="d-flex gap-2 mb-3">
+            <input type="text" name="nome" class="form-control" style="max-width: 300px;" placeholder="Nome do motivo (ex: Feriado)" required>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-plus-lg"></i> Adicionar</button>
+        </form>
+        {% if motivos_ausencia_customizados %}
+        <table class="table table-sm align-middle" style="max-width: 500px;">
+            <tbody>
+                {% for m in motivos_ausencia_customizados %}
+                <tr>
+                    <td>{{ m['nome'] }}</td>
+                    <td class="text-muted small">{{ 'Ativo' if m['ativo'] else 'Desativado' }}</td>
+                    <td>
+                        <form action="/admin/motivos-ausencia/{{ m['id'] }}/alternar" method="POST">
+                            <button type="submit" class="btn btn-sm btn-outline-dark">
+                                {{ 'Desativar' if m['ativo'] else 'Reativar' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted small mb-0">Nenhum motivo extra cadastrado ainda.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-slash-circle-fill"></i> Blacklist de contratos</h2>
+        <hr>
+        <p class="text-muted">
+            Contratos aqui deixam de ser oferecidos na distribuição automática (fila geral e followup) —
+            nem novo, nem devolvido por inatividade. Um contrato já EM_ANDAMENTO com alguém não é
+            interrompido; o bloqueio só impede uma <strong>nova</strong> distribuição. Use "Buscar Contrato"
+            se precisar tratar um contrato bloqueado manualmente.
+        </p>
+        <form action="/admin/blacklist/adicionar" method="POST" class="mb-3">
+            <div class="row g-2">
+                <div class="col-md-7">
+                    <label class="form-label">Contrato(s)</label>
+                    <textarea name="contratos" class="form-control" rows="2" placeholder="Um por linha, ou separados por vírgula/espaço&#10;ex: 1537100, 401027863" required></textarea>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Motivo (opcional)</label>
+                    <input type="text" name="motivo" class="form-control" placeholder="ex: fraude confirmada">
+                </div>
+                <div class="col-md-1 d-flex align-items-end">
+                    <button type="submit" class="btn btn-danger w-100"><i class="bi bi-plus-lg"></i></button>
+                </div>
+            </div>
+        </form>
+        {% if blacklist_contratos %}
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Contrato</th>
+                    <th>Motivo</th>
+                    <th>Adicionado por</th>
+                    <th>Quando</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for b in blacklist_contratos %}
+                <tr>
+                    <td>{{ b['contrato'] }}</td>
+                    <td>{{ b['motivo'] or '—' }}</td>
+                    <td>{{ b['criado_por'] }}</td>
+                    <td class="text-muted small">{{ b['criado_em'] }}</td>
+                    <td>
+                        <form action="/admin/blacklist/{{ b['id'] }}/remover" method="POST" onsubmit="return confirm('Remover {{ b['contrato'] }} da blacklist?');">
+                            <button type="submit" class="btn btn-sm btn-outline-dark"><i class="bi bi-trash"></i> Remover</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted small mb-0">Nenhum contrato bloqueado no momento.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

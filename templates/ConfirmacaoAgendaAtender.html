@@ -1,0 +1,85 @@
+{% extends "layout_confirmacao_agenda.html" %}
+
+{% block conteudo %}
+<a href="/confirmacao-agenda/atender" class="btn btn-sm btn-outline-secondary mb-3">← Trocar DDD</a>
+
+{% if not contrato %}
+<div class="card card-shadow">
+    <div class="card-body text-center py-5">
+        <i class="bi bi-check2-circle" style="font-size: 3rem; color: #4C8C4A;"></i>
+        <h4 class="mt-3">Sem contratos pendentes no DDD {{ ddd_escolhido }} no momento</h4>
+        <p class="text-muted">Escolha outro DDD ou volte mais tarde.</p>
+        <div class="d-flex flex-wrap gap-2 justify-content-center mt-3">
+            {% for ddd in ddds_disponiveis %}
+            <a href="/confirmacao-agenda/atender?ddd={{ ddd }}" class="btn btn-outline-dark btn-sm">DDD {{ ddd }}</a>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3"><strong>Contrato</strong><br>{{ contrato['cd_contrato'] }}</div>
+            <div class="col-md-3"><strong>Cidade</strong><br>{{ contrato['cidade'] }} (DDD {{ contrato['ddd'] }})</div>
+            <div class="col-md-3"><strong>Data Agendada</strong><br>{{ contrato['data_agendamento'] }}</div>
+            <div class="col-md-3"><strong>Período</strong><br>{{ contrato['periodo'] }}</div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-6"><strong>Produto De</strong><br>{{ contrato['produto_de'] }}</div>
+            <div class="col-md-6"><strong>Produto Para</strong><br>{{ contrato['produto_para'] }}</div>
+        </div>
+        {% if contrato['prioridade_vendedor'] %}
+        <div class="mt-2"><span class="badge bg-danger">Vendedor prioritário</span></div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <h5>Fechamento</h5>
+        <form action="/confirmacao-agenda/tratar" method="POST">
+            <input type="hidden" name="id_contrato" value="{{ contrato['id'] }}">
+            <input type="hidden" name="ddd_escolhido" value="{{ ddd_escolhido }}">
+
+            <select name="fechamento" id="fechamentoConf" class="form-select mb-3" onchange="atualizarCamposReagendamento()" required>
+                <option value="">Selecione...</option>
+                {% for f in fechamentos %}
+                <option value="{{ f }}">{{ f }}</option>
+                {% endfor %}
+            </select>
+
+            <div id="camposReagendamento" style="display:none;" class="mb-3 p-3 bg-light border rounded">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Nova Data</label>
+                        <input type="date" name="nova_data_agendamento" id="novaDataConf" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Novo Período</label>
+                        <input type="text" name="novo_periodo" class="form-control" placeholder="08:00 - 12:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Observação</label>
+                <textarea name="observacao" class="form-control" rows="2"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-danger"><i class="bi bi-check-lg"></i> Salvar e ir pro próximo</button>
+        </form>
+    </div>
+</div>
+
+<script>
+    document.getElementById('novaDataConf').min = new Date().toISOString().split('T')[0];
+
+    function atualizarCamposReagendamento() {
+        const valor = document.getElementById('fechamentoConf').value;
+        document.getElementById('camposReagendamento').style.display = (valor === 'REAGENDADA') ? 'block' : 'none';
+        document.getElementById('novaDataConf').required = (valor === 'REAGENDADA');
+    }
+</script>
+{% endif %}
+{% endblock %}

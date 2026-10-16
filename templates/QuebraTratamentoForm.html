@@ -1,0 +1,98 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<a href="/quebra/tratamento" class="btn btn-sm btn-outline-secondary mb-3">← Voltar pra fila</a>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2>Quebra OS {{ quebra['cod_os'] }}</h2>
+        <div class="row mt-3">
+            <div class="col-md-3"><strong>Contrato</strong><br>{{ quebra['contrato'] }}</div>
+            <div class="col-md-3"><strong>Cidade</strong><br>{{ quebra['cidade'] or '—' }}</div>
+            <div class="col-md-3"><strong>Data da quebra</strong><br>{{ quebra['dat_agenda'] }}</div>
+            <div class="col-md-3"><strong>Canal</strong><br>{{ quebra['canal_venda'] or '—' }}</div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-12"><strong>Motivo da quebra</strong><br>{{ quebra['motivo_reagendamento'] or '—' }}</div>
+        </div>
+    </div>
+</div>
+
+<form action="/quebra/tratamento/{{ quebra['id'] }}/salvar" method="POST">
+    <div class="card card-shadow">
+        <div class="card-body">
+            <h5><i class="bi bi-check-circle-fill"></i> Tratativa</h5>
+            <hr>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Resultado</label>
+                <select class="form-select" name="tabulacao" id="tabulacao" onchange="atualizarCampos()" required>
+                    <option value="">Selecione uma opção...</option>
+                    <option value="Reagendado">Reagendado</option>
+                    <option value="Cancelado">Cancelado</option>
+                </select>
+            </div>
+
+            <div id="campo_reagendado" style="display: none;" class="mb-3 p-3 bg-light border rounded">
+                <h6>Novo Agendamento</h6>
+                <label class="mt-2">Responsável (Cliente)</label>
+                <input type="text" name="resp_cliente" class="form-control mb-2">
+                <label>Data do Agendamento</label>
+                <input type="date" name="data_agendamento" id="data_agendamento" class="form-control mb-2">
+                <label>Janela</label>
+                <select name="janela_agendamento" class="form-select mb-2">
+                    <option>08h as 12h</option>
+                    <option>12h as 15h</option>
+                    <option>15h as 18h</option>
+                </select>
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" name="flag_mdu" id="mdu">
+                    <label class="form-check-label" for="mdu">MDU</label>
+                </div>
+            </div>
+
+            <div id="campo_cancelado" style="display: none;" class="mb-3 p-3 bg-light border rounded">
+                <label class="fw-bold">Submotivo</label>
+                <select name="submotivo" id="submotivo" class="form-select mb-2" onchange="atualizarObsObrigatoria()">
+                    <option value="">Selecione uma opção...</option>
+                    {% for s in submotivos %}
+                    <option value="{{ s }}">{{ s }}</option>
+                    {% endfor %}
+                </select>
+                <p class="text-danger small mb-0" id="aviso_outro" style="display: none;">Justificativa obrigatória em "Outro".</p>
+            </div>
+
+            <div class="mb-3 mt-3">
+                <label class="form-label fw-bold">Observação</label>
+                <textarea class="form-control" rows="4" name="observacao" id="observacao"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-danger btn-lg w-100 fw-bold mt-2">Salvar</button>
+        </div>
+    </div>
+</form>
+
+<script>
+    document.getElementById('data_agendamento').valueAsDate = new Date();
+    document.getElementById('data_agendamento').min = new Date().toISOString().split('T')[0];
+
+    function atualizarCampos() {
+        var res = document.getElementById('tabulacao').value;
+        document.getElementById('campo_reagendado').style.display = 'none';
+        document.getElementById('campo_cancelado').style.display = 'none';
+        if (res === 'Reagendado') {
+            document.getElementById('campo_reagendado').style.display = 'block';
+        } else if (res === 'Cancelado') {
+            document.getElementById('campo_cancelado').style.display = 'block';
+        }
+        atualizarObsObrigatoria();
+    }
+
+    function atualizarObsObrigatoria() {
+        var res = document.getElementById('tabulacao').value;
+        var submotivo = document.getElementById('submotivo').value;
+        var obrigatorio = (res === 'Cancelado' && submotivo === 'Outro');
+        document.getElementById('observacao').required = obrigatorio;
+        document.getElementById('aviso_outro').style.display = obrigatorio ? 'block' : 'none';
+    }
+</script>
+{% endblock %}

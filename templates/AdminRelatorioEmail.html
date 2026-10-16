@@ -1,0 +1,104 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-envelope-fill"></i> Relatório por E-mail</h2>
+        <hr>
+        <p class="text-muted">
+            O CRM gera o relatório (ranking de fechamentos e agendamentos, com comparação e projeção)
+            como um arquivo, escrito numa pasta sincronizada do OneDrive. O OneDrive sobe esse arquivo
+            sozinho, e um fluxo do Power Automate (configurado à parte) dispara o e-mail quando percebe
+            o arquivo novo. O CRM nunca precisa se conectar direto com a Microsoft.
+        </p>
+
+        {% if request.args.get('gerado') %}
+        <div class="alert alert-success">Relatório gerado com sucesso na pasta configurada!</div>
+        {% endif %}
+        {% if request.args.get('liberado') %}
+        <div class="alert alert-success">Liberado! O disparo automático pode rodar de novo hoje, no horário configurado.</div>
+        {% endif %}
+        {% if request.args.get('erro_envio') %}
+        <div class="alert alert-danger">{{ request.args.get('erro_envio') }}</div>
+        {% endif %}
+
+        {% set rotulos_dias = {'SEG':'Segunda','TER':'Terça','QUA':'Quarta','QUI':'Quinta','SEX':'Sexta','SAB':'Sábado','DOM':'Domingo'} %}
+
+        <form action="/admin/relatorio_email/salvar" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Pasta de destino (sincronizada com o OneDrive)</label>
+                <input type="text" name="email_pasta_destino" class="form-control" value="{{ config['email_pasta_destino'] or '' }}"
+                       placeholder="C:\Users\SeuUsuario\OneDrive - Claro\CRM_Relatorios">
+                <div class="form-text">
+                    O caminho completo da pasta, do jeito que aparece no Explorador de Arquivos dessa máquina.
+                    Crie a pasta antes, se ainda não existir.
+                </div>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Horário da geração automática</label>
+                <input type="time" name="email_horario_envio" class="form-control" style="max-width: 160px;" value="{{ config['email_horario_envio'] or '18:00' }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Dias da semana em que dispara</label>
+                <div class="d-flex gap-3 flex-wrap">
+                    {% for dia in dias_semana %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="email_dias_semana" value="{{ dia }}" id="dia_{{ dia }}"
+                               {% if dia in dias_marcados %}checked{% endif %}>
+                        <label class="form-check-label" for="dia_{{ dia }}">{{ rotulos_dias[dia] }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="email_envio_automatico_ativo" id="envioAuto"
+                       {% if config['email_envio_automatico_ativo'] is none or config['email_envio_automatico_ativo'] %}checked{% endif %}>
+                <label class="form-check-label" for="envioAuto">Geração automática ligada</label>
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-save-fill"></i> Salvar</button>
+        </form>
+
+        <hr>
+        <div class="mb-3">
+            <strong>Última geração automática:</strong>
+            {% if config['email_ultimo_envio_data'] %}
+                {{ config['email_ultimo_envio_data'] }}
+                {% if config['email_ultimo_envio_data'] == data_hoje %}
+                <span class="status-pill status-verde ms-2">Já rodou hoje</span>
+                <form action="/admin/relatorio_email/liberar_hoje" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-warning ms-2">Liberar novo envio hoje</button>
+                </form>
+                {% endif %}
+            {% else %}
+                <span class="text-muted">nunca rodou ainda</span>
+            {% endif %}
+            <div class="text-muted small mt-1">
+                O disparo automático só roda <strong>uma vez por dia</strong> — se já rodou hoje (mesmo que num
+                horário diferente do atual), ele não dispara de novo sozinho até amanhã. Use o botão acima se
+                precisar liberar um novo disparo ainda hoje, pra testar um horário novo.
+            </div>
+        </div>
+
+        <form action="/admin/relatorio_email/gerar_agora" method="POST">
+            <button type="submit" class="btn btn-outline-dark"><i class="bi bi-file-earmark-arrow-up-fill"></i> Gerar relatório agora</button>
+            <div class="text-muted small mt-2">
+                Escreve o arquivo na pasta configurada na hora, com os dados de agora — serve tanto pra
+                testar quanto pra disparar um envio fora do horário automático. Não interfere no controle de
+                "já rodou hoje" acima (esse botão pode ser usado quantas vezes quiser, sem afetar o automático).
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-diagram-3-fill"></i> Como montar o fluxo no Power Automate</div>
+        <ol class="mb-0">
+            <li class="mb-2">Confirme que a pasta configurada acima está mesmo sincronizada com o OneDrive (aparece com o ícone de nuvem/check no Explorador de Arquivos).</li>
+            <li class="mb-2">No Power Automate, crie um fluxo automatizado com o gatilho <strong>"Quando um arquivo é criado"</strong> (conector OneDrive for Business), apontando pra essa mesma pasta.</li>
+            <li class="mb-2">Adicione a ação <strong>"Obter conteúdo do arquivo"</strong>.</li>
+            <li class="mb-2">Adicione a ação <strong>"Enviar um e-mail (V2)"</strong> (conector Outlook) — no campo "Corpo", marque a opção de HTML e cole o conteúdo do arquivo ali. Preencha os destinatários fixos direto nesse passo.</li>
+        </ol>
+    </div>
+</div>
+{% endblock %}

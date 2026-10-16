@@ -1,0 +1,57 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<style>
+    .banner-dash {
+        background: linear-gradient(120deg, var(--ink) 0%, var(--red-dark) 78%, var(--red) 100%);
+        border-radius: 18px; padding: 24px 26px; color: white; margin-bottom: 20px;
+    }
+    .banner-dash h2 { margin: 0 0 4px; font-size: 21px; font-weight: 800; }
+    .banner-dash p { margin: 0; font-size: 13px; color: rgba(255,255,255,.72); }
+</style>
+
+<div class="banner-dash">
+    <h2><i class="bi bi-building"></i> Cidades padronizadas</h2>
+    <p>Essa lista é usada no campo Cidade da tela de Nova Tarefa. Desativar não apaga o histórico, só some do combobox.</p>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <form method="POST" action="/tarefas/cidades/salvar" class="d-flex gap-2">
+            <input type="text" name="nome" class="form-control" placeholder="Nome da cidade" required>
+            <button type="submit" class="btn btn-danger">Adicionar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <table class="table align-middle">
+            <thead><tr><th>Cidade</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+                {% for c in cidades %}
+                <tr>
+                    <td>{{ c['nome'] }}</td>
+                    <td>
+                        {% if c['ativo'] %}
+                        <span class="status-pill status-verde">Ativa</span>
+                        {% else %}
+                        <span class="status-pill status-cinza">Inativa</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <form method="POST" action="/tarefas/cidades/{{ c['id'] }}/alternar">
+                            <button type="submit" class="btn btn-sm btn-outline-dark">
+                                {{ 'Desativar' if c['ativo'] else 'Reativar' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="3" class="text-muted">Nenhuma cidade cadastrada ainda.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

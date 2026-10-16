@@ -1,0 +1,62 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-clock-history"></i> Histórico de Tarefas Criadas</h2>
+        <hr>
+        <p class="text-muted small mb-3">
+            Tudo que foi criado pela tela Nova Tarefa (manual ou por planilha), com quem criou e pra quem foi atribuído.
+        </p>
+
+        <form method="GET" class="d-flex gap-2 mb-4 align-items-end flex-wrap">
+            <div class="input-group" style="width: auto;">
+                <span class="input-group-text">De</span>
+                <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+            </div>
+            <div class="input-group" style="width: auto;">
+                <span class="input-group-text">Até</span>
+                <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+            </div>
+            <button type="submit" class="btn btn-light border"><i class="bi bi-funnel-fill"></i> Filtrar</button>
+        </form>
+
+        {% if historico %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Data/Hora</th>
+                        <th>Contrato</th>
+                        <th>Cidade</th>
+                        <th>Criado por</th>
+                        <th>Atribuído para</th>
+                        <th>Tipo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for h in historico %}
+                    <tr>
+                        <td>{{ h['data_criacao'] }}</td>
+                        <td>{{ h['contrato'] }}</td>
+                        <td>{{ h['cidade'] }}</td>
+                        <td>{{ h['criado_por'] }}</td>
+                        <td>{{ h['atribuido_para'] }}</td>
+                        <td>
+                            {% if h['tipo'] == 'novo' %}Contrato novo
+                            {% elif h['tipo'] == 'reserva' %}Reserva (já existia, sem dono)
+                            {% elif h['tipo'] == 'transferencia_auto' %}Transferência (auto-aprovada)
+                            {% elif h['tipo'] == 'transferencia_pendente' %}Transferência (aguardou aprovação)
+                            {% else %}{{ h['tipo'] }}{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma tarefa criada nesse período.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

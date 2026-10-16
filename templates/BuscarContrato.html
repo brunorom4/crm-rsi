@@ -1,0 +1,37 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-search"></i> Buscar Contrato</h2>
+        <p class="text-muted">Pra dar continuidade num atendimento (cliente ligou de novo) ou editar um agendamento já feito.</p>
+        <hr>
+        <form method="GET" class="d-flex gap-2 mb-4">
+            <input type="text" name="q" class="form-control" placeholder="Número do contrato ou nome do cliente" value="{{ termo }}" autofocus>
+            <button type="submit" class="btn btn-danger">Buscar</button>
+        </form>
+
+        {% if termo %}
+            {% if resultados %}
+            <table class="table align-middle">
+                <thead><tr><th>Contrato</th><th>Cliente</th><th>Cidade</th><th>Status</th><th>Operador</th><th></th></tr></thead>
+                <tbody>
+                    {% for r in resultados %}
+                    <tr>
+                        <td>{{ r['contrato'] }}</td>
+                        <td>{{ r['cliente'] }}</td>
+                        <td>{{ r['cidade'] }}</td>
+                        <td>{{ r['status'] }}</td>
+                        <td>{{ r['operador'] or '—' }}</td>
+                        <td><a href="/atendimento/{{ r['id'] }}" class="btn btn-sm btn-outline-dark">Abrir</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">Nenhum contrato encontrado pra "{{ termo }}".</p>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

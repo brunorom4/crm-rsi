@@ -1,0 +1,208 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band">
+    <div class="hero-eyebrow">Monitoria</div>
+    <h1><i class="bi bi-award-fill"></i> Qualidade</h1>
+    <p>Resultados das monitorias no período</p>
+</div>
+
+<form method="GET" class="d-flex gap-2 mb-4 align-items-center flex-wrap" style="margin-top: -18px; position: relative; z-index: 2;">
+    <div class="input-group" style="width: auto;">
+        <span class="input-group-text">De</span>
+        <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+    </div>
+    <div class="input-group" style="width: auto;">
+        <span class="input-group-text">Até</span>
+        <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+    </div>
+    <button type="submit" class="btn btn-light border"><i class="bi bi-funnel-fill"></i> Filtrar</button>
+    <a href="/qualidade/nova" class="btn btn-danger ms-auto"><i class="bi bi-plus-circle-fill"></i> Nova Monitoria</a>
+    <a href="/qualidade/extracao?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}" class="btn btn-light border"><i class="bi bi-download"></i> Extração</a>
+</form>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-2-4" style="flex: 0 0 20%; max-width: 20%;">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-clipboard-check-fill"></i></div>
+            <div class="kpi-titulo">Monitorias realizadas</div>
+            <div class="kpi">{{ total_monitorias }}</div>
+        </div>
+    </div>
+    <div class="col-md-2-4" style="flex: 0 0 20%; max-width: 20%;">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--ok);"><i class="bi bi-graph-up-arrow"></i></div>
+            <div class="kpi-titulo">Nota consolidada</div>
+            <div class="kpi">{{ nota_consolidada }}%</div>
+        </div>
+    </div>
+    <div class="col-md-2-4" style="flex: 0 0 20%; max-width: 20%;">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--red);"><i class="bi bi-exclamation-triangle-fill"></i></div>
+            <div class="kpi-titulo">Quantidade de desvios</div>
+            <div class="kpi">{{ total_desvios }}</div>
+        </div>
+    </div>
+    <div class="col-md-2-4" style="flex: 0 0 20%; max-width: 20%;">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: #1D4ED8;"><i class="bi bi-check-circle-fill"></i></div>
+            <div class="kpi-titulo">Aceites realizados</div>
+            <div class="kpi">{{ aceites_realizados }}</div>
+        </div>
+    </div>
+    <div class="col-md-2-4" style="flex: 0 0 20%; max-width: 20%;">
+        <div class="kpi-card">
+            <div class="kpi-badge" style="--badge: var(--warn);"><i class="bi bi-hourglass-split"></i></div>
+            <div class="kpi-titulo">Aceites pendentes</div>
+            <div class="kpi">{{ aceites_pendentes }}</div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-scatter-chart"></i> Dispersão: Agendamentos x Nota de Qualidade</div>
+        <p class="text-muted small">
+            Quadrante <strong>A</strong> = nota e agendamentos acima da média (top) ·
+            <strong>B</strong> = agendamentos acima, nota abaixo (volume sem qualidade) ·
+            <strong>C</strong> = os dois abaixo da média ·
+            <strong>D</strong> = nota acima, agendamentos abaixo (qualidade sem volume)
+        </p>
+        {% if pontos_dispersao %}
+        <canvas id="graficoDispersao" height="100"></canvas>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma monitoria com dados suficientes nesse período.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="section-title mb-0"><i class="bi bi-graph-up"></i> Evolução mensal da nota por pessoa</div>
+            <form method="GET" class="d-flex align-items-center gap-2">
+                <input type="hidden" name="data_inicio" value="{{ data_inicio }}">
+                <input type="hidden" name="data_fim" value="{{ data_fim }}">
+                <label class="form-label small mb-0">Ano</label>
+                <select name="ano" class="form-select form-select-sm" style="width: auto;" onchange="this.form.submit()">
+                    {% for ano in anos_disponiveis %}
+                    <option value="{{ ano }}" {% if ano == ano_selecionado %}selected{% endif %}>{{ ano }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+        {% if series_evolucao %}
+        <canvas id="graficoEvolucaoMensal" height="90" class="mt-3"></canvas>
+        {% else %}
+        <p class="text-muted mb-0 mt-2">Nenhuma monitoria registrada em {{ ano_selecionado }} ainda.</p>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-clock-history"></i> Histórico de monitorias</div>
+        {% if monitorias %}
+        <table class="table align-middle">
+            <thead><tr><th></th><th>Operador</th><th>Nota final</th><th>Data</th><th>Aceite</th></tr></thead>
+            <tbody>
+                {% for m in monitorias %}
+                <tr style="cursor: pointer;" onclick="document.getElementById('detalhe{{ m['id'] }}').classList.toggle('d-none')">
+                    <td><i class="bi bi-plus-square"></i></td>
+                    <td>{{ m['operador_nome'] }}</td>
+                    <td>{{ m['nota_final'] }}%</td>
+                    <td>{{ m['data_monitoria'][:16] }}</td>
+                    <td>
+                        {% if m['aceite_status'] == 'ACEITO' %}
+                        <span class="status-pill status-verde">Aceito</span>
+                        {% else %}
+                        <span class="status-pill status-amarelo">Pendente</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr class="d-none" id="detalhe{{ m['id'] }}">
+                    <td colspan="5" class="bg-light">
+                        <strong>Monitorado por:</strong> {{ m['supervisor_nome'] }}<br>
+                        <strong>Pontos fortes:</strong> {{ m['pontos_fortes'] or '—' }}<br>
+                        <strong>Itens pontuados:</strong> {{ m['itens_pontuados'] or '—' }}<br>
+                        <a href="/qualidade/{{ m['id'] }}" class="btn btn-sm btn-outline-dark mt-2">Ver monitoria completa</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma monitoria registrada nesse período.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if pontos_dispersao or series_evolucao %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+{% endif %}
+
+{% if pontos_dispersao %}
+<script>
+    const pontos = {{ pontos_dispersao | tojson }};
+    const CORES_QUADRANTE = { A: '#1E8E4A', B: '#B45309', C: '#E4002B', D: '#1D4ED8' };
+
+    const datasets = ['A', 'B', 'C', 'D'].map(q => ({
+        label: 'Quadrante ' + q,
+        data: pontos.filter(p => p.quadrante === q).map(p => ({ x: p.agendamentos, y: p.nota, operador: p.operador })),
+        backgroundColor: CORES_QUADRANTE[q],
+        pointRadius: 7,
+        pointHoverRadius: 9,
+    }));
+
+    new Chart(document.getElementById('graficoDispersao'), {
+        type: 'scatter',
+        data: { datasets: datasets },
+        options: {
+            responsive: true,
+            scales: {
+                x: { title: { display: true, text: 'Volume de agendamentos' }, beginAtZero: true },
+                y: { title: { display: true, text: 'Nota de qualidade (%)' }, min: 0, max: 100 },
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function (contexto) {
+                            const p = contexto.raw;
+                            return p.operador + ': ' + p.y + '% de nota, ' + p.x + ' agendamentos';
+                        }
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+
+{% if series_evolucao %}
+<script>
+    const seriesEvolucao = {{ series_evolucao | tojson }};
+    const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+    const CORES_LINHA = ['#E4002B', '#1D4ED8', '#1E8E4A', '#B45309', '#7C3AED', '#0891B2', '#DB2777', '#65A30D'];
+
+    new Chart(document.getElementById('graficoEvolucaoMensal'), {
+        type: 'line',
+        data: {
+            labels: MESES_ABREV,
+            datasets: seriesEvolucao.map((serie, i) => ({
+                label: serie.operador,
+                data: serie.valores,
+                borderColor: CORES_LINHA[i % CORES_LINHA.length],
+                backgroundColor: CORES_LINHA[i % CORES_LINHA.length],
+                spanGaps: true,
+                tension: 0.25,
+            })),
+        },
+        options: {
+            responsive: true,
+            scales: { y: { min: 0, max: 100, title: { display: true, text: 'Nota (%)' } } },
+            plugins: { legend: { position: 'bottom' } },
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

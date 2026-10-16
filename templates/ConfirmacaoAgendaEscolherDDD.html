@@ -1,0 +1,23 @@
+{% extends "layout_confirmacao_agenda.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-calendar-check"></i> Confirmação de Agenda</h2>
+        <p class="text-muted">Escolha o DDD que você quer tratar.</p>
+        <hr>
+        {% if ddds_disponiveis %}
+        <div class="d-flex flex-wrap gap-2">
+            {% for ddd in ddds_disponiveis %}
+            <a href="/confirmacao-agenda/atender?ddd={{ ddd }}" class="btn btn-danger">
+                <i class="bi bi-telephone-fill"></i> DDD {{ ddd }}
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhum contrato pendente pra tratar no momento.</p>
+        {% endif %}
+    </div>
+</div>
+<a href="/confirmacao-agenda" class="btn btn-sm btn-outline-secondary">← Ver painel</a>
+{% endblock %}

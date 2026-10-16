@@ -1,0 +1,98 @@
+{% extends "layout_backlog.html" %}
+
+{% block conteudo %}
+<style>
+    .card-filtro { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 18px 22px; margin-bottom: 20px; }
+    .filtro-linha { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+    .filtro-linha .campo label { display: block; font-size: 12px; color: var(--claro-cinza); margin-bottom: 4px; font-weight: 600; }
+    .filtro-linha input, .filtro-linha select {
+        border: 1px solid #e0dedb; border-radius: 8px; padding: 8px 10px; font-family: 'Poppins', sans-serif; font-size: 13.5px;
+    }
+    .filtro-linha button, .filtro-linha a.btn-exportar {
+        background: linear-gradient(135deg, var(--claro-vermelho-forte), var(--claro-vermelho-escuro));
+        color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-weight: 700; font-size: 13.5px; cursor: pointer;
+        text-decoration: none; display: inline-flex; align-items: center; gap: 6px;
+    }
+    .filtro-linha button:hover, .filtro-linha a.btn-exportar:hover { filter: brightness(1.08); }
+
+    .tabela-extracao { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow-x: auto; }
+    .tabela-extracao table { width: 100%; border-collapse: collapse; min-width: 900px; }
+    .tabela-extracao th, .tabela-extracao td { padding: 10px 14px; text-align: left; font-size: 13px; }
+    .tabela-extracao thead th {
+        background: var(--claro-cinza-claro); color: var(--claro-preto); font-weight: 700; font-size: 11.5px;
+        text-transform: uppercase; letter-spacing: .02em;
+    }
+    .tabela-extracao tbody tr { border-top: 1px solid #f0efed; }
+    .tabela-extracao tbody tr:hover { background: #fafafa; }
+</style>
+
+<h1 class="mb-3" style="font-size: 21px;"><i class="bi bi-file-earmark-excel"></i> Extração de Tratamentos</h1>
+
+<div class="card-filtro">
+    <form method="GET" action="/backlog/extracao" class="filtro-linha">
+        <div class="campo">
+            <label for="data_de">De</label>
+            <input type="date" id="data_de" name="data_de" value="{{ data_de }}">
+        </div>
+        <div class="campo">
+            <label for="data_ate">Até</label>
+            <input type="date" id="data_ate" name="data_ate" value="{{ data_ate }}">
+        </div>
+        <div class="campo">
+            <label for="operador">Operador</label>
+            <select id="operador" name="operador">
+                <option value="">Todos</option>
+                {% for op in operadores_distintos %}
+                <option value="{{ op }}" {{ 'selected' if op == operador_filtro else '' }}>{{ op }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="campo">
+            <label for="fechamento">Status do Contrato</label>
+            <select id="fechamento" name="fechamento">
+                <option value="">Todos</option>
+                {% for f in fechamentos %}
+                <option value="{{ f }}" {{ 'selected' if f == fechamento_filtro else '' }}>{{ labels_fechamento.get(f, f) }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit"><i class="bi bi-filter"></i> Filtrar</button>
+        <a class="btn-exportar" href="/backlog/extracao?data_de={{ data_de }}&data_ate={{ data_ate }}&operador={{ operador_filtro }}&fechamento={{ fechamento_filtro }}&exportar=1">
+            <i class="bi bi-download"></i> Exportar Excel
+        </a>
+    </form>
+</div>
+
+<div class="tabela-extracao">
+    {% if tratamentos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Contrato</th><th>DDD</th><th>Cidade</th><th>Vendedor</th><th>Fechamento</th>
+                <th>Nova Data (Agendado)</th><th>Retorno em</th><th>Observação</th><th>Operador</th><th>Data Tratamento</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for t in tratamentos %}
+            <tr>
+                <td>{{ t['cd_contrato'] }}</td>
+                <td>{{ t['ddd'] or '—' }}</td>
+                <td>{{ t['cidade'] or '—' }}</td>
+                <td>{{ t['vendedor'] or '—' }}</td>
+                <td><strong>{{ labels_fechamento.get(t['fechamento'], t['fechamento']) }}</strong></td>
+                <td>{{ t['nova_data_agendamento'] or '—' }}{% if t['novo_periodo'] %} ({{ t['novo_periodo'] }}){% endif %}</td>
+                <td>{{ t['retorno_em'] or '—' }}</td>
+                <td>{{ t['observacao'] or '—' }}</td>
+                <td>{{ t['operador'] }}</td>
+                <td>{{ t['data_tratamento'] }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-4">
+        <p class="text-muted mb-0">Nenhum tratamento encontrado no período/filtro selecionado.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

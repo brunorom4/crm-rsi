@@ -1,0 +1,161 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band" style="margin-bottom: 24px;">
+    <div class="hero-eyebrow">Sistema</div>
+    <h1><i class="bi bi-journal-text"></i> Diário de Bordo</h1>
+    <p>Registro de eventos operacionais (queda de energia, banimento, evacuação, etc.)</p>
+</div>
+
+{% if request.args.get('erro') %}
+<div class="alert alert-danger">{{ request.args.get('erro') }}</div>
+{% endif %}
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h5><i class="bi bi-plus-circle-fill"></i> Novo Evento</h5>
+        <hr>
+        <form action="/diario-bordo/adicionar" method="POST" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">Data do Evento</label>
+                <input type="date" name="data_evento" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Classificação</label>
+                <select name="classificacao" class="form-select" required>
+                    <option value="">Selecione...</option>
+                    {% for c in classificacoes_ativas %}
+                    <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Início</label>
+                <input type="datetime-local" name="data_hora_inicio" id="dbInicio" class="form-control" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Fim</label>
+                <input type="datetime-local" name="data_hora_fim" id="dbFim" class="form-control" required>
+            </div>
+            <div class="col-md-9">
+                <label class="form-label">Detalhamento</label>
+                <textarea name="detalhamento" class="form-control" rows="2" required></textarea>
+            </div>
+            <div class="col-md-3 d-flex flex-column">
+                <label class="form-label">Duração calculada</label>
+                <div id="dbDuracaoTexto" class="form-control bg-light text-muted">—</div>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-danger"><i class="bi bi-plus-lg"></i> Registrar Evento</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h5><i class="bi bi-funnel-fill"></i> Consultar Eventos</h5>
+        <hr>
+        <form method="GET" class="d-flex gap-2 align-items-end flex-wrap mb-3">
+            <div class="input-group" style="width: auto;">
+                <span class="input-group-text">De</span>
+                <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+            </div>
+            <div class="input-group" style="width: auto;">
+                <span class="input-group-text">Até</span>
+                <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+            </div>
+            <select name="classificacao" class="form-select" style="width: auto;">
+                <option value="">Classificação (todas)</option>
+                {% for c in classificacoes_ativas %}
+                <option value="{{ c }}" {% if classificacao_filtro == c %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-light border"><i class="bi bi-funnel-fill"></i> Filtrar</button>
+            <a href="/diario-bordo/exportar?data_inicio={{ data_inicio }}&data_fim={{ data_fim }}&classificacao={{ classificacao_filtro }}"
+               class="btn btn-outline-dark"><i class="bi bi-file-earmark-excel"></i> Exportar</a>
+        </form>
+
+        {% if eventos %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Data</th><th>Classificação</th><th>Detalhamento</th>
+                        <th>Início</th><th>Fim</th><th>Duração</th><th>Registrado Por</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in eventos %}
+                    <tr>
+                        <td>{{ e['data_evento'] }}</td>
+                        <td>{{ e['classificacao'] }}</td>
+                        <td style="max-width: 320px;">{{ e['detalhamento'] }}</td>
+                        <td>{{ e['data_hora_inicio'] }}</td>
+                        <td>{{ e['data_hora_fim'] }}</td>
+                        <td>{{ (e['duracao_minutos'] // 60) }}h{{ '%02d' % (e['duracao_minutos'] % 60) }}</td>
+                        <td>{{ e['criado_por'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhum evento nesse período.</p>
+        {% endif %}
+    </div>
+</div>
+
+{% if usuario_logado['perfil'] == 'ADM' %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h5><i class="bi bi-tags-fill"></i> Classificações</h5>
+        <hr>
+        <form action="/admin/diario-bordo/classificacoes/adicionar" method="POST" class="d-flex gap-2 mb-3">
+            <input type="text" name="nome" class="form-control" style="max-width: 300px;" placeholder="Nova classificação" required>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-plus-lg"></i> Adicionar</button>
+        </form>
+        <table class="table table-sm align-middle" style="max-width: 500px;">
+            <tbody>
+                {% for c in classificacoes_todas %}
+                <tr>
+                    <td>{{ c['nome'] }}</td>
+                    <td class="text-muted small">{{ 'Ativa' if c['ativo'] else 'Desativada' }}</td>
+                    <td>
+                        <form action="/admin/diario-bordo/classificacoes/{{ c['id'] }}/alternar" method="POST">
+                            <button type="submit" class="btn btn-sm btn-outline-dark">
+                                {{ 'Desativar' if c['ativo'] else 'Reativar' }}
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<script>
+    function dbAtualizarDuracao() {
+        var inicio = document.getElementById('dbInicio').value;
+        var fim = document.getElementById('dbFim').value;
+        var campoTexto = document.getElementById('dbDuracaoTexto');
+        if (!inicio || !fim) { campoTexto.textContent = '—'; return; }
+        var dtInicio = new Date(inicio);
+        var dtFim = new Date(fim);
+        var diffMin = Math.round((dtFim - dtInicio) / 60000);
+        if (diffMin < 0) {
+            campoTexto.textContent = 'Fim antes do início!';
+            campoTexto.classList.add('text-danger');
+        } else {
+            var h = Math.floor(diffMin / 60);
+            var m = diffMin % 60;
+            campoTexto.textContent = h + 'h' + (m < 10 ? '0' : '') + m;
+            campoTexto.classList.remove('text-danger');
+        }
+    }
+    document.getElementById('dbInicio').addEventListener('change', dbAtualizarDuracao);
+    document.getElementById('dbFim').addEventListener('change', dbAtualizarDuracao);
+</script>
+{% endblock %}

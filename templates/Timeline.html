@@ -1,0 +1,59 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="d-flex align-items-center gap-3 mb-3">
+    <a href="/supervisao" class="btn btn-sm btn-outline-dark"><i class="bi bi-arrow-left"></i> Voltar</a>
+    <h2 class="mb-0"><i class="bi bi-clock-history"></i> {{ usuario['nome'] }}</h2>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-cup-hot-fill"></i> Jornada (login, logout e pausas)</div>
+                {% if linhas_jornada %}
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Ação</th><th>Início</th><th>Fim</th><th>Duração</th></tr></thead>
+                    <tbody>
+                        {% for l in linhas_jornada %}
+                        <tr>
+                            <td>{{ l.acao }}</td>
+                            <td>{{ l.inicio }}</td>
+                            <td>{{ l.fim }}</td>
+                            <td>{{ l.duracao }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted mb-0">Nenhum registro de jornada hoje.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-telephone-fill"></i> Atendimentos</div>
+                {% if linhas_atendimento %}
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Horário</th><th>Tabulação</th><th>Contrato</th></tr></thead>
+                    <tbody>
+                        {% for a in linhas_atendimento %}
+                        <tr>
+                            <td>{{ a.horario }}</td>
+                            <td>{{ a.tabulacao }}</td>
+                            <td>{{ a.contrato }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted mb-0">Nenhum atendimento registrado hoje.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

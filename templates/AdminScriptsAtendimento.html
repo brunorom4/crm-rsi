@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<style>
+    .banner-dash {
+        background: linear-gradient(120deg, var(--ink) 0%, var(--red-dark) 78%, var(--red) 100%);
+        border-radius: 18px; padding: 24px 26px; color: white; margin-bottom: 20px;
+    }
+    .banner-dash h2 { margin: 0 0 4px; font-size: 21px; font-weight: 800; }
+    .banner-dash p { margin: 0; font-size: 13px; color: rgba(255,255,255,.72); }
+
+    .campo-token { font-family: monospace; font-weight: 700; }
+</style>
+
+<div class="banner-dash">
+    <h2><i class="bi bi-chat-square-text-fill"></i> Scripts de Atendimento</h2>
+    <p>
+        Edite o texto dos 4 botões de script que aparecem na tela de Atendimento (em "Gerar Script de Atendimento").
+        Use os campos entre colchetes abaixo pra puxar automaticamente os dados que a pessoa preencheu no formulário —
+        por exemplo <span class="campo-token">[cliente]</span> ou <span class="campo-token">[protocolo]</span>.
+        Escolha o campo no combobox de cada script e clique em "Inserir campo" pra colar o marcador certo direto onde
+        o cursor estiver no texto.
+    </p>
+</div>
+
+<form method="POST" action="/admin/scripts_atendimento/salvar">
+    <div class="row g-3">
+        {% for s in scripts %}
+        <div class="col-md-6">
+            <div class="card card-shadow h-100">
+                <div class="card-body">
+                    <label class="form-label fw-bold">Nome do botão {{ loop.index }}</label>
+                    <input type="text" class="form-control mb-3" name="nome_botao_{{ s['id'] }}" value="{{ s['nome_botao'] }}" maxlength="60" required>
+
+                    <label class="form-label fw-bold">Texto do script</label>
+                    <div class="d-flex gap-2 mb-2">
+                        <select class="form-select" id="campo_select_{{ s['id'] }}">
+                            {% for token, label in campos %}
+                            <option value="{{ token }}">{{ label }} — [{{ token }}]</option>
+                            {% endfor %}
+                        </select>
+                        <button type="button" class="btn btn-outline-dark text-nowrap" onclick="inserirCampo({{ s['id'] }})">
+                            <i class="bi bi-plus-lg"></i> Inserir campo
+                        </button>
+                    </div>
+                    <textarea class="form-control" id="texto_{{ s['id'] }}" name="texto_{{ s['id'] }}" rows="14" required>{{ s['texto'] }}</textarea>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <button type="submit" class="btn btn-danger btn-lg mt-3"><i class="bi bi-save-fill"></i> Salvar scripts</button>
+</form>
+
+<script>
+    function inserirCampo(idScript) {
+        const select = document.getElementById('campo_select_' + idScript);
+        const textarea = document.getElementById('texto_' + idScript);
+        const marcador = '[' + select.value + ']';
+
+        const inicio = textarea.selectionStart != null ? textarea.selectionStart : textarea.value.length;
+        const fim = textarea.selectionEnd != null ? textarea.selectionEnd : textarea.value.length;
+        const antes = textarea.value.substring(0, inicio);
+        const depois = textarea.value.substring(fim);
+
+        textarea.value = antes + marcador + depois;
+        textarea.focus();
+        const novaPosicao = inicio + marcador.length;
+        textarea.setSelectionRange(novaPosicao, novaPosicao);
+    }
+</script>
+{% endblock %}

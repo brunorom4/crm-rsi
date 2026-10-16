@@ -1,0 +1,107 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-check2-circle"></i> Agendado x Executado</h2>
+        <hr>
+        <form method="GET" class="row gy-2 gx-2 align-items-end mb-3">
+            <div class="col-auto">
+                <label class="form-label mb-0">De</label>
+                <input type="date" name="data_de" class="form-control" value="{{ data_de }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0">Até</label>
+                <input type="date" name="data_ate" class="form-control" value="{{ data_ate }}">
+            </div>
+            {% if not eh_operador %}
+            <div class="col-auto">
+                <label class="form-label mb-0">Operador</label>
+                <select name="operador" class="form-select">
+                    <option value="">Todos</option>
+                    {% for op in operadores %}
+                    <option value="{{ op }}" {% if op == operador_filtro %}selected{% endif %}>{{ op }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            {% endif %}
+            <div class="col-auto">
+                <button type="submit" class="btn btn-danger">Filtrar</button>
+            </div>
+        </form>
+
+        <div class="d-flex align-items-center gap-3 mb-3 flex-wrap">
+            <span class="badge bg-secondary fs-6">{{ total }} agendado{{ 's' if total != 1 else '' }} no período</span>
+            <span class="badge bg-success fs-6">{{ total_executados }} executado{{ 's' if total_executados != 1 else '' }}</span>
+            <span class="badge bg-secondary fs-6" style="background-color:#adb5bd !important;">{{ total_pendentes }} em rota / parado</span>
+            {% if pct_executado is not none %}<span class="text-muted small">{{ pct_executado }}% do período já executado</span>{% endif %}
+            {% if total_paginas > 1 %}<span class="text-muted small">página {{ pagina }} de {{ total_paginas }}</span>{% endif %}
+        </div>
+        <p class="text-muted small mb-3">Conta pela <strong>data marcada da visita</strong> dentro do período (De/Até acima) -- por isso costuma ser diferente do card "Agendados" do Dashboard, que soma pela data em que o agendamento foi feito, não pela data marcada.</p>
+
+        {% if registros %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle" id="tabela-agendado-executado">
+                <thead>
+                    <tr>
+                        <th>Cidade</th>
+                        <th>Contrato</th>
+                        {% if not eh_operador %}<th>Operador</th>{% endif %}
+                        <th>Data agendada</th>
+                        <th>Período</th>
+                        <th>Status</th>
+                        <th>Executado em</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in registros %}
+                    {% set cor_fundo = r['visual']['cor'] %}
+                    <tr>
+                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['cidade'] }}</td>
+                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['contrato'] }}</td>
+                        {% if not eh_operador %}<td style="background-color: {{ cor_fundo }} !important;">{{ r['operador'] }}</td>{% endif %}
+                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['data_agendamento'] }}</td>
+                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['janela_agendamento'] }}</td>
+                        <td style="background-color: {{ cor_fundo }} !important; color: {{ r['visual']['cor_texto'] }}; font-weight: 600;">
+                            {{ r['visual']['rotulo'] }}
+                            {% if r['visual'].get('detalhe') %}<div class="small fw-normal">{{ r['visual']['detalhe'] }}</div>{% endif %}
+                        </td>
+                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['dh_execucao'] or '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if total_paginas > 1 %}
+        <nav class="mt-3" aria-label="Navegação de páginas">
+            <ul class="pagination pagination-sm mb-0">
+                <li class="page-item {{ 'disabled' if pagina == 1 }}">
+                    <a class="page-link" href="?{{ querystring_sem_pagina }}{{ '&' if querystring_sem_pagina }}pagina={{ pagina - 1 }}">Anterior</a>
+                </li>
+                {% for p in paginas_exibir %}
+                {% if p is none %}
+                <li class="page-item disabled"><span class="page-link">…</span></li>
+                {% else %}
+                <li class="page-item {{ 'active' if p == pagina }}">
+                    <a class="page-link" href="?{{ querystring_sem_pagina }}{{ '&' if querystring_sem_pagina }}pagina={{ p }}">{{ p }}</a>
+                </li>
+                {% endif %}
+                {% endfor %}
+                <li class="page-item {{ 'disabled' if pagina == total_paginas }}">
+                    <a class="page-link" href="?{{ querystring_sem_pagina }}{{ '&' if querystring_sem_pagina }}pagina={{ pagina + 1 }}">Próxima</a>
+                </li>
+            </ul>
+        </nav>
+        {% endif %}
+        {% else %}
+        <p class="text-muted">Nenhum agendamento encontrado com esses filtros.</p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    /* Cores das linhas agora vêm calculadas do Python (status_visual em
+       app.py), aplicadas via style inline -- cobre as 4 categorias:
+       Em Rota, Parado na Quebra, Cancelado na Quebra, Executado. */
+</style>
+{% endblock %}

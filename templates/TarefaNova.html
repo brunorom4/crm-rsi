@@ -1,0 +1,188 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+            <h2><i class="bi bi-plus-circle-fill"></i> Nova Tarefa</h2>
+            {% if usuario_logado and usuario_logado['perfil'] == 'ADM' %}
+            <a href="/tarefas/cidades" class="btn btn-sm btn-outline-dark"><i class="bi bi-building"></i> Gerenciar cidades</a>
+            {% endif %}
+        </div>
+        <p class="text-muted">
+            Só <strong>contrato</strong>, <strong>cidade</strong> e <strong>atribuição</strong>
+            são obrigatórios. Se o contrato já existir na base sem dono, a atribuição é feita na hora.
+            Se já tiver dono, vira uma solicitação de transferência pro supervisor aprovar.
+        </p>
+        <hr>
+
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#abaFormulario" type="button"><i class="bi bi-pencil-square"></i> Formulário (um contrato)</button>
+            </li>
+            {% if usuario_logado and usuario_logado['perfil'] != 'OPERADOR' %}
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#abaPlanilha" type="button"><i class="bi bi-file-earmark-spreadsheet"></i> Planilha (vários contratos)</button>
+            </li>
+            {% endif %}
+        </ul>
+
+        <div class="tab-content pt-4">
+            <div class="tab-pane fade show active" id="abaFormulario">
+                <form action="/tarefas/manual" method="POST">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Contrato *</label>
+                            <input type="text" name="contrato" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Cidade *</label>
+                            <select name="cidade" class="form-select" required>
+                                <option value="" disabled selected>Selecione a cidade…</option>
+                                {% for c in cidades %}
+                                <option value="{{ c['nome'] }}">{{ c['nome'] }}</option>
+                                {% endfor %}
+                            </select>
+                            {% if not cidades %}
+                            <small class="text-muted">Nenhuma cidade cadastrada ainda{% if usuario_logado and usuario_logado['perfil'] == 'ADM' %} — <a href="/tarefas/cidades">cadastre aqui</a>{% endif %}.</small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label fw-bold">Atribuir a *</label>
+                            <select name="atribuicao" class="form-select" required>
+                                <option value="" disabled selected>Selecione a pessoa…</option>
+                                {% for u in usuarios %}
+                                <option value="{{ u['login'] }}">{{ u['nome'] }} ({{ u['perfil'] | exibir_perfil }})</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-sm btn-outline-secondary mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#camposOpcionais">
+                        Mostrar campos opcionais (cliente, contatos, produtos, endereço, prioridade)
+                    </button>
+                    <div class="collapse" id="camposOpcionais">
+                        <div class="row mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label">Cliente</label>
+                                <input type="text" name="cliente" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Node</label>
+                                <input type="text" name="node" class="form-control">
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Código do imóvel</label>
+                                <input type="text" name="codigo_imovel" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-md-8">
+                                <label class="form-label">Endereço</label>
+                                <input type="text" name="endereco" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Complemento</label>
+                                <input type="text" name="complemento" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-md-4">
+                                <label class="form-label">Celular</label>
+                                <input type="text" name="telefone_celular" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Residencial</label>
+                                <input type="text" name="telefone_residencial" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Comercial</label>
+                                <input type="text" name="telefone_comercial" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-md-6">
+                                <label class="form-label">E-mail</label>
+                                <input type="email" name="email" class="form-control">
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Prioridade (0 a 100)</label>
+                                <input type="number" name="prioridade" min="0" max="100" value="0" class="form-control">
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row mb-2">
+                            <div class="col-md-8">
+                                <label class="form-label">Produto TV</label>
+                                <input type="text" name="produto_tv" class="form-control">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Valor TV</label>
+                                <input type="number" step="0.01" name="valor_tv" class="form-control">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">Pto adicional</label>
+                                <input type="number" step="0.01" name="valor_ponto_adicional" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-md-8">
+                                <label class="form-label">Produto Internet</label>
+                                <input type="text" name="produto_virtua" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Valor Internet</label>
+                                <input type="number" step="0.01" name="valor_virtua" class="form-control">
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Produto VOIP</label>
+                                <input type="text" name="produto_voip" class="form-control">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">Valor VOIP</label>
+                                <input type="number" step="0.01" name="valor_voip" class="form-control">
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Valor total</label>
+                            <input type="number" step="0.01" name="valor_total" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Justificativa (caso o contrato já tenha dono e precise virar transferência)</label>
+                        <textarea name="justificativa" class="form-control" rows="2"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger">Criar tarefa</button>
+                </form>
+            </div>
+
+            {% if usuario_logado and usuario_logado['perfil'] != 'OPERADOR' %}
+            <div class="tab-pane fade" id="abaPlanilha">
+                <p class="text-muted">
+                    Ideal pra volumes maiores — normalmente usado pelo Analista.
+                    Colunas: <strong>contrato, cidade, atribuicao</strong> (obrigatórias) e, opcionalmente,
+                    cliente, node, endereco, complemento, telefone_celular, telefone_residencial,
+                    telefone_comercial, email, codigo_imovel, produto_tv, valor_tv, valor_ponto_adicional,
+                    produto_virtua, valor_virtua, produto_voip, valor_voip, valor_total, prioridade.
+                    A coluna <strong>cidade</strong> deve usar exatamente os nomes da lista padronizada.
+                </p>
+                <form action="/tarefas/importar" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label">Planilha (.xlsx ou .csv)</label>
+                        <input type="file" name="arquivo" class="form-control" accept=".xlsx,.csv" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Justificativa (usada caso algum contrato já tenha dono e precise de transferência)</label>
+                        <textarea name="justificativa" class="form-control" rows="3"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-danger">Enviar planilha</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

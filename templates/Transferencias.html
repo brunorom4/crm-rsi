@@ -1,0 +1,36 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-arrow-left-right"></i> Transferências pendentes</h2>
+        <hr>
+        {% if pendentes %}
+        <table class="table align-middle">
+            <thead><tr><th>Contrato</th><th>De</th><th>Para</th><th>Solicitado por</th><th>Justificativa</th><th>Ação</th></tr></thead>
+            <tbody>
+                {% for t in pendentes %}
+                <tr>
+                    <td>{{ t['contrato'] }}</td>
+                    <td>{{ t['dono_atual'] }}</td>
+                    <td>{{ t['destino'] }}</td>
+                    <td>{{ t['solicitante'] }}</td>
+                    <td>{{ t['justificativa'] or '—' }}</td>
+                    <td class="d-flex gap-1">
+                        <form action="/transferencias/{{ t['id'] }}/aprovar" method="POST">
+                            <button type="submit" class="btn btn-sm btn-success">Aprovar</button>
+                        </form>
+                        <form action="/transferencias/{{ t['id'] }}/rejeitar" method="POST">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Rejeitar</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">Nenhuma transferência pendente.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

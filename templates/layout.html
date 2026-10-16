@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        // Aplica o tema salvo o quanto antes, pra não piscar claro->escuro na tela
+        if (localStorage.getItem('temaCRM') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+        }
+    </script>
+    <title>CRM RSI</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="shortcut icon" href="/static/favicon.ico">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@500;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/estilo.css">
+    <style>
+        :root{
+            --red: #E4002B;
+            --red-dark: #A2001D;
+            --ink: #14141A;
+            --ink-soft: #232327;
+            --gray-900: #3A3A3F;
+            --gray-600: #6E6E76;
+            --gray-300: #E7E6E2;
+            --gray-100: #F3F3F1;
+            --ok: #1E8E4A;
+            --warn: #B45309;
+        }
+        body {
+            background: var(--gray-100);
+            overflow-x: hidden;
+            font-family: 'Inter', sans-serif;
+            color: var(--ink);
+        }
+        h1, h2, h3, h4, h5, h6, .kpi { font-family: 'Manrope', sans-serif; }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 250px;
+            background: linear-gradient(180deg, var(--ink) 0%, #000000 100%);
+            color: white;
+            position: fixed;
+            height: 100vh;
+            left: 0;
+            top: 0;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+            transition: width 0.2s ease;
+            z-index: 1000;
+        }
+        .sidebar.recolhido { width: 76px; }
+        .sidebar.recolhido .texto-menu,
+        .sidebar.recolhido .sidebar-user,
+        .sidebar.recolhido .logo-texto { display: none; }
+        .sidebar.recolhido .sidebar-menu li a { justify-content: center; padding: 12px 0; }
+        .sidebar.recolhido .logo-topo { justify-content: center; padding: 16px 0; }
+
+        .logo-topo {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 16px 14px;
+            position: sticky;
+            top: 0;
+            z-index: 1001;
+            background: var(--ink);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            flex-shrink: 0;
+        }
+        .logo-mark {
+            width: 34px; height: 34px; border-radius: 9px; background: var(--red);
+            display: flex; align-items: center; justify-content: center;
+            font-family: 'Manrope'; font-weight: 800; font-size: 12.5px; color: white;
+            flex-shrink: 0;
+        }
+        .logo-mark-img {
+            width: 34px; height: 34px; object-fit: contain; flex-shrink: 0;
+            background: white; border-radius: 9px; padding: 3px;
+        }
+        .logo-texto { display: flex; align-items: center; gap: 10px; line-height: 1.1; }
+        .logo-texto strong { font-family: 'Manrope'; font-size: 14.5px; }
+        .logo-texto small { display: block; font-size: 10.5px; color: rgba(255,255,255,.5); }
+        .botao-recolher { background: none; border: none; color: white; font-size: 20px; cursor: pointer; line-height: 1; padding: 4px 8px; opacity: .8; }
+        .botao-recolher:hover { opacity: 1; }
+
+        .sidebar-scroll { overflow-y: auto; flex: 1; display: flex; flex-direction: column; }
+
+        .sidebar-user {
+            padding: 12px 20px; font-size: 12.5px; color: rgba(255,255,255,.55);
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+        }
+        .sidebar-user b { color: white; font-weight: 600; display: block; font-size: 13px; }
+
+        .nav-label {
+            font-size: 10.5px; letter-spacing: .07em; text-transform: uppercase;
+            color: rgba(255,255,255,.32); padding: 16px 20px 6px;
+        }
+        .sidebar.recolhido .nav-label { display: none; }
+
+        .sidebar-menu { list-style: none; padding: 0 10px; margin: 0; }
+        .sidebar-menu li a {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 12px; margin-bottom: 2px; border-radius: 9px;
+            color: rgba(255,255,255,.72); text-decoration: none;
+            font-size: 13.5px; font-weight: 500;
+            white-space: nowrap; overflow: hidden;
+            transition: background .15s ease, color .15s ease;
+        }
+        .sidebar-menu li a:hover { background: rgba(255,255,255,.07); color: white; }
+        .sidebar-menu li a.active { background: var(--red); color: white; }
+        .sidebar-menu li a i { font-size: 15px; width: 18px; text-align: center; opacity: .85; flex-shrink: 0; }
+        .sidebar-menu li a.active i { opacity: 1; }
+        .badge-noticia {
+            width: 8px; height: 8px; border-radius: 50%; background: var(--red);
+            margin-left: auto; flex-shrink: 0;
+            box-shadow: 0 0 0 2px rgba(228, 0, 43, .25);
+        }
+
+        .sidebar-menu.rodape { margin-top: auto; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); }
+
+        .link-versao {
+            display: block; text-align: center; padding: 8px 0 12px;
+            font-size: 11px; color: rgba(255,255,255,0.28); text-decoration: none;
+            letter-spacing: .02em;
+        }
+        .link-versao:hover { color: rgba(255,255,255,0.55); }
+        .sidebar.recolhido .link-versao { display: none; }
+
+        /* MAIN */
+        .main-content {
+            margin-left: 250px; padding: 22px 28px 40px;
+            min-height: 100vh; transition: margin-left 0.2s ease; overflow-x: hidden;
+        }
+        .sidebar.recolhido ~ .main-content { margin-left: 76px; }
+
+        .topo-pagina {
+            display: flex; align-items: center; gap: 16px; margin-bottom: 20px;
+        }
+        .topo-pagina .dropdown { margin-left: auto; }
+        .topo-busca {
+            flex: 1; max-width: 380px; background: white; border: 1px solid var(--gray-300);
+            border-radius: 10px; padding: 8px 14px; display: flex; align-items: center; gap: 8px;
+        }
+        .topo-busca input { border: none; outline: none; font-size: 13.5px; width: 100%; background: transparent; }
+        .topo-chip {
+            margin-left: auto; display: flex; align-items: center; gap: 8px;
+            background: white; border: 1px solid var(--gray-300); border-radius: 30px;
+            padding: 5px 14px 5px 6px; font-size: 12.5px; color: var(--gray-900);
+            cursor: pointer; user-select: none;
+        }
+        .topo-chip .bolinha {
+            width: 26px; height: 26px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--red), var(--red-dark));
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 11px; font-weight: 700; flex-shrink: 0;
+        }
+        .topo-chip .bolinha-foto {
+            width: 26px; height: 26px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+        }
+        .menu-perfil { min-width: 300px; padding: 18px; border: 1px solid var(--gray-300); border-radius: 14px; }
+        .menu-perfil .bolinha-grande {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: linear-gradient(135deg, var(--red), var(--red-dark));
+            color: white; display: flex; align-items: center; justify-content: center;
+            font-size: 22px; font-weight: 700; margin: 0 auto;
+        }
+        .menu-perfil .bolinha-foto-grande {
+            width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin: 0 auto; display: block;
+        }
+        .foto-editavel {
+            position: relative; width: 60px; height: 60px; margin: 0 auto; cursor: pointer;
+        }
+        .foto-editavel-overlay {
+            position: absolute; top: 0; left: 0; width: 60px; height: 60px; border-radius: 50%;
+            background: rgba(0, 0, 0, 0.55); color: white; font-size: 20px;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity .15s ease;
+        }
+        .foto-editavel:hover .foto-editavel-overlay {
+            opacity: 1;
+        }
+
+        /* CARDS / KPIs (usados no conteúdo das telas) */
+        .card-shadow { box-shadow: 0 1px 2px rgba(23,23,26,.04), 0 8px 22px rgba(23,23,26,.06); border: 1px solid var(--gray-300); border-radius: 14px; }
+        .titulo { font-size: 12.5px; color: var(--gray-600); font-weight: 600; margin-bottom: 4px; }
+        .kpi { font-size: 28px; font-weight: 800; color: var(--ink); line-height: 1.1; }
+
+        .progress { background: var(--gray-100); }
+        .progress-bar.bg-danger { background: var(--red) !important; }
+
+        .btn-danger { background: var(--red); border-color: var(--red); font-weight: 600; }
+        .btn-danger:hover { background: var(--red-dark); border-color: var(--red-dark); }
+        .btn-outline-dark { border-color: var(--gray-300); color: var(--gray-900); font-weight: 500; }
+        .btn-outline-dark:hover { background: var(--ink); border-color: var(--ink); }
+        .btn, .form-control, .form-select { border-radius: 9px; }
+
+        .card-shadow { box-shadow: 0 1px 2px rgba(20,20,26,.03), 0 10px 24px rgba(20,20,26,.05); border: 1px solid var(--gray-300); border-radius: 14px; }
+
+        .table thead th { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--gray-600); font-weight: 700; border-bottom: 1px solid var(--gray-300); }
+        .table td { font-size: 13.5px; vertical-align: middle; padding-top: .65rem; padding-bottom: .65rem; }
+        .table tbody tr:hover { background: var(--gray-100); }
+
+        .status-pill { font-size: 10.5px; font-weight: 700; padding: 4px 10px; border-radius: 20px; display: inline-flex; align-items: center; gap: 5px; }
+        .status-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+        .status-verde { background: #EAF6EF; color: var(--ok); } .status-verde::before { background: var(--ok); }
+        .status-amarelo { background: #FCF1E4; color: var(--warn); } .status-amarelo::before { background: var(--warn); }
+        .status-vermelho { background: #FDECEF; color: var(--red-dark); } .status-vermelho::before { background: var(--red); }
+        .status-azul { background: #E7EEFB; color: #1D4ED8; } .status-azul::before { background: #1D4ED8; }
+        .status-cinza { background: var(--gray-100); color: var(--gray-600); } .status-cinza::before { background: var(--gray-600); }
+
+        /* ---- FAIXA DE DESTAQUE (topo das telas principais) ---- */
+        .hero-band {
+            background: linear-gradient(115deg, var(--ink) 0%, var(--red-dark) 65%, var(--red) 100%);
+            margin: -22px -28px 0; padding: 26px 28px 44px; position: relative; overflow: hidden;
+            border-radius: 0 0 0 0;
+        }
+        .hero-band::before {
+            content: ''; position: absolute; inset: 0;
+            background-image: radial-gradient(circle at 85% 15%, rgba(255,255,255,.10), transparent 45%);
+        }
+        .hero-eyebrow { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; color: rgba(255,255,255,.6); font-weight: 600; margin-bottom: 6px; position: relative; }
+        .hero-band h1 { color: white; font-size: 23px; font-weight: 800; margin: 0; position: relative; }
+        .hero-band p { color: rgba(255,255,255,.72); font-size: 13px; margin: 4px 0 0; position: relative; }
+
+        /* ---- CARDS DE KPI (flutuam por cima da faixa) ---- */
+        .kpi-row { margin-top: -30px; position: relative; z-index: 2; }
+        .kpi-card {
+            background: white; border-radius: 14px; padding: 18px 18px 16px;
+            box-shadow: 0 10px 26px rgba(20,20,26,.12); height: 100%;
+        }
+        .kpi-badge {
+            width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+            font-size: 17px; color: white; background: var(--badge, var(--gray-900));
+            box-shadow: 0 6px 14px rgba(0,0,0,.16);
+        }
+        .kpi-titulo { font-size: 12px; color: var(--gray-600); font-weight: 600; margin: 12px 0 2px; }
+        .kpi { font-size: 26px; font-weight: 800; color: var(--ink); letter-spacing: -.01em; line-height: 1; }
+        .kpi-delta { font-size: 11.5px; font-weight: 600; margin-top: 6px; }
+        .kpi-delta.up { color: var(--ok); }
+        .kpi-delta.down { color: var(--red); }
+        .kpi-delta.flat { color: var(--gray-600); }
+
+        /* ---- CHIPS DE RESUMO (telas de lista/tabela, mais compactas que os KPI cards) ---- */
+        .resumo-row { margin-top: -22px; position: relative; z-index: 2; display: flex; gap: 10px; flex-wrap: wrap; }
+        .resumo-chip {
+            background: white; border-radius: 11px; padding: 10px 16px; box-shadow: 0 8px 20px rgba(20,20,26,.10);
+            display: flex; align-items: center; gap: 9px; font-size: 13px; font-weight: 600;
+        }
+        .resumo-chip .ponto { width: 9px; height: 9px; border-radius: 50%; background: var(--dot, var(--gray-600)); flex-shrink: 0; }
+        .resumo-chip .num { font-family: 'Manrope'; font-weight: 800; }
+
+        .section-title { display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 700; margin-bottom: 14px; }
+        .section-title i { color: var(--red); font-size: 16px; }
+
+        /* ===== Modo escuro ===== */
+        html[data-theme="dark"] body { background: #15151A; color: #E6E6E9; }
+        html[data-theme="dark"] .card,
+        html[data-theme="dark"] .card-shadow,
+        html[data-theme="dark"] .kpi-card,
+        html[data-theme="dark"] .resumo-chip,
+        html[data-theme="dark"] .topo-busca,
+        html[data-theme="dark"] .topo-chip,
+        html[data-theme="dark"] .modal-content,
+        html[data-theme="dark"] .list-group-item {
+            background: #1E1E24 !important; color: #E6E6E9 !important; border-color: #313138 !important;
+        }
+        html[data-theme="dark"] .kpi,
+        html[data-theme="dark"] .kpi-titulo,
+        html[data-theme="dark"] h1, html[data-theme="dark"] h2, html[data-theme="dark"] h3,
+        html[data-theme="dark"] h4, html[data-theme="dark"] h5, html[data-theme="dark"] h6 {
+            color: #E6E6E9;
+        }
+        html[data-theme="dark"] .text-muted { color: #9C9CA4 !important; }
+        html[data-theme="dark"] .table { color: #E6E6E9; --bs-table-color: #E6E6E9; }
+        html[data-theme="dark"] .table > :not(caption) > * > * { background: transparent; border-color: #313138; color: #E6E6E9; }
+        html[data-theme="dark"] .table-hover > tbody > tr:hover > * { background: rgba(255,255,255,.04); color: #E6E6E9; }
+        html[data-theme="dark"] .form-control,
+        html[data-theme="dark"] .form-select,
+        html[data-theme="dark"] .topo-busca input {
+            background: #26262D !important; color: #E6E6E9 !important; border-color: #3A3A42 !important;
+        }
+        html[data-theme="dark"] .form-control::placeholder { color: #77777F; }
+        html[data-theme="dark"] .form-control:focus, html[data-theme="dark"] .form-select:focus {
+            background: #26262D; color: #E6E6E9;
+        }
+        html[data-theme="dark"] hr { border-color: #313138; opacity: 1; }
+        html[data-theme="dark"] .btn-outline-dark { color: #E6E6E9; border-color: #4A4A52; }
+        html[data-theme="dark"] .btn-outline-dark:hover { background: #313138; border-color: #313138; color: #E6E6E9; }
+        html[data-theme="dark"] .btn-light { background: #26262D; color: #E6E6E9; border-color: #3A3A42; }
+        html[data-theme="dark"] .badge.bg-light { background: #313138 !important; color: #E6E6E9 !important; }
+        html[data-theme="dark"] .toggle-tema i { color: #E6E6E9; }
+
+        /* Hover de linha de tabela (regra genérica usa --gray-100, que não muda no escuro) */
+        html[data-theme="dark"] .table tbody tr:hover { background: #26262D !important; color: #E6E6E9; }
+
+        /* bg-light usado como fundo de detalhe (ex: linha expandida da Monitoria) */
+        html[data-theme="dark"] .bg-light { background: #26262D !important; color: #E6E6E9 !important; }
+
+        /* Dropdown do Bootstrap (ex: cartão de perfil no topo) tem fundo branco fixo */
+        html[data-theme="dark"] .dropdown-menu { background: #1E1E24; color: #E6E6E9; border-color: #313138; }
+        html[data-theme="dark"] .dropdown-menu .text-muted { color: #9C9CA4 !important; }
+
+        /* Círculo interno dos gauges (o "buraco" do anel) fica branco fixo por padrão */
+        html[data-theme="dark"] .gauge-anel::before { background: #1E1E24; }
+        html[data-theme="dark"] .gauge-anel span { color: #E6E6E9; }
+        /* A trilha (parte NÃO preenchida) do anel também é clara fixa por padrão */
+        html[data-theme="dark"] .gauge-anel { background: conic-gradient(var(--cor) calc(var(--percentual) * 3.6deg), #3A3A42 0deg); }
+    </style>
+</head>
+<body>
+    <div class="sidebar" id="sidebar">
+        <div class="logo-topo">
+            <span class="logo-texto">
+                <img src="/static/logo-claro.png" alt="Claro" class="logo-mark-img">
+                <span><strong>CRM RSI</strong><small>Claro · Fibra</small></span>
+            </span>
+            <button class="botao-recolher" onclick="alternarMenu()" title="Recolher/expandir menu"><i class="bi bi-list"></i></button>
+        </div>
+
+        <div class="sidebar-scroll">
+            {% if usuario_logado %}
+            <div class="sidebar-user"><b>{{ usuario_logado['nome'] }}</b>{{ usuario_logado['perfil'] | exibir_perfil }}</div>
+            {% endif %}
+
+            {% if usuario_logado and not usuario_logado['precisa_trocar_senha'] %}
+            <div class="nav-label">Operação</div>
+            <ul class="sidebar-menu">
+                {% if pode('dashboard_pessoal') or pode('dashboard_equipe') %}
+                <li><a href="/" class="{{ 'active' if request.path == '/' }}"><i class="bi bi-house-door-fill"></i> <span class="texto-menu">Dashboard</span></a></li>
+                {% endif %}
+                <li><a href="/noticias" class="{{ 'active' if request.path.startswith('/noticias') }}"><i class="bi bi-megaphone-fill"></i> <span class="texto-menu">Informações</span>{% if tem_noticia_nao_lida %}<span class="badge-noticia"></span>{% endif %}</a></li>
+                {% if pode('qualidade_propria') or pode('qualidade_gestao') %}
+                <li><a href="/qualidade" class="{{ 'active' if request.path.startswith('/qualidade') }}"><i class="bi bi-award-fill"></i> <span class="texto-menu">Qualidade</span>{% if tem_monitoria_pendente %}<span class="badge-noticia"></span>{% endif %}</a></li>
+                {% endif %}
+                {% if sunny_link %}
+                <li><a href="#" onclick="abrirSunny(); return false;"><i class="bi bi-sun-fill"></i> <span class="texto-menu">Sunny</span></a></li>
+                {% endif %}
+                {% if pode('atendimento') and not precisa_iniciar_tratamento %}
+                <li><a href="/cliente" class="{{ 'active' if request.path == '/cliente' }}"><i class="bi bi-telephone-fill"></i> <span class="texto-menu">Atendimento</span></a></li>
+                {% endif %}
+                {% if pode('buscar_contrato') and not precisa_iniciar_tratamento %}
+                <li><a href="/cliente/buscar" class="{{ 'active' if request.path == '/cliente/buscar' }}"><i class="bi bi-search"></i> <span class="texto-menu">Buscar Contrato</span></a></li>
+                {% endif %}
+                {% if pode('agendados_data') and not precisa_iniciar_tratamento %}
+                <li><a href="/relatorios/agendados" class="{{ 'active' if request.path == '/relatorios/agendados' }}"><i class="bi bi-calendar-check"></i> <span class="texto-menu">Agendados por Data</span></a></li>
+                {% endif %}
+                {% if pode('agendado_executado') and not precisa_iniciar_tratamento %}
+                <li><a href="/atendimento/agendado_executado" class="{{ 'active' if request.path == '/atendimento/agendado_executado' }}"><i class="bi bi-check2-circle"></i> <span class="texto-menu">Agendado x Executado</span></a></li>
+                {% endif %}
+                {% if pode('tratamento_quebra') and not precisa_iniciar_tratamento %}
+                <li><a href="/quebra/tratamento" class="{{ 'active' if request.path.startswith('/quebra/tratamento') }}"><i class="bi bi-calendar-x-fill"></i> <span class="texto-menu">Tratamento de Quebra</span>{% if tem_quebra_pendente %}<span class="badge-noticia"></span>{% endif %}</a></li>
+                {% endif %}
+                {% if pode('nova_tarefa') and not precisa_iniciar_tratamento %}
+                <li><a href="/tarefas/nova" class="{{ 'active' if request.path == '/tarefas/nova' }}"><i class="bi bi-plus-circle-fill"></i> <span class="texto-menu">Nova Tarefa</span></a></li>
+                {% endif %}
+                {% if pode('gpon_tratamento') or pode('gpon_fila') %}
+                <li><a href="/gpon" class="{{ 'active' if request.path.startswith('/gpon') }}"><i class="bi bi-broadcast"></i> <span class="texto-menu">GPON Indisponível</span></a></li>
+                {% endif %}
+                {% if pode('pausas') %}
+                <li><a href="/pausas" class="{{ 'active' if request.path == '/pausas' }}"><i class="bi bi-cup-hot-fill"></i> <span class="texto-menu">Tratamento / Pausas</span></a></li>
+                {% endif %}
+            </ul>
+
+            {% set pode_extracao = pode('extracao_pontualidade') or pode('extracao_tratamentos') or pode('extracao_gpon') or pode('extracao_ausencias') or pode('extracao_usuarios') %}
+            {% if pode('supervisao') or pode('escalas') or pode('transferencias') or pode_extracao or pode('historico_tratamento') or pode('quebra_gestao') or pode('diario_bordo') %}
+            <div class="nav-label">Gestão</div>
+            <ul class="sidebar-menu">
+                {% if pode('supervisao') %}
+                <li><a href="/supervisao" class="{{ 'active' if request.path == '/supervisao' }}"><i class="bi bi-eye-fill"></i> <span class="texto-menu">Supervisão</span></a></li>
+                {% endif %}
+                {% if pode('escalas') %}
+                <li><a href="/escalas" class="{{ 'active' if request.path == '/escalas' }}"><i class="bi bi-calendar3"></i> <span class="texto-menu">Escalas</span></a></li>
+                {% endif %}
+                {% if pode('transferencias') %}
+                <li><a href="/transferencias" class="{{ 'active' if request.path == '/transferencias' }}"><i class="bi bi-arrow-left-right"></i> <span class="texto-menu">Transferências</span>{% if tem_transferencia_pendente %}<span class="badge-noticia"></span>{% endif %}</a></li>
+                {% endif %}
+                {% if pode_extracao %}
+                <li><a href="/admin/extracao" class="{{ 'active' if request.path == '/admin/extracao' or request.path == '/extracao/pontualidade' }}"><i class="bi bi-download"></i> <span class="texto-menu">Extrações</span></a></li>
+                {% endif %}
+                {% if pode('historico_tratamento') %}
+                <li><a href="/gestao/historico_tratamento" class="{{ 'active' if request.path == '/gestao/historico_tratamento' }}"><i class="bi bi-clock-history"></i> <span class="texto-menu">Histórico de Tratamento</span></a></li>
+                {% endif %}
+                {% if pode('quebra_gestao') %}
+                <li><a href="/gestao/quebra" class="{{ 'active' if request.path == '/gestao/quebra' }}"><i class="bi bi-calendar-x-fill"></i> <span class="texto-menu">Gestão de Quebra</span></a></li>
+                {% endif %}
+                {% if pode('diario_bordo') %}
+                <li><a href="/diario-bordo" class="{{ 'active' if request.path == '/diario-bordo' }}"><i class="bi bi-journal-text"></i> <span class="texto-menu">Diário de Bordo</span></a></li>
+                {% endif %}
+            </ul>
+            {% endif %}
+
+            {% if usuario_logado['perfil'] == 'ADM' %}
+            <div class="nav-label">Administração</div>
+            <ul class="sidebar-menu">
+                <li><a href="/admin/backup" title="Baixa um zip com código, telas e banco de dados -- roda isso antes de subir qualquer versão nova"><i class="bi bi-cloud-arrow-down-fill"></i> <span class="texto-menu">Backup Completo</span></a></li>
+                <li><a href="/admin/historico-tarefas" class="{{ 'active' if request.path == '/admin/historico-tarefas' }}"><i class="bi bi-clock-history"></i> <span class="texto-menu">Histórico de Tarefas</span></a></li>
+                <li><a href="/admin/modo" class="{{ 'active' if request.path == '/admin/modo' }}"><i class="bi bi-gear-fill"></i> <span class="texto-menu">Modo de Trabalho</span></a></li>
+                <li><a href="/admin/importacao" class="{{ 'active' if request.path == '/admin/importacao' }}"><i class="bi bi-upload"></i> <span class="texto-menu">Importação de Dados</span></a></li>
+                <li><a href="/admin/cidades-operadora" class="{{ 'active' if request.path == '/admin/cidades-operadora' }}"><i class="bi bi-signpost-split-fill"></i> <span class="texto-menu">Cidades x Operadora</span></a></li>
+                <li><a href="/admin/usuarios/gerenciar" class="{{ 'active' if request.path == '/admin/usuarios/gerenciar' }}"><i class="bi bi-person-fill-gear"></i> <span class="texto-menu">Gerenciar Usuários</span></a></li>
+                <li><a href="/admin/permissoes" class="{{ 'active' if request.path == '/admin/permissoes' }}"><i class="bi bi-shield-lock-fill"></i> <span class="texto-menu">Permissões</span></a></li>
+                <li><a href="/admin/scripts_atendimento" class="{{ 'active' if request.path == '/admin/scripts_atendimento' }}"><i class="bi bi-chat-square-text-fill"></i> <span class="texto-menu">Scripts de Atendimento</span></a></li>
+                <li><a href="/admin/relatorio_email" class="{{ 'active' if request.path == '/admin/relatorio_email' }}"><i class="bi bi-envelope-fill"></i> <span class="texto-menu">Relatório por E-mail</span></a></li>
+                <li><a href="/admin/relatorio_telegram" class="{{ 'active' if request.path == '/admin/relatorio_telegram' }}"><i class="bi bi-send-fill"></i> <span class="texto-menu">Relatório via Telegram</span></a></li>
+            </ul>
+            {% endif %}
+
+            <ul class="sidebar-menu rodape">
+                <li><a href="/portal"><i class="bi bi-grid-fill"></i> <span class="texto-menu">Portal</span></a></li>
+                <li><a href="/trocar-senha"><i class="bi bi-lock-fill"></i> <span class="texto-menu">Trocar Senha</span></a></li>
+                <li><a href="/logout"><i class="bi bi-box-arrow-right"></i> <span class="texto-menu">Sair</span></a></li>
+            </ul>
+            {% elif usuario_logado %}
+            <ul class="sidebar-menu rodape">
+                <li><a href="/logout"><i class="bi bi-box-arrow-right"></i> <span class="texto-menu">Sair</span></a></li>
+            </ul>
+            {% endif %}
+            {% if usuario_logado %}
+            <a href="/notas-de-versao" class="link-versao">v{{ versao_sistema }}</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="main-content">
+        {% if usuario_logado %}
+        <div class="topo-pagina">
+            {% if not precisa_iniciar_tratamento and not usuario_logado['precisa_trocar_senha'] %}
+            <form class="topo-busca" method="GET" action="/cliente/buscar">
+                <i class="bi bi-search"></i>
+                <input type="text" name="q" placeholder="Buscar contrato ou cliente…">
+            </form>
+            {% endif %}
+            <div class="dropdown ms-auto d-flex align-items-center gap-2">
+                {# Antes checava "perfil != OPERADOR" direto, travando o atalho pra esse
+                   perfil sempre, mesmo quando o ADM libera "Ajuda" pra ele na tela de
+                   Permissões (achado do Bruno, 2026-09-20 -- o link funcionava normal
+                   se a pessoa digitasse /ajuda na URL, só o atalho aqui do topo é que
+                   nunca aparecia pra OPERADOR). Agora usa a mesma permissão real que a
+                   rota /ajuda já checa (perfil_pode / "pode", injetado em todo template
+                   por injetar_usuario_logado), então o atalho segue a matriz de
+                   Permissões pra qualquer perfil, sem exceção hardcoded. #}
+                {% if pode('ajuda') %}
+                <a href="/ajuda" class="btn btn-sm btn-outline-secondary" title="Ajuda: manual e perguntas frequentes" style="border-radius: 50%; width: 34px; height: 34px; padding: 0; display: flex; align-items: center; justify-content: center;">
+                    <i class="bi bi-question-circle-fill"></i>
+                </a>
+                {% endif %}
+                <button type="button" class="btn btn-sm btn-outline-secondary toggle-tema" onclick="alternarTema()" title="Alternar modo claro/escuro" style="border-radius: 50%; width: 34px; height: 34px; padding: 0;">
+                    <i class="bi bi-moon-stars-fill" id="iconeTema"></i>
+                </button>
+                <div class="topo-chip" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    {% if usuario_logado['foto'] %}
+                    <img src="/static/{{ usuario_logado['foto'] }}" class="bolinha-foto" alt="Foto">
+                    {% else %}
+                    <span class="bolinha">{{ usuario_logado['nome'][:2] | upper }}</span>
+                    {% endif %}
+                    {{ usuario_logado['nome'] }}
+                    <span style="font-size: 10px; opacity: .6;">▾</span>
+                </div>
+                <div class="dropdown-menu dropdown-menu-end menu-perfil" onclick="event.stopPropagation()">
+                    <div class="text-center mb-3">
+                        <div class="foto-editavel" role="button" data-bs-toggle="modal" data-bs-target="#modalEditarFoto" title="Trocar foto">
+                            {% if usuario_logado['foto'] %}
+                            <img src="/static/{{ usuario_logado['foto'] }}" class="bolinha-foto-grande" alt="Foto">
+                            {% else %}
+                            <div class="bolinha-grande">{{ usuario_logado['nome'][:2] | upper }}</div>
+                            {% endif %}
+                            <div class="foto-editavel-overlay"><i class="bi bi-pencil-fill"></i></div>
+                        </div>
+                        <div class="mt-2 fw-bold">{{ usuario_logado['nome'] }}</div>
+                        <div class="text-muted small">{{ usuario_logado['perfil'] | exibir_perfil }}</div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-0">E-mail</label>
+                        <div class="small">{{ usuario_logado['email'] or '—' }}</div>
+                    </div>
+                    <hr>
+                    <form action="/perfil/salvar" method="POST">
+                        <div class="mb-2">
+                            <label class="form-label small">Celular</label>
+                            <input type="text" name="celular" id="perfilCelular" class="form-control form-control-sm" value="{{ usuario_logado['celular'] or '' }}" placeholder="(19) 99999.9999" maxlength="16">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">Ramal</label>
+                            <input type="text" name="ramal" id="perfilRamal" class="form-control form-control-sm" value="{{ usuario_logado['ramal'] or '' }}" placeholder="(19) 3721.6234" maxlength="15">
+                        </div>
+                        <button type="submit" class="btn btn-danger btn-sm w-100">Salvar</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if usuario_logado %}
+        <div class="modal fade" id="modalEditarFoto" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Foto de perfil</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form action="/perfil/salvar" method="POST" enctype="multipart/form-data">
+                        <div class="modal-body text-center">
+                            {% if usuario_logado['foto'] %}
+                            <img src="/static/{{ usuario_logado['foto'] }}" class="bolinha-foto-grande mb-3" alt="Foto atual" style="width:90px; height:90px;">
+                            {% endif %}
+                            <input type="file" name="foto" accept="image/*" class="form-control" required>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="submit" class="btn btn-danger">Salvar foto</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% block conteudo %}
+        {% endblock %}
+    </div>
+
+    {% if precisa_encerrar_tratamento %}
+    <div class="modal fade" id="modalEncerrarTratamento" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-stop-circle-fill"></i> Encerrar Tratamento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0">Já passou das 17h48 e o seu tratamento ainda está em aberto. O sistema não vai atribuir mais nenhum contrato novo pra você hoje — não esqueça de encerrar o turno.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Depois</button>
+                    <a href="/pausas" class="btn btn-danger"><i class="bi bi-stop-circle-fill"></i> Ir para Tratamento / Pausas</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            new bootstrap.Modal(document.getElementById('modalEncerrarTratamento')).show();
+        });
+    </script>
+    {% endif %}
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        function alternarMenu() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('recolhido');
+            localStorage.setItem('menuRecolhido', sidebar.classList.contains('recolhido') ? '1' : '0');
+        }
+        if (localStorage.getItem('menuRecolhido') === '1') {
+            document.getElementById('sidebar').classList.add('recolhido');
+        }
+
+        function atualizarIconeTema() {
+            const icone = document.getElementById('iconeTema');
+            if (!icone) return;
+            const escuro = document.documentElement.getAttribute('data-theme') === 'dark';
+            icone.className = escuro ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+        }
+
+        function alternarTema() {
+            const escuroAtivo = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (escuroAtivo) {
+                document.documentElement.removeAttribute('data-theme');
+                localStorage.setItem('temaCRM', 'light');
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                localStorage.setItem('temaCRM', 'dark');
+            }
+            atualizarIconeTema();
+        }
+        atualizarIconeTema();
+
+        // Abre o Sunny numa janela "de app" -- sem barra de endereço, sem abas --
+        // porque a Microsoft bloqueia login dela dentro de iframe (por segurança,
+        // contra clickjacking), então isso é o mais próximo de "embutido" que dá.
+        function abrirSunny() {
+            const link = {{ sunny_link | tojson }};
+            if (!link) return;
+            const largura = 430, altura = 680;
+            const esquerda = window.screenX + (window.outerWidth - largura) / 2;
+            const topo = window.screenY + (window.outerHeight - altura) / 2;
+            window.open(
+                link,
+                'SunnyChat',
+                `width=${largura},height=${altura},left=${esquerda},top=${topo},toolbar=no,location=no,menubar=no,status=no,scrollbars=yes,resizable=yes`
+            );
+        }
+
+        // Copiar pra área de transferência, com fallback pra quando o acesso é por
+        // IP na rede (http://192.168.x.x) em vez de localhost/https — nesses casos
+        // o navegador bloqueia a API moderna (navigator.clipboard) por segurança.
+        function copiarTexto(texto, mensagemSucesso) {
+            mensagemSucesso = mensagemSucesso || "Copiado!";
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(texto).then(
+                    () => alert(mensagemSucesso),
+                    () => copiarViaAreaDeTexto(texto, mensagemSucesso)
+                );
+            } else {
+                copiarViaAreaDeTexto(texto, mensagemSucesso);
+            }
+        }
+
+        function copiarViaAreaDeTexto(texto, mensagemSucesso) {
+            const area = document.createElement("textarea");
+            area.value = texto;
+            area.style.position = "fixed";
+            area.style.left = "-9999px";
+            area.style.top = "0";
+            document.body.appendChild(area);
+            area.focus();
+            area.select();
+            try {
+                document.execCommand("copy");
+                alert(mensagemSucesso);
+            } catch (erro) {
+                alert("Não consegui copiar automaticamente. Copie manualmente:\n\n" + texto);
+            }
+            document.body.removeChild(area);
+        }
+
+        // Máscaras padronizadas de celular — (19) 99265.4435 — e ramal — (19) 3721.6234
+        function mascararTelefone(valor, tamanhoBloco1) {
+            let v = valor.replace(/\D/g, "").slice(0, 2 + tamanhoBloco1 + 4);
+            let formatado = "";
+            if (v.length > 0) formatado = "(" + v.slice(0, 2);
+            if (v.length >= 2) formatado += ") ";
+            if (v.length > 2) formatado += v.slice(2, 2 + tamanhoBloco1);
+            if (v.length >= 2 + tamanhoBloco1) formatado += ".";
+            if (v.length > 2 + tamanhoBloco1) formatado += v.slice(2 + tamanhoBloco1, 2 + tamanhoBloco1 + 4);
+            return formatado;
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            var campoCelular = document.getElementById("perfilCelular");
+            var campoRamal = document.getElementById("perfilRamal");
+            if (campoCelular) {
+                campoCelular.addEventListener("input", function (e) {
+                    e.target.value = mascararTelefone(e.target.value, 5);
+                });
+            }
+            if (campoRamal) {
+                campoRamal.addEventListener("input", function (e) {
+                    e.target.value = mascararTelefone(e.target.value, 4);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

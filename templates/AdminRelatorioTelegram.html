@@ -1,0 +1,177 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-send-fill"></i> Relatório via Telegram</h2>
+        <hr>
+        <p class="text-muted">
+            Manda o relatório pro Telegram através de uma Edge Function do Supabase — o CRM fala só com o
+            Supabase (que sua máquina consegue acessar), e é o Supabase quem fala com o Telegram, de dentro
+            dos servidores dele. Assim o bloqueio de rede da empresa pro Telegram não afeta.
+        </p>
+
+        {% if request.args.get('enviado') %}
+        <div class="alert alert-success">Relatório enviado com sucesso!</div>
+        {% endif %}
+        {% if request.args.get('liberado') %}
+        <div class="alert alert-success">Liberado! O disparo automático pode rodar de novo hoje, no horário configurado.</div>
+        {% endif %}
+        {% if request.args.get('erro_envio') %}
+        <div class="alert alert-danger">{{ request.args.get('erro_envio') }}</div>
+        {% endif %}
+        {% if chat_ids_encontrados %}
+        <div class="alert alert-success">
+            <strong>Encontrei essas conversas recentes com o bot:</strong>
+            <ul class="mb-0 mt-2">
+                {% for id, descricao in chat_ids_encontrados.items() %}
+                <li><code>{{ id }}</code> — {{ descricao }}</li>
+                {% endfor %}
+            </ul>
+            <div class="small mt-2">
+                Copia o ID certo e cola nas <strong>Secrets</strong> do Supabase, no campo <code>TELEGRAM_CHAT_ID</code>
+                (não precisa colar aqui no CRM — o chat_id fica configurado do lado do Supabase, não do lado do CRM).
+            </div>
+        </div>
+        {% endif %}
+
+        {% set rotulos_dias = {'SEG':'Segunda','TER':'Terça','QUA':'Quarta','QUI':'Quinta','SEX':'Sexta','SAB':'Sábado','DOM':'Domingo'} %}
+
+        <form action="/admin/relatorio_telegram/salvar" method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">URL do projeto Supabase</label>
+                <input type="text" name="supabase_project_url" class="form-control" value="{{ config['supabase_project_url'] or '' }}"
+                       placeholder="https://xxxxxxxxxxxx.supabase.co">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Anon Key</label>
+                <input type="password" name="supabase_anon_key" class="form-control"
+                       placeholder="{{ '(mantida a já salva)' if config['supabase_anon_key'] else 'Encontrada em Settings -> API, no painel do Supabase' }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Horário da geração automática</label>
+                <input type="time" name="supabase_telegram_horario_envio" class="form-control" style="max-width: 160px;" value="{{ config['supabase_telegram_horario_envio'] or '18:00' }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Dias da semana em que dispara</label>
+                <div class="d-flex gap-3 flex-wrap">
+                    {% for dia in dias_semana %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="supabase_telegram_dias_semana" value="{{ dia }}" id="tg_dia_{{ dia }}"
+                               {% if dia in dias_marcados %}checked{% endif %}>
+                        <label class="form-check-label" for="tg_dia_{{ dia }}">{{ rotulos_dias[dia] }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" name="supabase_telegram_ativo" id="tgAtivo"
+                       {% if config['supabase_telegram_ativo'] %}checked{% endif %}>
+                <label class="form-check-label" for="tgAtivo">Envio automático ligado</label>
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-save-fill"></i> Salvar</button>
+        </form>
+
+        <hr>
+        <div class="mb-3 p-3 bg-light border rounded">
+            <div class="small text-muted mb-2">
+                Não sabe o Chat ID? Manda qualquer mensagem pro seu bot pelo app do Telegram
+                (ou no grupo, se for o caso) e clica aqui.
+            </div>
+            <button type="button" class="btn btn-sm btn-outline-dark" onclick="descobrirChatId()">
+                <i class="bi bi-search"></i> Descobrir Chat ID
+            </button>
+        </div>
+
+        <div class="mb-3">
+            <strong>Última geração automática:</strong>
+            {% if config['supabase_telegram_ultimo_envio_data'] %}
+                {{ config['supabase_telegram_ultimo_envio_data'] }}
+                {% if config['supabase_telegram_ultimo_envio_data'] == data_hoje %}
+                <span class="status-pill status-verde ms-2">Já rodou hoje</span>
+                <form action="/admin/relatorio_telegram/liberar_hoje" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-sm btn-outline-warning ms-2">Liberar novo envio hoje</button>
+                </form>
+                {% endif %}
+            {% else %}
+                <span class="text-muted">nunca rodou ainda</span>
+            {% endif %}
+        </div>
+
+        <form action="/admin/relatorio_telegram/enviar_teste" method="POST">
+            <button type="submit" class="btn btn-outline-dark"><i class="bi bi-send"></i> Enviar relatório agora</button>
+            <div class="text-muted small mt-2">Manda pro Telegram na hora, com os dados de agora.</div>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-question-circle-fill"></i> Consulta durante o dia (comando /status)</div>
+        <p class="text-muted">
+            De hora em hora, das 8h às 18h, o CRM guarda a versão mais recente do relatório no Supabase.
+            Assim, quando alguém manda <code>/status</code> pro bot a qualquer momento do dia, ele responde
+            na hora com os dados mais recentes salvos — sem precisar o CRM estar de olho o tempo todo.
+        </p>
+        <p class="text-muted small">
+            Usa a mesma URL do projeto e Anon Key configuradas acima — não precisa cadastrar de novo.
+        </p>
+        {% if request.args.get('atualizado') %}
+        <div class="alert alert-success">Cache atualizado! O /status já deve responder com esses dados.</div>
+        {% endif %}
+        <form action="/admin/relatorio_telegram/atualizar_cache_agora" method="POST">
+            <button type="submit" class="btn btn-outline-dark"><i class="bi bi-arrow-repeat"></i> Atualizar cache agora</button>
+            <div class="text-muted small mt-2">
+                Força a atualização na hora, mesmo fora da janela de 8h-18h — útil pra testar o
+                <code>/status</code> sem precisar esperar a próxima hora cheia.
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-diagram-3-fill"></i> Como configurar do lado do Supabase</div>
+        <p class="fw-bold mb-1">Pro envio de relatório (horário fixo):</p>
+        <ol class="mb-3">
+            <li class="mb-2">No painel do Supabase, vá em <strong>Edge Functions</strong> e crie: <code>enviar-relatorio</code> e <code>descobrir-chat-id</code>, colando o código de cada uma.</li>
+            <li class="mb-2">Em <strong>Edge Functions → Secrets</strong>, cadastre <code>TELEGRAM_BOT_TOKEN</code> com o token do seu bot.</li>
+            <li class="mb-2">Cola a URL do projeto e a Anon Key aqui em cima (Settings → API no Supabase) e salva.</li>
+            <li class="mb-2">Manda uma mensagem pro bot, clica "Descobrir Chat ID" aqui, e cola o ID na Secret <code>TELEGRAM_CHAT_ID</code> do Supabase.</li>
+        </ol>
+        <p class="fw-bold mb-1">Pra consulta a qualquer hora (comando /status):</p>
+        <ol class="mb-0">
+            <li class="mb-2">Rode o arquivo <code>criar_tabela_relatorio_cache.sql</code> no <strong>SQL Editor</strong> do Supabase (só uma vez).</li>
+            <li class="mb-2">Crie mais duas Edge Functions: <code>salvar-relatorio</code> e <code>webhook-telegram</code>, colando o código de cada uma.</li>
+            <li class="mb-2">
+                Na function <code>webhook-telegram</code>, entre em "Details" (ou nas configurações da function) e
+                <strong>desmarque "Enforce JWT Verification"</strong> — só nessa function específica. O Telegram não
+                sabe se autenticar com o Supabase, então essa function precisa ficar aberta pra ele conseguir chamar.
+            </li>
+            <li class="mb-2">
+                No navegador do <strong>celular</strong> (não precisa ser na máquina do CRM), abre essa URL uma vez
+                pra registrar o aviso automático, trocando pelo seu token e pela URL do seu projeto:<br>
+                <code style="word-break: break-all;">https://api.telegram.org/bot&lt;SEU_TOKEN&gt;/setWebhook?url=https://&lt;SEU_PROJETO&gt;.supabase.co/functions/v1/webhook-telegram</code>
+            </li>
+        </ol>
+    </div>
+</div>
+
+<form id="formDescobrirChatIdTelegram" action="/admin/relatorio_telegram/descobrir_chat_id" method="POST" class="d-none">
+    <input type="hidden" name="supabase_project_url" id="urlOcultaDescoberta">
+    <input type="hidden" name="supabase_anon_key" id="chaveOcultaDescoberta">
+</form>
+<script>
+    function descobrirChatId() {
+        const url = document.querySelector('input[name="supabase_project_url"]').value.trim();
+        const chave = document.querySelector('input[name="supabase_anon_key"]').value.trim();
+        if (!url) {
+            alert('Cola a URL do projeto Supabase no campo acima primeiro.');
+            return;
+        }
+        document.getElementById('urlOcultaDescoberta').value = url;
+        document.getElementById('chaveOcultaDescoberta').value = chave;
+        document.getElementById('formDescobrirChatIdTelegram').submit();
+    }
+</script>
+{% endblock %}

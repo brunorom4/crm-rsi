@@ -1,0 +1,154 @@
+{% extends "layout_backlog.html" %}
+
+{% block conteudo %}
+<style>
+    .painel-topo { margin-bottom: 22px; }
+    .painel-topo h1 { font-size: 21px; margin: 0 0 4px; }
+    .painel-topo p { color: var(--claro-cinza); margin: 0; font-size: 13.5px; }
+
+    .filtro-data {
+        display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+    .filtro-data .campo label { display: block; font-size: 12px; color: var(--claro-cinza); margin-bottom: 4px; font-weight: 600; }
+    .filtro-data input[type="date"] {
+        border: 1px solid #e0dedb; border-radius: 8px; padding: 8px 10px; font-family: 'Poppins', sans-serif; font-size: 13.5px;
+    }
+    .filtro-data button {
+        background: linear-gradient(135deg, var(--claro-vermelho-forte), var(--claro-vermelho-escuro));
+        color: #fff; border: none; border-radius: 8px; padding: 9px 18px; font-weight: 700; font-size: 13.5px; cursor: pointer;
+        transition: filter 0.15s, transform 0.1s;
+    }
+    .filtro-data button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+    .kpis {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 26px;
+    }
+    @media (max-width: 700px) { .kpis { grid-template-columns: repeat(1, 1fr); } }
+    .kpi-card {
+        background: #fff; border-radius: 12px; padding: 16px 18px; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .kpi-card .rotulo { font-size: 12px; color: var(--claro-cinza); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 6px; }
+    .kpi-card .valor { font-size: 26px; font-weight: 800; color: var(--claro-preto); }
+    .kpi-card.destaque .valor { color: var(--claro-vermelho-escuro); }
+    .kpi-card.sucesso .valor { color: #4C8C4A; }
+
+    .tabela-ddd { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; margin-bottom: 26px; }
+    .tabela-ddd table { width: 100%; border-collapse: collapse; }
+    .tabela-ddd th, .tabela-ddd td { padding: 11px 16px; text-align: right; font-size: 13.5px; }
+    .tabela-ddd th:first-child, .tabela-ddd td:first-child { text-align: left; }
+    .tabela-ddd thead th {
+        background: var(--claro-cinza-claro); color: var(--claro-preto); font-weight: 700; font-size: 12px;
+        text-transform: uppercase; letter-spacing: .02em;
+    }
+    .tabela-ddd tbody tr { border-top: 1px solid #f0efed; }
+    .tabela-ddd tbody tr:hover { background: #fafafa; }
+    .tabela-ddd td.pct { font-weight: 700; }
+
+    .card-grafico { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 20px; }
+    .card-grafico h5 { margin: 0 0 14px; font-size: 15px; }
+</style>
+
+<a href="/backlog/atender" class="btn btn-danger mb-3"><i class="bi bi-play-fill"></i> Iniciar Tratamento</a>
+
+<div class="painel-topo">
+    <h1><i class="bi bi-stack"></i> Painel de Resumo</h1>
+    <p>Fila de contratos em backlog (AGING agenda no passado ou sem agenda), carregada por importação periódica.</p>
+</div>
+
+<div class="kpis">
+    <div class="kpi-card destaque">
+        <div class="rotulo">Pendente (apto a tratar)</div>
+        <div class="valor">{{ resumo.total_pendente }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="rotulo">Já Tratados</div>
+        <div class="valor">{{ resumo.total_tratado }}</div>
+    </div>
+    <div class="kpi-card sucesso">
+        <div class="rotulo">% Tratado</div>
+        <div class="valor">{{ resumo.pct_tratado }}%</div>
+    </div>
+</div>
+
+<div class="tabela-ddd">
+    {% if painel_ddd %}
+    <table>
+        <thead>
+            <tr>
+                <th>DDD</th>
+                <th>Pendente</th>
+                <th>Tratado</th>
+                <th>Total</th>
+                <th>% Tratado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for c in painel_ddd %}
+            <tr>
+                <td><strong>{{ c.ddd }}</strong></td>
+                <td>{{ c.pendente }}</td>
+                <td>{{ c.tratado }}</td>
+                <td>{{ c.total }}</td>
+                <td class="pct" style="color: {{ '#4C8C4A' if c.pct >= 80 else ('#F2A900' if c.pct >= 40 else '#A2001D') }};">{{ c.pct }}%</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="text-center py-4">
+        <p class="text-muted mb-0">Nenhum contrato no backlog ainda -- aguardando importação.</p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="card-grafico">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+        <h5 class="mb-0"><i class="bi bi-graph-up"></i> Evolução no período</h5>
+        <form class="filtro-data mb-0" method="GET" action="/backlog">
+            <div class="campo">
+                <label for="data_inicio">De</label>
+                <input type="date" id="data_inicio" name="data_inicio" value="{{ data_inicio }}">
+            </div>
+            <div class="campo">
+                <label for="data_fim">Até</label>
+                <input type="date" id="data_fim" name="data_fim" value="{{ data_fim }}">
+            </div>
+            <button type="submit"><i class="bi bi-filter"></i> Filtrar</button>
+        </form>
+    </div>
+    <canvas id="graficoBacklog" height="90"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+<script>
+    Chart.register(ChartDataLabels);
+    new Chart(document.getElementById('graficoBacklog'), {
+        data: {
+            labels: {{ evolucao.dias | tojson }},
+            datasets: [
+                {
+                    type: 'bar', label: 'Tratados no dia', data: {{ evolucao.tratados | tojson }},
+                    backgroundColor: '#AF272F', yAxisID: 'y',
+                    datalabels: { anchor: 'end', align: 'top', color: '#AF272F', font: { weight: 'bold', size: 10 } }
+                },
+                {
+                    type: 'line', label: 'Total pendente', data: {{ evolucao.pendente | tojson }},
+                    borderColor: '#2D2926', backgroundColor: '#2D2926', tension: 0.25, yAxisID: 'y1',
+                    datalabels: { anchor: 'start', align: 'bottom', color: '#2D2926', font: { weight: 'bold', size: 10 } }
+                },
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: { legend: { position: 'bottom' } },
+            scales: {
+                y: { type: 'linear', position: 'left', title: { display: true, text: 'Tratados no dia' }, beginAtZero: true },
+                y1: { type: 'linear', position: 'right', title: { display: true, text: 'Total pendente' }, beginAtZero: true, grid: { drawOnChartArea: false } },
+            }
+        }
+    });
+</script>
+{% endblock %}

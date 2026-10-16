@@ -1,0 +1,47 @@
+# ---------------------------------------------------------------------------
+# CRM RSI -- o que NÃO vai pro git.
+#
+# Regra geral: o git carrega CÓDIGO; dados e bancos viajam pelo zip do
+# "Backup Completo" (botão no app / restaurar_backup.py). Os dois ambientes
+# (produção e teste) ficam sincronizados assim:
+#   * código  -> git pull
+#   * dados   -> backup da produção + preparar_ambiente_teste.py no teste
+# ---------------------------------------------------------------------------
+
+# Bancos de dados (crm.db, backlog.db, confirmacao_agenda.db, historico_resumo.db...)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Backups completos gerados pelo app
+backups/
+
+# Conteúdo enviado pelos usuários
+uploads/
+static/fotos_perfil/
+
+# Dados do Painel de Cotas -- as fotos/CSV são dados, mas os dois JSON de
+# configuração são código de verdade e precisam estar versionados.
+painel_cotas_dados/*
+!painel_cotas_dados/config_extracao.json
+!painel_cotas_dados/mapa_cidades.json
+
+# Painel Brownfield (xlsx + html publicados manualmente) e planilhas de carga
+painel_dados/
+dados/
+
+# Segredos -- nunca versionar
+.env
+.crm_versoes_senha
+.crm_versoes_api_token
+.crm_versoes_segredo
+
+# Ambiente espelho (legado -- sai de cena com a conta de teste separada)
+ESPELHO.flag
+AMBIENTE_TESTE.flag
+
+# Python
+__pycache__/
+*.pyc
+*.pyo

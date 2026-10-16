@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Painel de Cotas — Histórico — Claro</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="shortcut icon" href="/static/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+    :root {
+        --claro-vermelho: #DA291C;
+        --claro-vermelho-forte: #ED1C24;
+        --claro-vermelho-escuro: #AF272F;
+        --claro-laranja: #F5842B;
+        --claro-preto: #2D2926;
+        --claro-cinza: #A7A8AA;
+        --claro-cinza-claro: #f4f5f7;
+        --status-aberta: #1e7e34;
+        --status-aberta-bg: #e6f4ea;
+        --status-fechada: var(--claro-vermelho-escuro);
+        --status-fechada-bg: #fbe9ea;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Poppins', Arial, Helvetica, sans-serif;
+        background: var(--claro-cinza-claro);
+        margin: 0;
+        color: var(--claro-preto);
+    }
+
+    .topo-claro {
+        background: linear-gradient(135deg, var(--claro-vermelho-forte) 0%, var(--claro-vermelho) 55%, var(--claro-vermelho-escuro) 100%);
+        padding: 18px 28px;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        box-shadow: 0 2px 10px rgba(175,39,47,0.25);
+    }
+    .topo-claro img.logo {
+        height: 42px; width: 42px; object-fit: contain;
+        filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25));
+    }
+    .topo-claro .titulos h1 { color: #fff; font-size: 20px; font-weight: 800; margin: 0; letter-spacing: 0.2px; }
+    .topo-claro .titulos .subtitulo { color: rgba(255,255,255,0.88); font-size: 12.5px; margin-top: 2px; }
+    .topo-claro .titulos .subtitulo a { color: #fff; font-weight: 600; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.5); }
+    .topo-claro .titulos .subtitulo a:hover { border-bottom-color: #fff; }
+
+    .conteudo { padding: 24px 28px 44px; max-width: 1280px; margin: 0 auto; }
+
+    .caixa-filtros {
+        background: #fff; border: 1px solid #e7e5e4; border-radius: 10px;
+        padding: 16px 18px; margin-bottom: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .caixa-filtros form { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+    .campo-filtro { display: flex; flex-direction: column; gap: 4px; }
+    .campo-filtro label { font-weight: 600; font-size: 12.5px; color: #55504b; }
+    .campo-filtro input, .campo-filtro select {
+        font-family: inherit; font-size: 13.5px; padding: 6px 9px;
+        border: 1px solid #ddd8d4; border-radius: 6px; background: #fff;
+    }
+    .campo-filtro select { min-width: 170px; }
+    .caixa-filtros button {
+        background: linear-gradient(135deg, var(--claro-vermelho-forte), var(--claro-vermelho-escuro));
+        color: #fff; border: none; padding: 9px 22px; border-radius: 7px;
+        cursor: pointer; font-size: 14px; font-weight: 600; font-family: inherit;
+        transition: filter 0.15s, transform 0.1s; height: 36px;
+    }
+    .caixa-filtros button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+    .dica-filtro { font-size: 11.5px; color: #9c9691; margin-top: 3px; }
+
+    .sem-dados { background: #fff; border-radius: 10px; padding: 36px; text-align: center; color: #8a8580; }
+
+    h2.secao { font-size: 16px; font-weight: 700; color: var(--claro-preto); margin: 26px 0 14px; }
+    h2.secao:first-of-type { margin-top: 6px; }
+
+    .caixa-analise {
+        background: #fff; border-radius: 10px; padding: 16px 18px; margin-bottom: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); border-left: 4px solid var(--claro-vermelho);
+    }
+    .caixa-analise ul { margin: 0; padding-left: 20px; }
+    .caixa-analise li { font-size: 13.5px; line-height: 1.6; margin-bottom: 4px; }
+
+    /* ---- mapa real (Leaflet + tiles com relevo) ---- */
+    .caixa-mapa {
+        background: #fff; border-radius: 10px; padding: 16px 18px 14px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04); margin-bottom: 8px;
+    }
+    #mapa-leaflet {
+        width: 100%; height: 560px; border-radius: 10px; border: 1px solid #ece9e6;
+        background: #f7f6f5;
+    }
+    .legenda-mapa { display: flex; align-items: center; gap: 8px; justify-content: center; margin: 12px 0 2px; font-size: 11.5px; color: #6b655f; }
+    .barra-legenda { width: 120px; height: 10px; border-radius: 5px; background: linear-gradient(90deg, #1e7e34, #f5c418, var(--claro-vermelho-escuro)); }
+    .leaflet-tooltip { font-family: 'Poppins', Arial, sans-serif; font-size: 12px; }
+
+    /* ---- tabelas de linha do tempo ---- */
+    .tabela-wrap { background: #fff; border-radius: 10px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); overflow-x: auto; margin-bottom: 8px; }
+    table.linha-tempo { border-collapse: collapse; font-size: 12px; white-space: nowrap; width: 100%; }
+    table.linha-tempo th, table.linha-tempo td { padding: 7px 10px; border: 1px solid #eee; text-align: center; }
+    table.linha-tempo th { background: #faf9f8; font-weight: 700; color: var(--claro-preto); position: sticky; top: 0; }
+    table.linha-tempo td.rotulo-linha { text-align: left; font-weight: 600; background: #fcfbfa; position: sticky; left: 0; }
+    table.linha-tempo th.rotulo-linha { text-align: left; background: #faf9f8; position: sticky; left: 0; z-index: 2; }
+    .cel-ok { background: var(--status-aberta-bg); color: var(--status-aberta); font-weight: 600; }
+    .cel-alerta { background: var(--status-fechada-bg); color: var(--status-fechada); font-weight: 700; }
+    .cel-vazia { background: #fafafa; color: #ccc; }
+    .badge-ocorrencias { display: inline-block; background: var(--claro-vermelho); color: #fff; font-size: 10.5px; font-weight: 700; border-radius: 999px; padding: 1px 8px; margin-left: 6px; }
+
+    .rodape-marca {
+        max-width: 1280px; margin: 30px auto 0; padding: 0 28px 10px;
+        display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+        color: #b3aeaa; font-size: 11px;
+    }
+    .rodape-marca svg { display: block; }
+</style>
+</head>
+<body>
+
+<div class="topo-claro">
+    <img class="logo" src="/static/logo-claro.png" alt="Claro" onerror="this.style.display='none'">
+    <div class="titulos">
+        <h1>Painel de Cotas — Histórico do mês</h1>
+        <div class="subtitulo">
+            Visão executiva acumulada por dia (última foto de cada dia).
+            &nbsp;·&nbsp; <a href="/portal/painel-cotas">← Voltar ao painel</a>
+            &nbsp;·&nbsp; <a href="/portal">Portal</a>
+        </div>
+    </div>
+</div>
+
+<div class="conteudo">
+
+<div class="caixa-filtros">
+    <form method="GET">
+        <div class="campo-filtro">
+            <label for="data_inicio">De</label>
+            <input type="date" id="data_inicio" name="data_inicio" value="{{ data_inicio }}">
+        </div>
+        <div class="campo-filtro">
+            <label for="data_fim">Até</label>
+            <input type="date" id="data_fim" name="data_fim" value="{{ data_fim }}">
+        </div>
+        <div class="campo-filtro">
+            <label for="ddd">DDD</label>
+            <select id="ddd" name="ddd">
+                <option value="" {% if not ddd_sel %}selected{% endif %}>Todos</option>
+                {% for d in todos_ddds %}
+                <option value="{{ d }}" {% if d == ddd_sel %}selected{% endif %}>{{ d }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="campo-filtro">
+            <label for="cidade">Cidade</label>
+            <select id="cidade" name="cidade">
+                <option value="" {% if not cidade_sel %}selected{% endif %}>Todas</option>
+                {% for c in todas_cidades %}
+                <option value="{{ c }}" {% if c == cidade_sel %}selected{% endif %}>{{ c }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="campo-filtro">
+            <label for="classe">Classe</label>
+            <select id="classe" name="classe">
+                <option value="" {% if not classe_sel %}selected{% endif %}>Todas</option>
+                {% for valor, rotulo in classes_disponiveis %}
+                <option value="{{ valor }}" {% if valor == classe_sel %}selected{% endif %}>{{ rotulo }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit">Filtrar</button>
+    </form>
+</div>
+
+{% if resultado.sem_historico %}
+    <div class="sem-dados">
+        Ainda não há fotos de histórico salvas para este período.<br>
+        <span style="font-size:12.5px;">O histórico começa a ser acumulado a partir de agora, a cada importação de CSV feita no painel — importações antigas não entram retroativamente aqui.</span>
+    </div>
+{% else %}
+
+    <h2 class="secao">Leitura do painel</h2>
+    <div class="caixa-analise">
+        <ul>
+            {% for frase in resultado.analise %}
+            <li>{{ frase }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <h2 class="secao">Mapa do estado — alongamento acumulado por cidade</h2>
+    <div class="caixa-mapa">
+        {% if pontos_mapa %}
+        <div id="mapa-leaflet"></div>
+        <div class="legenda-mapa">
+            <span>Menos alongamento</span>
+            <div class="barra-legenda"></div>
+            <span>Mais alongamento</span>
+            <span style="margin-left:14px; display:inline-flex; align-items:center; gap:5px;">
+                <span style="width:12px; height:12px; border-radius:3px; background:transparent; border:1px solid #8a8580; display:inline-block;"></span>
+                sem cota monitorada nessa cidade
+            </span>
+        </div>
+        {% else %}
+        <div class="sem-dados" style="padding:20px;">Nenhuma cidade do período filtrado tem coordenada cadastrada para exibir no mapa.</div>
+        {% endif %}
+    </div>
+
+    <h2 class="secao">Linha do tempo por DDD <span class="badge-ocorrencias">{{ resultado.ddds | length }} DDD(s)</span></h2>
+    <div class="tabela-wrap">
+        <table class="linha-tempo">
+            <thead>
+                <tr>
+                    <th class="rotulo-linha">DDD</th>
+                    <th>Ocorrências</th>
+                    {% for dia in resultado.dias %}
+                    <th>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in resultado.ddds %}
+                <tr>
+                    <td class="rotulo-linha">{{ d.ddd }}</td>
+                    <td>{{ d.ocorrencias_alongamento }} / {{ d.total_dias }}</td>
+                    {% for dia in resultado.dias %}
+                    {% set horas = resultado.por_ddd_dia.get(d.ddd, {}).get(dia.data) %}
+                    {% if horas is none %}
+                        <td class="cel-vazia">—</td>
+                    {% elif horas == limiar_horas or horas < limiar_horas %}
+                        <td class="cel-ok">{{ formatar_alongamento(horas) }}</td>
+                    {% else %}
+                        <td class="cel-alerta">{{ formatar_alongamento(horas) }}</td>
+                    {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <h2 class="secao">Linha do tempo por cidade <span class="badge-ocorrencias">{{ resultado.cidades | length }} cidade(s)</span></h2>
+    <div class="tabela-wrap">
+        <table class="linha-tempo">
+            <thead>
+                <tr>
+                    <th class="rotulo-linha">Cidade</th>
+                    <th>DDD</th>
+                    <th>Ocorrências</th>
+                    {% for dia in resultado.dias %}
+                    <th>{{ dia.data[8:10] }}/{{ dia.data[5:7] }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in resultado.cidades %}
+                <tr>
+                    <td class="rotulo-linha">{{ c.cidade }}</td>
+                    <td>{{ c.ddd }}</td>
+                    <td>{{ c.ocorrencias_alongamento }} / {{ c.total_dias }} ({{ c.pct_dias_alongado | int }}%)</td>
+                    {% for dia in resultado.dias %}
+                    {% set horas = resultado.por_cidade_dia.get(c.cidade, {}).get(dia.data) %}
+                    {% if horas is none %}
+                        <td class="cel-vazia">—</td>
+                    {% elif horas == limiar_horas or horas < limiar_horas %}
+                        <td class="cel-ok">{{ formatar_alongamento(horas) }}</td>
+                    {% else %}
+                        <td class="cel-alerta">{{ formatar_alongamento(horas) }}</td>
+                    {% endif %}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+{% endif %}
+
+</div>
+
+<div class="rodape-marca">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <circle cx="7" cy="17" r="3.2" stroke="#c9c4c0" stroke-width="2"/>
+        <rect x="10.2" y="4" width="2.4" height="6.5" rx="1" fill="#c9c4c0" transform="rotate(0 11.4 7)"/>
+        <rect x="15.5" y="6.2" width="2.4" height="7.5" rx="1" fill="#c9c4c0" transform="rotate(45 16.7 10)"/>
+        <rect x="14" y="16" width="6" height="2.2" rx="1" fill="#c9c4c0"/>
+    </svg>
+    Claro · CRM RSI
+</div>
+
+{% if pontos_mapa %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+    var PONTOS = {{ pontos_mapa | tojson }};
+
+    // O IBGE ainda grafa uma cidade com o nome antigo ("Moji Mirim"),
+    // diferente do nome atual usado no cidades_ddd do CRM ("Mogi
+    // Mirim") -- sem isso, essa cidade não casaria com o polígono.
+    var ALIASES_MUNICIPIO = { 'MOJI MIRIM': 'MOGI MIRIM' };
+
+    function normalizarNomeCidade(s) {
+        // Tira acento decompondo em NFD (letra base + marca de acento)
+        // e descartando as marcas pelo código Unicode delas (0x0300 a
+        // 0x036F) -- escrito assim, sem regex com \u no meio, porque
+        // esse trecho colou errado como caractere literal em edições
+        // anteriores (ver histórico). Maiúsculo no fim, e apóstrofo
+        // tratado como espaço -- o IBGE grafa "Santa Bárbara d'Oeste"
+        // com apóstrofo, mas a lista de cidades do CRM (cidades_ddd)
+        // usa "SANTA BARBARA D OESTE" (espaço); sem isso essa cidade
+        // não casaria com o polígono.
+        var decomposto = (s || '').normalize('NFD');
+        var semAcento = '';
+        for (var i = 0; i < decomposto.length; i++) {
+            var codigo = decomposto.codePointAt(i);
+            if (codigo < 0x0300 || codigo > 0x036F) {
+                semAcento += decomposto[i];
+            }
+        }
+        var n = semAcento.toUpperCase().trim();
+        n = n.split("'").join(' ').split("’").join(' ');
+        n = n.replace(/\s+/g, ' ');
+        return ALIASES_MUNICIPIO[n] || n;
+    }
+
+    // {cidade normalizada: {ddd, intensidade, ocorrencias_alongamento, total_dias, soma_horas_acima_limiar, dias_sem_janela}}
+    // Cotas compartilhadas (correção Bruno, 2026-10-06): quando duas
+    // cidades usam o mesmo bucket, o nome vem combinado ("AMERICANA /
+    // SANTA BARBARA D OESTE", "HORTOLANDIA / SUMARE", ...) e não casava
+    // com nenhum polígono -- as duas ficavam sem cor. Agora cada parte
+    // separada por "/" também é registrada, apontando pro mesmo dado, e
+    // as duas cidades são pintadas com o alongamento da cota em comum.
+    var DADOS_POR_CIDADE = {};
+    PONTOS.forEach(function (p) {
+        DADOS_POR_CIDADE[normalizarNomeCidade(p.cidade)] = p;
+        if (p.cidade.indexOf('/') >= 0) {
+            p.cidade.split('/').forEach(function (parte) {
+                var chave = normalizarNomeCidade(parte);
+                if (chave && !DADOS_POR_CIDADE[chave]) {
+                    DADOS_POR_CIDADE[chave] = p;
+                }
+            });
+        }
+    });
+
+    // Escala verde -> amarelo -> vermelho (pedido do Bruno, 2026-09-25):
+    // menos alongamento = verde (mesmo tom do status "Aberta"), meio da
+    // escala = amarelo de alerta, mais alongamento = vermelho escuro
+    // (mesmo tom do status "Fechada"). Interpola em dois trechos: 0..0.5
+    // verde->amarelo, 0.5..1 amarelo->vermelho.
+    var ESCALA_ALONGAMENTO = [
+        { r: 30, g: 126, b: 52 },    // verde -- igual a --status-aberta
+        { r: 245, g: 196, b: 24 },   // amarelo de alerta
+        { r: 175, g: 39, b: 47 }     // vermelho escuro -- igual a --claro-vermelho-escuro
+    ];
+
+    function corPorIntensidade(i) {
+        i = Math.max(0, Math.min(1, i));
+        var trecho = i < 0.5 ? 0 : 1;
+        var t = i < 0.5 ? i / 0.5 : (i - 0.5) / 0.5;
+        var de = ESCALA_ALONGAMENTO[trecho];
+        var para = ESCALA_ALONGAMENTO[trecho + 1];
+        var r = Math.round(de.r + (para.r - de.r) * t);
+        var g = Math.round(de.g + (para.g - de.g) * t);
+        var b = Math.round(de.b + (para.b - de.b) * t);
+        return 'rgb(' + r + ',' + g + ',' + b + ')';
+    }
+
+    var mapa = L.map('mapa-leaflet', { attributionControl: true }).setView([-22.4, -48.6], 6);
+    mapa.attributionControl.setPrefix(false);
+
+    // Base "bonita" (ruas, nomes de cidade -- pedido do Bruno,
+    // 2026-09-21: capricho visual parecido com o mapa Padrão do
+    // Google) sem ser pesada/colorida feito o relevo de antes.
+    // Tentativa 1 (CartoDB Voyager) passou a exigir API key da Carto
+    // -- ficou com "API KEY REQUIRED" escrito no mapa (Bruno reportou
+    // com print, 21/09). Voltei pro tile padrão do OpenStreetMap, que
+    // é o mesmo que o próprio Leaflet usa como exemplo oficial -- não
+    // pede cadastro nem chave.
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        subdomains: 'abc',
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> ' +
+                      '&middot; malha municipal: IBGE (via geodata-br)'
+    }).addTo(mapa);
+
+    // Por cima da base, o contorno de cada cidade de SP -- pintado pelo
+    // alongamento acumulado no período onde há dado monitorado; nas
+    // demais cidades, sem preenchimento (só a borda), pra deixar o
+    // mapa de base aparecer e servir de contexto (rua, nome de lugar).
+    // O arquivo é servido pelo próprio CRM (static/geo/sp_municipios.json).
+    fetch('/static/geo/sp_municipios.json')
+        .then(function (resp) { return resp.json(); })
+        .then(function (geojson) {
+            var camada = L.geoJSON(geojson, {
+                style: function (feature) {
+                    var d = DADOS_POR_CIDADE[normalizarNomeCidade(feature.properties.name)];
+                    if (d) {
+                        return { weight: 1, color: '#8a8580', fillColor: corPorIntensidade(d.intensidade), fillOpacity: 0.68 };
+                    }
+                    return { weight: 0.6, color: 'rgba(90,85,80,0.4)', fillOpacity: 0 };
+                },
+                onEachFeature: function (feature, layer) {
+                    var d = DADOS_POR_CIDADE[normalizarNomeCidade(feature.properties.name)];
+                    if (d) {
+                        layer.bindTooltip(
+                            '<strong>' + feature.properties.name + '</strong> (DDD ' + d.ddd + ')<br>' +
+                            (d.cidade.indexOf('/') >= 0 ? '<em>Cota compartilhada: ' + d.cidade + '</em><br>' : '') +
+                            d.ocorrencias_alongamento + ' de ' + d.total_dias + ' dia(s) acima de {{ limiar_horas }}h' +
+                            (d.dias_sem_janela ? '<br>' + d.dias_sem_janela + ' dia(s) sem nenhuma janela visível' : ''),
+                            { sticky: true }
+                        );
+                    } else {
+                        layer.bindTooltip(feature.properties.name, { sticky: true });
+                    }
+                    layer.on('mouseover', function () { layer.setStyle({ weight: 2.2, color: '#AF272F' }); layer.bringToFront(); });
+                    layer.on('mouseout', function () { camada.resetStyle(layer); });
+                }
+            }).addTo(mapa);
+            mapa.fitBounds(camada.getBounds(), { padding: [8, 8] });
+        })
+        .catch(function (erro) {
+            console.error('Falha ao carregar sp_municipios.json', erro);
+        });
+</script>
+{% endif %}
+
+</body>
+</html>

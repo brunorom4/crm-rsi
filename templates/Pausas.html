@@ -1,0 +1,329 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="row">
+    <div class="col-md-5 mb-4">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <h5 class="mb-3"><i class="bi bi-clock-fill"></i> Tratamento</h5>
+                {% if turno_aberto %}
+                    <p class="text-success mb-3">Em tratamento desde {{ turno_aberto['login_em'] }}</p>
+                {% else %}
+                    <p class="text-muted mb-3">Tratamento não iniciado</p>
+                {% endif %}
+
+                <div class="d-grid gap-2">
+                    <a href="/turno/entrar" class="btn btn-outline-success btn-lg {% if turno_aberto %}disabled{% endif %}">
+                        <i class="bi bi-play-circle-fill"></i> Iniciar Tratamento
+                    </a>
+
+                    {% if aberta %}
+                        <form action="/pausas/finalizar" method="POST" class="d-grid">
+                            <button type="submit" class="btn btn-danger btn-lg">Encerrar pausa e voltar ao atendimento</button>
+                        </form>
+                    {% else %}
+                        <form action="/pausas/iniciar" method="POST" class="d-grid gap-2">
+                            <button type="submit" name="tipo" value="PAUSA_MANHA" class="btn btn-outline-dark" {% if not turno_aberto or not pode_manha %}disabled{% endif %}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px;"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 14c.83 .642 2.077 1.017 3.5 1c1.423 .017 2.67 -.358 3.5 -1c.83 -.642 2.077 -1.017 3.5 -1c1.423 -.017 2.67 .358 3.5 1"/><path d="M8 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2"/><path d="M12 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2"/><path d="M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5"/><path d="M16.746 16.726a3 3 0 1 0 .252 -5.555"/></svg>
+                                Pausa da manhã ({{ duracao_pausa_min }}min)
+                            </button>
+                            <button type="submit" name="tipo" value="ALMOCO" class="btn btn-outline-dark" {% if not turno_aberto or not pode_almoco %}disabled{% endif %}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px;"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M19 3v12h-5c-.023 -3.681 .184 -7.406 5 -12m0 12v6h-1v-3m-10 -14v17m-3 -17v3a3 3 0 1 0 6 0v-3"/></svg>
+                                Almoço ({{ duracao_almoco_min }}min)
+                            </button>
+                            <button type="submit" name="tipo" value="PAUSA_TARDE" class="btn btn-outline-dark" {% if not turno_aberto or not pode_tarde %}disabled{% endif %}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px;"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 14c.83 .642 2.077 1.017 3.5 1c1.423 .017 2.67 -.358 3.5 -1c.83 -.642 2.077 -1.017 3.5 -1c1.423 -.017 2.67 .358 3.5 1"/><path d="M8 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2"/><path d="M12 3a2.4 2.4 0 0 0 -1 2a2.4 2.4 0 0 0 1 2"/><path d="M3 10h14v5a6 6 0 0 1 -6 6h-2a6 6 0 0 1 -6 -6v-5"/><path d="M16.746 16.726a3 3 0 1 0 .252 -5.555"/></svg>
+                                Pausa da tarde ({{ duracao_pausa_min }}min)
+                            </button>
+                            <button type="submit" name="tipo" value="BANHEIRO" class="btn btn-outline-dark" {% if not turno_aberto or not pode_banheiro %}disabled{% endif %}>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align: -3px;"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10"/><path d="M6.5 9l.5 6l2 -4l2 4l.5 -6"/><path d="M17 10.5a1.5 1.5 0 0 0 -3 0v3a1.5 1.5 0 0 0 3 0"/></svg>
+                                Pausa banheiro ({{ duracao_banheiro_min }}min)
+                            </button>
+
+                        </form>
+                    {% endif %}
+
+                    {% if request.args.get('erro_pausa_aberta') %}
+                    <div class="alert alert-warning mt-2">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Você tem uma pausa em aberto — encerre a pausa antes de encerrar o atendimento.
+                    </div>
+                    {% endif %}
+                    <a href="/turno/sair" class="btn btn-outline-danger btn-lg mt-2 {% if not turno_aberto or aberta %}disabled{% endif %}"
+                       title="{{ 'Encerre a pausa em aberto antes de sair' if aberta else '' }}">
+                        <i class="bi bi-stop-circle-fill"></i> Encerrar Tratamento
+                    </a>
+                </div>
+
+                {% if aberta %}
+                <div class="alert alert-warning mt-3 mb-0">
+                    <strong>Pausa em andamento:</strong> {{ aberta['tipo'] }}<br>
+                    Início: {{ aberta['inicio'] }} — Previsão de retorno: {{ aberta['fim_previsto'] }}
+                    {% if aberta['automatica'] %}<br><em>Inserida automaticamente pelo sistema.</em>{% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7 mb-4">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+                    <h5 class="mb-0">Histórico {{ 'de hoje' if eh_hoje_consulta else 'de ' + data_consulta }}</h5>
+                    <form method="GET" action="/pausas" class="d-flex gap-2 align-items-end">
+                        <div>
+                            <label class="form-label small mb-0">Consultar dia</label>
+                            <input type="date" name="data" class="form-control form-control-sm" value="{{ data_consulta }}" max="{{ data_consulta if eh_hoje_consulta else '' }}">
+                        </div>
+                        <button type="submit" class="btn btn-sm btn-outline-dark">Consultar</button>
+                        {% if not eh_hoje_consulta %}
+                        <a href="/pausas" class="btn btn-sm btn-outline-secondary">Hoje</a>
+                        {% endif %}
+                    </form>
+                </div>
+                <hr>
+
+                {% if jornadas_consulta %}
+                <p class="mb-2"><strong>Jornada{{ 's' if jornadas_consulta|length != 1 else '' }}</strong></p>
+                <table class="table table-sm mb-4">
+                    <thead><tr><th>Início</th><th>Fim</th><th>Tempo total</th><th>Encerrado por</th></tr></thead>
+                    <tbody>
+                        {% for j in jornadas_consulta %}
+                        <tr>
+                            <td>{{ j['login_em'] }}</td>
+                            <td>{{ j['logout_em'] or 'Em andamento' }}</td>
+                            <td>{{ j['duracao'] }}</td>
+                            <td>{{ j['origem_logout'] if j['logout_em'] else '—' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">Nenhuma jornada registrada nesse dia.</p>
+                {% endif %}
+
+                {% if timeline_dia %}
+                <p class="mb-2"><strong>Linha do tempo</strong></p>
+                <div class="timeline-pausas mb-1" style="position: relative; height: 32px; border-radius: 4px; overflow: hidden; background: #e9ecef;">
+                    {% for seg in timeline_dia['segmentos'] %}
+                    <div title="{{ seg['detalhe'] }}"
+                         style="position: absolute; top: 0; bottom: 0; left: {{ seg['esquerda_pct'] }}%; width: {{ seg['largura_pct'] }}%; background: {{ seg['cor'] }};"></div>
+                    {% endfor %}
+                </div>
+                <div style="position: relative; height: 16px;" class="mb-3">
+                    {% for m in timeline_dia['marcadores'] %}
+                    <span class="text-muted" style="position: absolute; left: {{ m['esquerda_pct'] }}%; transform: translateX(-50%); font-size: 0.72rem;">{{ m['label'] }}</span>
+                    {% endfor %}
+                </div>
+                <div class="d-flex flex-wrap gap-3 mb-4 small text-muted">
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#e9ecef; border:1px solid #ced4da; border-radius:2px;"></span> Sem sessão</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#0d6efd; border-radius:2px;"></span> Em atendimento</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#fd7e14; border-radius:2px;"></span> Pausa manhã</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#198754; border-radius:2px;"></span> Almoço</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#6f42c1; border-radius:2px;"></span> Pausa tarde</span>
+                    <span><span style="display:inline-block; width:10px; height:10px; background:#ffc107; border-radius:2px;"></span> Banheiro</span>
+                </div>
+                {% endif %}
+
+                {% if historico %}
+                <p class="mb-2"><strong>Pausas</strong></p>
+                <table class="table">
+                    <thead><tr><th>Tipo</th><th>Início</th><th>Previsto</th><th>Encerrada em</th><th>Tempo total</th><th>Origem</th></tr></thead>
+                    <tbody>
+                        {% for p in historico %}
+                        <tr>
+                            <td>{{ p['tipo'] }}</td>
+                            <td>{{ p['inicio'] }}</td>
+                            <td>{{ p['fim_previsto'] }}</td>
+                            <td>{{ p['fim_real'] or '—' }}</td>
+                            <td>{{ p['duracao'] }}</td>
+                            <td>{{ 'Automática' if p['automatica'] else 'Manual' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p class="text-muted">Nenhuma pausa registrada nesse dia.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if usuario_logado and usuario_logado['perfil'] == 'ADM' %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h5><i class="bi bi-sliders"></i> Duração das pausas</h5>
+        <hr>
+        <p class="text-muted">Define quantos minutos duram a pausa curta (manhã/tarde), o almoço e a pausa banheiro pra todo mundo.</p>
+        <form action="/pausas/duracao/salvar" method="POST" class="d-flex gap-3 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small">Pausa curta (min)</label>
+                <input type="number" min="1" name="duracao_pausa_min" class="form-control" value="{{ duracao_pausa_min }}">
+            </div>
+            <div>
+                <label class="form-label small">Almoço (min)</label>
+                <input type="number" min="1" name="duracao_almoco_min" class="form-control" value="{{ duracao_almoco_min }}">
+            </div>
+            <div>
+                <label class="form-label small">Pausa banheiro (min)</label>
+                <input type="number" min="1" name="duracao_banheiro_min" class="form-control" value="{{ duracao_banheiro_min }}">
+            </div>
+            <button type="submit" class="btn btn-danger">Salvar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h5><i class="bi bi-clock-history"></i> Horários limite das pausas</h5>
+        <hr>
+        <p class="text-muted">
+            Define até que horário cada pausa pode ser tirada (manual ou automaticamente) e a janela de
+            liberação do almoço. Vale tanto pros botões de pausa manual quanto pra pausa automática obrigatória
+            (card abaixo).
+        </p>
+        {% if request.args.get('erro_limites') %}
+        <div class="alert alert-warning">Algum horário não foi reconhecido — confira o formato (HH:MM) e salve de novo.</div>
+        {% endif %}
+        <form action="/pausas/limites/salvar" method="POST" class="d-flex gap-3 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small">Pausa da manhã de</label>
+                <input type="time" name="limite_pausa_manha_inicio" class="form-control" value="{{ limite_pausa_manha_inicio }}">
+            </div>
+            <div>
+                <label class="form-label small">Pausa da manhã até</label>
+                <input type="time" name="limite_pausa_manha" class="form-control" value="{{ limite_pausa_manha }}">
+            </div>
+            <div>
+                <label class="form-label small">Almoço liberado a partir de</label>
+                <input type="time" name="limite_almoco_inicio" class="form-control" value="{{ limite_almoco_inicio }}">
+            </div>
+            <div>
+                <label class="form-label small">Almoço até</label>
+                <input type="time" name="limite_almoco_fim" class="form-control" value="{{ limite_almoco_fim }}">
+            </div>
+            <div>
+                <label class="form-label small">Pausa da tarde de</label>
+                <input type="time" name="limite_pausa_tarde_inicio" class="form-control" value="{{ limite_pausa_tarde_inicio }}">
+            </div>
+            <div>
+                <label class="form-label small">Pausa da tarde até</label>
+                <input type="time" name="limite_pausa_tarde" class="form-control" value="{{ limite_pausa_tarde }}">
+            </div>
+            <button type="submit" class="btn btn-danger">Salvar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h5><i class="bi bi-hourglass-split"></i> Prazo do follow-up automático (2ª/3ª Tentativa)</h5>
+        <hr>
+        <p class="text-muted">
+            Quantas horas depois de uma 2ª ou 3ª Tentativa o contrato volta sozinho pra fila de atendimento.
+            Não afeta o "Retorno" agendado manualmente (esse já tem data/hora escolhida na hora).
+        </p>
+        {% if request.args.get('erro_prazo_followup') %}
+        <div class="alert alert-warning">Valor inválido — informe um número inteiro de horas maior que zero.</div>
+        {% endif %}
+        <form action="/pausas/prazo_followup/salvar" method="POST" class="d-flex gap-3 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small">Prazo (horas)</label>
+                <input type="number" min="1" step="1" name="prazo_followup_horas" class="form-control" value="{{ prazo_followup_horas }}" style="max-width: 140px;">
+            </div>
+            <button type="submit" class="btn btn-danger">Salvar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h5><i class="bi bi-hourglass-bottom"></i> Alerta de lead envelhecendo (Dashboard)</h5>
+        <hr>
+        <p class="text-muted">
+            Depois de quantos dias sem nenhum contato, ou quantas horas parado numa 2ª/3ª Tentativa vencida,
+            um contrato entra no alerta "Leads envelhecendo" do Dashboard (visão de equipe).
+        </p>
+        {% if request.args.get('erro_envelhecimento') %}
+        <div class="alert alert-warning">Valores inválidos — informe números inteiros maiores que zero.</div>
+        {% endif %}
+        <form action="/pausas/envelhecimento/salvar" method="POST" class="d-flex gap-3 align-items-end flex-wrap">
+            <div>
+                <label class="form-label small">Nunca contatado (dias)</label>
+                <input type="number" min="1" step="1" name="limite_lead_nunca_contatado_dias" class="form-control" value="{{ limite_lead_nunca_contatado_dias }}" style="max-width: 140px;">
+            </div>
+            <div>
+                <label class="form-label small">Parado em follow-up (horas)</label>
+                <input type="number" min="1" step="1" name="limite_followup_travado_horas" class="form-control" value="{{ limite_followup_travado_horas }}" style="max-width: 140px;">
+            </div>
+            <button type="submit" class="btn btn-danger">Salvar</button>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h5><i class="bi bi-alarm-fill"></i> Encerramento automático de jornada (18h30)</h5>
+        <hr>
+        <p class="text-muted">
+            Todo dia às 18h30, o sistema encerra sozinho a jornada de quem esqueceu de bater
+            saída. Desligue aqui se precisar suspender isso temporariamente (ex: plantão, virada de mês).
+        </p>
+        <div class="d-flex align-items-center gap-3">
+            <span class="badge {{ 'bg-success' if encerramento_ativo else 'bg-secondary' }}">
+                {{ 'Ativado' if encerramento_ativo else 'Desativado' }}
+            </span>
+            <form action="/pausas/encerramento_automatico/alternar" method="POST">
+                <button type="submit" class="btn btn-outline-dark">
+                    {{ 'Desligar' if encerramento_ativo else 'Ligar' }}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h5><i class="bi bi-door-closed-fill"></i> Bloqueio de login fora do horário/dia da escala</h5>
+        <hr>
+        <p class="text-muted">
+            Quando ligado, o Operador só consegue logar no seu dia de escala, a partir de 5 minutos
+            antes do horário de início dele. Desligue aqui se precisar liberar acesso fora do horário
+            temporariamente (ex: cobertura extra, plantão).
+        </p>
+        <div class="d-flex align-items-center gap-3">
+            <span class="badge {{ 'bg-success' if bloqueio_login_ativo else 'bg-secondary' }}">
+                {{ 'Ativado' if bloqueio_login_ativo else 'Desativado' }}
+            </span>
+            <form action="/pausas/bloqueio_login/alternar" method="POST">
+                <button type="submit" class="btn btn-outline-dark">
+                    {{ 'Desligar' if bloqueio_login_ativo else 'Ligar' }}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h5><i class="bi bi-cup-hot-fill"></i> Pausa automática obrigatória</h5>
+        <hr>
+        <p class="text-muted">
+            Quando ligado, o sistema insere sozinho a pausa da manhã/almoço/tarde no horário limite,
+            pra quem ainda não tinha feito. Desligue aqui se precisar suspender isso temporariamente.
+        </p>
+        <div class="d-flex align-items-center gap-3">
+            <span class="badge {{ 'bg-success' if pausa_automatica_ativa else 'bg-secondary' }}">
+                {{ 'Ativado' if pausa_automatica_ativa else 'Desativado' }}
+            </span>
+            <form action="/pausas/pausa_automatica/alternar" method="POST">
+                <button type="submit" class="btn btn-outline-dark">
+                    {{ 'Desligar' if pausa_automatica_ativa else 'Ligar' }}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

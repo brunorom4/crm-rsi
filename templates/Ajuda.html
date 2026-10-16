@@ -1,0 +1,429 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<style>
+    /* Toques de identidade visual do Guia de Marca Claro aplicados aqui
+       dentro da página de Ajuda (paleta oficial: vermelho #DA291C,
+       vermelho escuro #AF272F, cinza #A7A8AA, preto #2D2926, e os
+       complementares laranja #F5842B / azul #0097A9, usados com
+       moderação). O restante do sistema já usa o vermelho --red do
+       layout.html; aqui só os elementos novos (chips e destaques) usam
+       os tons oficiais do guia, pra não mexer na identidade das outras
+       telas. Pedido do Bruno, 2026-09-20. */
+    .chip-perfil {
+        display: inline-flex; align-items: center; gap: 5px;
+        font-size: 11px; font-weight: 700; letter-spacing: .02em;
+        padding: 3px 10px; border-radius: 999px; margin-left: 8px;
+        text-transform: uppercase; vertical-align: middle;
+    }
+    .chip-assistente { background: #FBE9E7; color: #AF272F; }
+    .chip-analista   { background: #E7F3F5; color: #0097A9; }
+    .chip-ambos      { background: #F4F5F7; color: #2D2926; }
+
+    .callout-dica {
+        background: #FFF6EA; border-left: 4px solid #F5842B;
+        border-radius: 8px; padding: 10px 14px; margin: 10px 0;
+        font-size: 13.5px; color: #6b5a3e;
+    }
+    .callout-dica strong { color: #F5842B; }
+
+    .tabela-tabulacao { width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 10px 0; }
+    .tabela-tabulacao th, .tabela-tabulacao td { padding: 8px 12px; text-align: left; border-bottom: 1px solid #eee; vertical-align: top; }
+    .tabela-tabulacao th { background: #f4f5f7; font-weight: 700; color: #2D2926; font-size: 12px; text-transform: uppercase; letter-spacing: .02em; }
+
+    .passo-numerado { counter-reset: passo; list-style: none; padding-left: 0; margin: 10px 0; }
+    .passo-numerado li { counter-increment: passo; position: relative; padding: 4px 0 4px 34px; font-size: 13.5px; }
+    .passo-numerado li::before {
+        content: counter(passo); position: absolute; left: 0; top: 3px;
+        width: 22px; height: 22px; border-radius: 50%; background: #DA291C; color: #fff;
+        font-weight: 700; font-size: 12px; display: flex; align-items: center; justify-content: center;
+    }
+
+    .legenda-cor { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; margin: 3px 14px 3px 0; }
+    .legenda-cor .amostra { width: 13px; height: 13px; border-radius: 4px; display: inline-block; }
+</style>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-question-circle-fill"></i> Ajuda</h2>
+        <p class="text-muted mb-0">Guia de cada tela do CRM Migração RSI: pra que serve e como operar, na ordem em que você normalmente usa no dia a dia.</p>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-telephone-fill"></i> Atendimento e rotina diária</div>
+        <hr>
+        <div class="accordion" id="accordionOperacao">
+
+            {% if pode('atendimento') or pode('dashboard') or pode('dashboard_pessoal') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#manLogin">
+                        Entrar no sistema, trocar senha e o Portal <span class="chip-perfil chip-ambos">Ambos</span>
+                    </button>
+                </h2>
+                <div id="manLogin" class="accordion-collapse collapse show" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body">
+                        <ol class="passo-numerado">
+                            <li>Acesse o endereço do sistema informado pela sua supervisão e entre com o usuário e a senha cadastrados pelo ADM.</li>
+                            <li>No primeiro acesso (ou sempre que quiser), troque sua senha no link <strong>"Trocar senha"</strong>, disponível no rodapé do Portal.</li>
+                            <li>Depois do login você cai no <strong>Portal</strong> — a tela com os botões de acesso às diferentes áreas do sistema (CRM Migração, Relatório de Clima, Painel de Cotas, etc.). Só aparecem os botões das áreas que o seu perfil tem liberado.</li>
+                            <li>Clique em <strong>"CRM Migração"</strong> pra entrar na ferramenta de atendimento — é onde ficam Dashboard, Atendimento, Pausas, Nova Tarefa e as demais telas descritas abaixo.</li>
+                        </ol>
+                        <p class="mb-0">O atalho de <i class="bi bi-question-circle-fill"></i> <strong>Ajuda</strong> (esta página) fica ao lado do botão de modo escuro, no topo da tela, sempre que seu perfil tiver essa permissão liberada.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('dashboard') or pode('dashboard_pessoal') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manDashboard">
+                        Dashboard <span class="chip-perfil chip-ambos">Ambos</span>
+                    </button>
+                </h2>
+                <div id="manDashboard" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body">
+                        <p>Os cards do topo (<strong>Pendentes</strong>, <strong>Em andamento</strong>, <strong>Enfileirados</strong>, <strong>Concluídos</strong>) são uma foto agora mesmo da fila inteira de contratos, sem filtro de data — contam o status atual, não algo "do dia".</p>
+                        <p>Os velocímetros de <strong>objetivo do dia/mês</strong> contam pela <strong>data em que o agendamento foi registrado no sistema</strong>. Já a tela "Agendado x Executado" (quando liberada) conta pela <strong>data marcada da visita</strong> — são medidas diferentes de propósito, por isso os números não costumam bater exatamente entre uma e outra.</p>
+                        <p class="mb-0"><strong>Meus tratamentos do dia</strong> lista cada contrato que você fechou hoje, com o tempo efetivo gasto em cada um — esse tempo já desconta pausa e período fora da tela, não é o relógio corrido do início ao fim.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('atendimento') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manAtendimento">
+                        Atendimento — fila, script e tabulação <span class="chip-perfil chip-ambos">Ambos</span>
+                    </button>
+                </h2>
+                <div id="manAtendimento" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body">
+                        <p>No menu <strong>Atendimento</strong> o sistema entrega o próximo contrato da fila automaticamente — você não escolhe qual vem, a ordem é por prioridade cadastrada e, dentro dela, por ordem de chegada. Se você já estava com um contrato em andamento, ele continua abrindo o mesmo até você tratar ou ele expirar.</p>
+
+                        <p><strong><i class="bi bi-file-earmark-text-fill"></i> Gerar Script de Atendimento</strong><br>
+                        Na tela do contrato existe o botão de gerar script — ele pega um dos modelos de texto cadastrados pelo ADM e substitui automaticamente os campos entre colchetes pelos dados reais daquele contrato: nome do cliente, protocolo, plano atual x novo plano, valores, cidade, seu nome como operador, etc. Você não precisa digitar nada manualmente — só clicar, copiar o texto pronto e usar na conversa com o cliente. Qual modelo usar em cada situação é orientado pela sua supervisão.</p>
+
+                        <p><strong><i class="bi bi-list-check"></i> Regras de tabulação</strong> — depois de falar com o cliente, você escolhe o resultado:</p>
+                        <table class="tabela-tabulacao">
+                            <thead><tr><th>Tabulação</th><th>O que acontece</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Agendado</strong></td><td>Marca responsável, data e janela da visita técnica. Se o cliente pedir pra mudar a data de um agendamento que <em>você mesmo</em> acabou de marcar, isso é tratado como remarcação e não conta como um fechamento novo na sua produtividade.</td></tr>
+                                <tr><td><strong>2ª Tentativa / 3ª Tentativa</strong></td><td>Volta pra fila com um prazo de retorno definido pelo ADM. Reaparece pra você automaticamente quando esse prazo vencer.</td></tr>
+                                <tr><td><strong>Improdutivo</strong></td><td>Só fica disponível na <strong>3ª tentativa</strong>, depois de esgotadas as anteriores. Exige confirmar se o e-mail de encerramento foi enviado.</td></tr>
+                                <tr><td><strong>Retorno</strong></td><td>Agenda um novo contato numa data/hora específica escolhida por você (diferente da 2ª/3ª tentativa, que usa um prazo padrão do sistema).</td></tr>
+                                <tr><td><strong>GPON Indisponível</strong></td><td>Manda o contrato pra fila de análise técnica (menu GPON), com opção de anexar print como evidência.</td></tr>
+                            </tbody>
+                        </table>
+                        <div class="callout-dica"><strong>Dica:</strong> use <strong>Buscar Contrato</strong> sempre que precisar abrir um contrato específico fora da ordem da fila — veja a seção própria mais abaixo.</div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('pausas') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manPausas">
+                        Turno e Pausas <span class="chip-perfil chip-ambos">Ambos</span>
+                    </button>
+                </h2>
+                <div id="manPausas" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body">
+                        <p>Todo dia você precisa <strong>entrar em turno</strong> antes de atender (o sistema libera isso a partir de 5 minutos antes do horário da sua escala). A tela de <strong>Pausas</strong> concentra o controle do seu dia:</p>
+                        <ul>
+                            <li>No topo aparece o horário de <strong>início e fim da jornada</strong> de hoje (conforme sua escala) e os botões das pausas — manhã, almoço, tarde e banheiro — cada uma com horário-limite definido pelo ADM.</li>
+                            <li>Abaixo, o <strong>histórico</strong> lista cada evento do dia (login, pausas, logout) com uma coluna de <strong>tempo total</strong> — quanto durou cada linha — e informa se o logout foi <strong>Manual</strong> (você mesmo saiu), <strong>Automático</strong> (rotina do sistema no fim do expediente), por <strong>Supervisão</strong> (um supervisor encerrou seu atendimento) ou por <strong>Desligamento</strong>.</li>
+                            <li>Um <strong>filtro de data</strong> no topo do histórico permite consultar registros de dias anteriores, não só o de hoje.</li>
+                            <li>Logo abaixo do histórico tem uma <strong>timeline gráfica</strong> — uma barra horizontal colorida mostrando como o seu dia (ou o dia filtrado) foi dividido entre os eventos:</li>
+                        </ul>
+                        <div class="ms-2 mb-2">
+                            <span class="legenda-cor"><span class="amostra" style="background:#e9ecef;"></span> Sem sessão</span>
+                            <span class="legenda-cor"><span class="amostra" style="background:#0d6efd;"></span> Em atendimento</span>
+                            <span class="legenda-cor"><span class="amostra" style="background:#fd7e14;"></span> Pausa manhã</span>
+                            <span class="legenda-cor"><span class="amostra" style="background:#198754;"></span> Almoço</span>
+                            <span class="legenda-cor"><span class="amostra" style="background:#6f42c1;"></span> Pausa tarde</span>
+                            <span class="legenda-cor"><span class="amostra" style="background:#ffc107;"></span> Pausa banheiro</span>
+                        </div>
+                        <p class="mb-0">Se você sair de uma tela de atendimento sem salvar (por exemplo, entrando em pausa no meio de um contrato), o sistema fecha a visita automaticamente — isso não conta como tempo de atendimento perdido, é só o controle de "tempo efetivo de tela".</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('buscar_contrato') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manBuscar">
+                        Buscar Contrato <span class="chip-perfil chip-ambos">Ambos</span>
+                    </button>
+                </h2>
+                <div id="manBuscar" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body mb-0">
+                        <p>A lupa no topo da tela abre um contrato específico, fora da ordem automática da fila — digite o número do contrato pra localizá-lo.</p>
+                        <p class="mb-0">Use pra retomar um atendimento antigo, conferir o histórico completo de um cliente, ou corrigir um agendamento já feito. Abrir um contrato por aqui não altera a ordem da fila dos demais.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('nova_tarefa') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manNovaTarefa">
+                        Nova Tarefa <span class="chip-perfil chip-ambos">Ambos</span>
+                    </button>
+                </h2>
+                <div id="manNovaTarefa" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body">
+                        <p>Cadastra um contrato manualmente na fila — útil quando um cliente entra em contato por fora do fluxo normal, ou quando um contrato precisa ser reinserido pra tratamento.</p>
+                        <p><strong>Campos obrigatórios:</strong> número do contrato, cidade (escolhida numa lista padronizada) e pra quem atribuir. Há também campos opcionais (cliente, node, código do imóvel, endereço, telefones, e-mail, prioridade, produtos e valores) que podem ficar escondidos atrás de "Mostrar campos opcionais".</p>
+                        <p class="mb-0">Se o contrato que você está cadastrando já tiver um responsável no sistema, o formulário pede uma <strong>Justificativa</strong> — nesse caso a atribuição não é automática, ela vira uma solicitação de transferência.</p>
+                        {% if usuario_logado and usuario_logado['perfil'] != 'OPERADOR' %}
+                        <div class="callout-dica"><strong>Analista:</strong> além do formulário de um contrato por vez, você também tem a aba <strong>"Planilha (vários contratos)"</strong> pra importar vários contratos de uma vez (.xlsx/.csv), com as mesmas colunas do formulário manual — contrato, cidade e atribuição são obrigatórias, o resto é opcional.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('tratamento_quebra') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manQuebra">
+                        Tratamento de Quebra <span class="chip-perfil chip-ambos">Ambos</span>
+                    </button>
+                </h2>
+                <div id="manQuebra" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body">
+                        <p>Aqui aparecem os agendamentos <strong>seus</strong> que caíram (a visita não aconteceu como marcado) — normalmente do dia anterior. Pra cada um, você decide: <strong>Reagendado</strong> (remarca, volta a contar como um agendamento normal no relatório de Agendados) ou <strong>Cancelado</strong> (o cliente não quer mais).</p>
+                        <p class="mb-0">No topo da tela dá pra filtrar por período (De/Até), status (Pendente/Concluído/Todos), número do contrato e motivo da quebra. É a partir dessa tela que o indicador de quebra do Dashboard é alimentado.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('agendados_data') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manAgendadosData">
+                        Agendados por Data <span class="chip-perfil chip-analista">Analista</span>
+                    </button>
+                </h2>
+                <div id="manAgendadosData" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body mb-0">
+                        <p class="mb-0">Mostra os agendamentos marcados pra uma data específica (passada ou futura) — útil pra conferir a agenda do dia ou de uma semana, por cidade e por quem atribuiu.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('agendado_executado') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manAgendadoExecutado">
+                        Agendado x Executado <span class="chip-perfil chip-ambos">Ambos</span>
+                    </button>
+                </h2>
+                <div id="manAgendadoExecutado" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body mb-0">
+                        <p class="mb-0">Compara, dentro do período filtrado (De/Até), quantos agendamentos com <strong>data marcada</strong> nesse intervalo já foram executados em campo — linha a linha, colorido por status (executado, em rota, parado na quebra, cancelado na quebra). Conta pela <strong>data marcada da visita</strong>, não pela data em que o agendamento foi feito — por isso costuma ser diferente do card do Dashboard.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('qualidade_propria') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manQualidade">
+                        Qualidade (Monitoria) <span class="chip-perfil chip-assistente">Assistente</span>
+                    </button>
+                </h2>
+                <div id="manQualidade" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body mb-0">
+                        <p>Lista as monitorias de qualidade que você recebeu: data, nota final e o supervisor que avaliou. Clicando em "Ver" você abre o detalhe com os pontos avaliados em cada atendimento monitorado.</p>
+                        <p class="mb-0">Quando uma monitoria está pendente, ela aparece em destaque no topo da tela — você pode dar o <strong>aceite</strong> (concordando com a avaliação) ou <strong>contestar</strong>, se achar que algo foi avaliado errado.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('gpon_fila') or pode('gpon_tratamento') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manGpon">
+                        GPON Indisponível <span class="chip-perfil chip-analista">Analista</span>
+                    </button>
+                </h2>
+                <div id="manGpon" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body">
+                        <p>Fila separada de contratos que caíram em "GPON Indisponível" durante o atendimento normal (menu Atendimento). No topo você vê contadores de quanto está <strong>aguardando análise</strong>, <strong>em análise</strong> e com <strong>follow-up pendente</strong> agora, além do volume por tipo de fechamento no período filtrado (agendados, HP liberado sem agendar, mantido bloqueado, solicitado bloqueio).</p>
+                        <p><strong>Pra tratar um caso</strong> (se você tiver a permissão de Tratamento): abra o próximo contrato pendente, confira o histórico de tentativas anteriores e registre o resultado da análise:</p>
+                        <table class="tabela-tabulacao">
+                            <thead><tr><th>Resultado</th><th>Quando usar</th></tr></thead>
+                            <tbody>
+                                <tr><td><strong>Analisado e agendado</strong></td><td>O HP foi liberado e já dá pra marcar a visita — pede responsável, data e janela.</td></tr>
+                                <tr><td><strong>HP liberado, não foi possível agendar</strong></td><td>A restrição técnica foi resolvida, mas ainda não fechou uma data com o cliente.</td></tr>
+                                <tr><td><strong>Mantido bloqueado</strong></td><td>Continua sem GPON disponível — nada mudou.</td></tr>
+                                <tr><td><strong>Solicitado bloqueio</strong></td><td>Foi pedido o bloqueio/cancelamento técnico do contrato.</td></tr>
+                                <tr><td><strong>Análise Pendente</strong></td><td>Ainda não deu pra concluir — permite marcar uma data/hora de retorno pra continuar depois.</td></tr>
+                            </tbody>
+                        </table>
+                        <p class="mb-0">Se você só tiver a <strong>Visualização da fila</strong> (sem Tratamento), dá pra acompanhar quem está aguardando/em análise e abrir o detalhe de qualquer contrato, sem poder salvar uma análise.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('backlog_tratar') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manBacklog">
+                        Backlog <span class="chip-perfil chip-analista">Analista</span>
+                    </button>
+                </h2>
+                <div id="manBacklog" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body">
+                        <p>Área separada (com seu próprio menu no topo) pra tratar contratos em <strong>backlog</strong> — aging de agenda no passado ou sem agenda, carregados por importação periódica.</p>
+                        <ul>
+                            <li><strong>Painel de Resumo</strong> — quantos contratos estão pendentes, quantos já foram tratados e o % tratado, com quebra por DDD e um gráfico de evolução no período (filtrável por data).</li>
+                            <li><strong>Iniciar Tratamento</strong> — abre o próximo contrato pendente da fila com os dados cadastrais, o histórico de tratamentos anteriores e um formulário de fechamento: <strong>Agendado</strong> (pede data, janela, responsável e se é MDU), <strong>Cancelado</strong>, <strong>Já Cancelado</strong>, <strong>Contrato Conectado</strong>, <strong>Aberto Chamado</strong> ou <strong>Retorno</strong> (esses dois últimos pedem data/hora de retorno). Ao confirmar, o sistema já leva pro próximo contrato da fila.</li>
+                            <li><strong>Buscar Contrato</strong> — localiza um contrato específico do backlog fora da ordem da fila, igual à busca do Atendimento normal.</li>
+                        </ul>
+                        <p class="mb-0">Use "Voltar ao Portal" no menu de cima pra sair da área de Backlog e retornar ao Portal principal.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pode('relatorio_clima') %}
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manClima">
+                        Relatório de Clima <span class="chip-perfil chip-ambos">Ambos</span>
+                    </button>
+                </h2>
+                <div id="manClima" class="accordion-collapse collapse" data-bs-parent="#accordionOperacao">
+                    <div class="accordion-body mb-0">
+                        <p class="mb-0">Acessado pelo Portal (fora da ferramenta de Atendimento). Mostra a previsão de chuva dos próximos 7 dias por DDD e por cidade, com uma recomendação gerencial pra cada dia — favorável pra campo (☀️) ou foco em MDU (🏢) — pra ajudar no planejamento das visitas técnicas.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+
+{% if perfil in ('ADM', 'SUPERVISOR', 'ANALISTA_II') %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-people-fill"></i> Gestão de equipe</div>
+        <hr>
+        <div class="accordion" id="accordionGestao">
+
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manSupervisao">
+                        Supervisão e Escalas
+                    </button>
+                </h2>
+                <div id="manSupervisao" class="accordion-collapse collapse" data-bs-parent="#accordionGestao">
+                    <div class="accordion-body">
+                        <p>Em <strong>Supervisão</strong> você acompanha quem está online agora, registra falta/férias/afastamento/treinamento (inclusive retroativo, até um limite de dias) e vê o painel de pendências — quem estava escalado pra hoje mas não logou e não tem falta registrada.</p>
+                        <p class="mb-0"><strong>Escalas</strong> define os dias e horário de trabalho de cada pessoa — é a partir daí que o sistema calcula quem "deveria" estar online em cada dia, alimentando o gráfico de Escalados x Presentes x Ausentes do Dashboard.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manTransferencias">
+                        Transferências
+                    </button>
+                </h2>
+                <div id="manTransferencias" class="accordion-collapse collapse" data-bs-parent="#accordionGestao">
+                    <div class="accordion-body mb-0">
+                        <p class="mb-0">Move um contrato de um operador pra outro manualmente — usado quando alguém sai de férias/desligamento com contratos em aberto, ou pra rebalancear carga entre a equipe.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manExtracao">
+                        Extração
+                    </button>
+                </h2>
+                <div id="manExtracao" class="accordion-collapse collapse" data-bs-parent="#accordionGestao">
+                    <div class="accordion-body mb-0">
+                        <p class="mb-0">Baixa relatórios em Excel com filtro de período: login/logout e pausas de todo mundo, contratos atribuídos (mailing), resultado de análises de GPON, ausências registradas, e dados cadastrais dos usuários (sem foto).</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manHistorico">
+                        Histórico de Tratamento / Gestão de Quebra
+                    </button>
+                </h2>
+                <div id="manHistorico" class="accordion-collapse collapse" data-bs-parent="#accordionGestao">
+                    <div class="accordion-body mb-0">
+                        <p><strong>Histórico de Tratamento</strong> mostra todos os fechamentos de toda a equipe, com filtro por pessoa, data e tipo de tabulação.</p>
+                        <p class="mb-0"><strong>Gestão de Quebra</strong> é a visão consolidada das quebras de agenda de todo mundo (não só as suas), com filtro por data, operador, contrato e motivo — a versão "gestão" da tela de Tratamento de Quebra que cada operador vê individualmente.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if perfil == 'ADM' %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-gear-fill"></i> Administração</div>
+        <hr>
+        <div class="accordion" id="accordionAdmin">
+
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manAdminGeral">
+                        Modo de Trabalho, Importação e Cidades x Operadora
+                    </button>
+                </h2>
+                <div id="manAdminGeral" class="accordion-collapse collapse" data-bs-parent="#accordionAdmin">
+                    <div class="accordion-body">
+                        <p><strong>Modo de Trabalho</strong> guarda as metas do mês (agendados e execuções) usadas nos velocímetros do Dashboard, além de outras configurações gerais do sistema.</p>
+                        <p><strong>Importação de Dados</strong> concentra os uploads: mailing (leads novos), usuários, execuções em campo (relatório do CRM oficial, sempre D-1) e o de-para de cidades x operadora.</p>
+                        <p class="mb-0"><strong>Cidades x Operadora</strong> é o de-para entre o código de operadora do relatório de execuções e o nome da cidade — sem esse cadastro, a execução ainda soma no total geral, mas fica sem cidade identificada no mapa de calor.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="accordion-item">
+                <h2 class="accordion-header">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#manPermissoes">
+                        Permissões e Scripts de Atendimento
+                    </button>
+                </h2>
+                <div id="manPermissoes" class="accordion-collapse collapse" data-bs-parent="#accordionAdmin">
+                    <div class="accordion-body mb-0">
+                        <p><strong>Permissões</strong> controla, por perfil, quais telas e sub-telas cada cargo enxerga — inclusive esta própria página de Ajuda e cada uma das seções que ela mostra pro Assistente e pro Analista.</p>
+                        <p class="mb-0"><strong>Scripts de Atendimento</strong> é onde ficam os até 4 modelos de texto usados no botão "Gerar Script" da tela de Atendimento — edite usando os campos entre colchetes (ex: [cliente], [protocolo]) pra puxar os dados de cada contrato automaticamente.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

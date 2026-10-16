@@ -1,0 +1,110 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<style>
+    .banner-dash {
+        background: linear-gradient(120deg, var(--ink) 0%, var(--red-dark) 78%, var(--red) 100%);
+        border-radius: 18px; padding: 24px 26px; color: white; margin-bottom: 20px;
+    }
+    .banner-dash h2 { margin: 0 0 4px; font-size: 21px; font-weight: 800; }
+    .banner-dash p { margin: 0; font-size: 13px; color: rgba(255,255,255,.72); }
+
+    .tabela-permissoes th, .tabela-permissoes td { text-align: center; vertical-align: middle; }
+    .tabela-permissoes th:first-child, .tabela-permissoes td:first-child { text-align: left; }
+    .form-check-input:checked { background-color: var(--red); border-color: var(--red); }
+    .perfil-tag {
+        font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px;
+        background: var(--gray-100); color: var(--gray-900);
+    }
+    .grupo-permissao-titulo {
+        display: flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 700;
+        margin: 0 0 2px;
+    }
+    .grupo-permissao-titulo i { color: var(--red); font-size: 16px; }
+    .modulo-desc { font-size: 12px; color: var(--gray-600, #6b7280); margin-top: 2px; }
+    .modulo-obs {
+        font-size: 11px; font-weight: 600; color: var(--red-dark, #b02a2a);
+        margin-top: 2px;
+    }
+    .linha-macro td { background: var(--gray-50, #f8f9fa); border-top: 2px solid var(--gray-100, #e9ecef); }
+    .linha-macro .modulo-label { font-weight: 700; }
+    .linha-subitem td { border-top: none; }
+    .linha-subitem .modulo-label { padding-left: 22px; position: relative; font-weight: 500; }
+    .linha-subitem .modulo-label::before {
+        content: "\2514"; position: absolute; left: 4px; color: var(--gray-400, #adb5bd); font-weight: 400;
+    }
+</style>
+
+<div class="banner-dash">
+    <h2><i class="bi bi-shield-lock-fill"></i> Permissões por Perfil</h2>
+    <p>Escolha quais telas cada perfil pode acessar. O ADM sempre tem acesso a tudo e não aparece aqui.</p>
+</div>
+
+<form method="POST" action="/admin/permissoes/salvar">
+    {% for grupo, icone, itens in grupos %}
+    <div class="card card-shadow {{ 'mt-4' if not loop.first }}">
+        <div class="card-body">
+            <div class="grupo-permissao-titulo"><i class="bi {{ icone }}"></i> {{ grupo }}</div>
+            <hr>
+            <table class="table tabela-permissoes align-middle mb-0">
+                <thead>
+                    <tr>
+                        <th>Módulo</th>
+                        <th><span class="perfil-tag">ASSISTENTE</span></th>
+                        <th><span class="perfil-tag">SUPERVISOR</span></th>
+                        <th><span class="perfil-tag">ANALISTA</span></th>
+                        <th><span class="perfil-tag">ANALISTA II</span></th>
+                        <th><span class="perfil-tag">ASSISTENTE CLARO</span></th>
+                        <th><span class="perfil-tag">CONFIRM. AGENDA</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens %}
+                    {% if item.subitens %}
+                    <tr class="linha-macro">
+                        <td>
+                            <span class="modulo-label">{{ item.label }}</span>
+                            <div class="modulo-desc">{{ item.desc }}</div>
+                        </td>
+                        <td colspan="4" class="modulo-desc" style="text-align:left;">Marque abaixo qual parte cada perfil pode acessar.</td>
+                    </tr>
+                    {% for sub_chave, sub_label, sub_desc in item.subitens %}
+                    <tr class="linha-subitem">
+                        <td>
+                            <span class="modulo-label">{{ sub_label }}</span>
+                            <div class="modulo-desc">{{ sub_desc }}</div>
+                        </td>
+                        {% for perfil in ["OPERADOR", "SUPERVISOR", "ANALISTA", "ANALISTA_II", "ASSISTENTE_CLARO", "OPERADOR_CONF"] %}
+                        <td>
+                            <input class="form-check-input" type="checkbox"
+                                   name="{{ perfil }}__{{ sub_chave }}"
+                                   {% if matriz[perfil].get(sub_chave) %}checked{% endif %}>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td>
+                            <span class="modulo-label">{{ item.label }}</span>
+                            <div class="modulo-desc">{{ item.desc }}</div>
+                        </td>
+                        {% for perfil in ["OPERADOR", "SUPERVISOR", "ANALISTA", "ANALISTA_II", "ASSISTENTE_CLARO", "OPERADOR_CONF"] %}
+                        <td>
+                            <input class="form-check-input" type="checkbox"
+                                   name="{{ perfil }}__{{ item.chave }}"
+                                   {% if matriz[perfil].get(item.chave) %}checked{% endif %}>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-danger btn-lg mt-3">Salvar permissões</button>
+</form>
+{% endblock %}

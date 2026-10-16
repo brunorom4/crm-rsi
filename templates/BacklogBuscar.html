@@ -1,0 +1,158 @@
+{% extends "layout_backlog.html" %}
+
+{% block conteudo %}
+<style>
+    .card-busca { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 20px 24px; margin-bottom: 20px; }
+    .card-contrato { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 22px 24px; margin-bottom: 20px; }
+    .card-contrato h2 { font-size: 19px; margin: 0 0 14px; }
+    .grade-dados { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px 20px; }
+    @media (max-width: 800px) { .grade-dados { grid-template-columns: repeat(2, 1fr); } }
+    .grade-dados .campo .rotulo { font-size: 11.5px; color: var(--claro-cinza); font-weight: 600; text-transform: uppercase; letter-spacing: .02em; }
+    .grade-dados .campo .valor { font-size: 14.5px; font-weight: 600; }
+    .badge-status { display: inline-block; padding: 3px 12px; border-radius: 999px; font-size: 11.5px; font-weight: 700; text-transform: uppercase; }
+
+    .card-historico { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 18px 22px; margin-bottom: 20px; }
+    .card-historico h5 { font-size: 14.5px; margin: 0 0 10px; }
+    .item-hist { border-top: 1px solid #f0efed; padding: 9px 0; font-size: 13px; }
+    .item-hist:first-of-type { border-top: none; }
+    .item-hist .badge-fechamento { font-weight: 700; }
+    .item-hist .data-hist { color: var(--claro-cinza); font-size: 12px; }
+
+    .card-fechamento { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 22px 24px; }
+    .card-fechamento h5 { font-size: 15px; margin: 0 0 16px; }
+    .grade-fechamento { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    @media (max-width: 700px) { .grade-fechamento { grid-template-columns: 1fr; } }
+    .campos-extra { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px dashed #e0dedb; }
+    .campos-extra.ativo { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    @media (max-width: 700px) { .campos-extra.ativo { grid-template-columns: 1fr; } }
+</style>
+
+<div class="card-busca">
+    <h5 class="mb-3"><i class="bi bi-search"></i> Buscar Contrato</h5>
+    <form method="GET" action="/backlog/buscar" class="d-flex gap-2">
+        <input type="text" name="contrato" class="form-control" placeholder="Número do contrato" value="{{ cd_contrato }}" autofocus>
+        <button type="submit" class="btn btn-danger"><i class="bi bi-search"></i> Buscar</button>
+    </form>
+</div>
+
+{% if buscou and not contrato %}
+<div class="alert alert-warning">Nenhum contrato de backlog encontrado com esse número.</div>
+{% endif %}
+
+{% if contrato %}
+<div class="card-contrato">
+    <h2>
+        <i class="bi bi-file-earmark-text"></i> Contrato {{ contrato['cd_contrato'] }}
+        <span class="badge-status" style="background: var(--claro-cinza-claro); color: var(--claro-preto);">{{ contrato['status'].replace('_', ' ') }}</span>
+        {% if contrato['ultimo_fechamento'] %}
+        <span class="badge-status" style="background: var(--claro-vermelho-escuro); color: #fff;">{{ labels_fechamento.get(contrato['ultimo_fechamento'], contrato['ultimo_fechamento']) }}</span>
+        {% endif %}
+    </h2>
+    <div class="grade-dados">
+        <div class="campo"><div class="rotulo">Cidade</div><div class="valor">{{ contrato['cidade'] or '—' }}</div></div>
+        <div class="campo"><div class="rotulo">DDD</div><div class="valor">{{ contrato['ddd'] or '—' }}</div></div>
+        <div class="campo"><div class="rotulo">Operadora</div><div class="valor">{{ contrato['cd_operadora'] }}</div></div>
+        <div class="campo"><div class="rotulo">Produto De</div><div class="valor">{{ contrato['produto_de'] or '—' }}</div></div>
+        <div class="campo"><div class="rotulo">Produto Para</div><div class="valor">{{ contrato['produto_para'] or '—' }}</div></div>
+        <div class="campo"><div class="rotulo">Aging</div><div class="valor">{{ contrato['aging'] or '—' }}</div></div>
+        <div class="campo"><div class="rotulo">Data Agendamento (planilha)</div><div class="valor">{{ contrato['data_agendamento'] or '—' }}</div></div>
+        <div class="campo"><div class="rotulo">Período (planilha)</div><div class="valor">{{ contrato['periodo'] or '—' }}</div></div>
+        <div class="campo"><div class="rotulo">Data Abertura OS</div><div class="valor">{{ contrato['data_abertura_os'] or '—' }}</div></div>
+        <div class="campo"><div class="rotulo">Vendedor</div><div class="valor">{{ contrato['vendedor'] or '—' }}</div></div>
+        <div class="campo"><div class="rotulo">Na fila desde</div><div class="valor">{{ contrato['data_entrada_fila'] }}</div></div>
+        {% if contrato['retorno_em'] %}
+        <div class="campo"><div class="rotulo">Retorno marcado pra</div><div class="valor">{{ contrato['retorno_em'] }}</div></div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card-historico">
+    <h5><i class="bi bi-clock-history"></i> Histórico de tratamento</h5>
+    {% if historico %}
+        {% for h in historico %}
+        <div class="item-hist">
+            <span class="badge-fechamento">{{ labels_fechamento.get(h['fechamento'], h['fechamento']) }}</span>
+            — {{ h['operador'] }}
+            <span class="data-hist">({{ h['data_tratamento'] }})</span>
+            {% if h['observacao'] %}<div class="text-muted">{{ h['observacao'] }}</div>{% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+    <p class="text-muted mb-0 small">Nenhum tratamento anterior pra esse contrato.</p>
+    {% endif %}
+</div>
+
+<div class="card-fechamento">
+    <h5><i class="bi bi-check2-square"></i> Registrar novo fechamento</h5>
+    <p class="text-muted small">Revisão manual -- funciona pra qualquer status atual do contrato, não só o que está em tratamento agora.</p>
+    <form method="POST" action="/backlog/buscar/tratar" id="formFechamento">
+        <input type="hidden" name="id_contrato" value="{{ contrato['id'] }}">
+        <div class="grade-fechamento">
+            <div class="campo">
+                <label class="form-label small fw-bold">Resultado</label>
+                <select name="fechamento" id="selectFechamento" class="form-select" required onchange="atualizarCamposExtra()">
+                    <option value="">Selecione...</option>
+                    <option value="AGENDADO">Agendado</option>
+                    <option value="CANCELADO">Cancelado</option>
+                    <option value="JA_CANCELADO">Já Cancelado</option>
+                    <option value="CONTRATO_CONECTADO">Contrato Conectado</option>
+                    <option value="ABERTO_CHAMADO">Aberto Chamado</option>
+                    <option value="RETORNO">Retorno</option>
+                </select>
+            </div>
+            <div class="campo">
+                <label class="form-label small fw-bold">Observação</label>
+                <input type="text" name="observacao" class="form-control" placeholder="Opcional">
+            </div>
+        </div>
+
+        <div class="campos-extra" id="camposAgendado">
+            <div class="campo">
+                <label class="form-label small fw-bold">Data do Agendamento</label>
+                <input type="date" name="nova_data_agendamento" class="form-control">
+            </div>
+            <div class="campo">
+                <label class="form-label small fw-bold">Janela</label>
+                <select name="novo_periodo" class="form-select">
+                    <option value="">Selecione...</option>
+                    <option>08h as 12h</option>
+                    <option>12h as 15h</option>
+                    <option>15h as 18h</option>
+                </select>
+            </div>
+            <div class="campo">
+                <label class="form-label small fw-bold">Responsável (Cliente)</label>
+                <input type="text" name="novo_resp_cliente" class="form-control">
+            </div>
+            <div class="campo d-flex align-items-end">
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="novo_flag_mdu" id="novoFlagMdu">
+                    <label class="form-check-label" for="novoFlagMdu">MDU</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="campos-extra" id="camposRetorno">
+            <div class="campo">
+                <label class="form-label small fw-bold">Data do Retorno</label>
+                <input type="date" name="retorno_data" class="form-control">
+            </div>
+            <div class="campo">
+                <label class="form-label small fw-bold">Hora do Retorno</label>
+                <input type="time" name="retorno_hora" class="form-control" value="08:00">
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-danger mt-3"><i class="bi bi-check-lg"></i> Confirmar fechamento</button>
+    </form>
+</div>
+
+<script>
+    function atualizarCamposExtra() {
+        const valor = document.getElementById('selectFechamento').value;
+        document.getElementById('camposAgendado').classList.toggle('ativo', valor === 'AGENDADO');
+        document.getElementById('camposRetorno').classList.toggle('ativo', valor === 'ABERTO_CHAMADO' || valor === 'RETORNO');
+    }
+</script>
+{% endif %}
+{% endblock %}

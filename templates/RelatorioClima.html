@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Relatório de Clima — Claro</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="shortcut icon" href="/static/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --claro-vermelho: #DA291C;
+        --claro-vermelho-forte: #ED1C24;
+        --claro-vermelho-escuro: #AF272F;
+        --claro-laranja: #F5842B;
+        --claro-preto: #2D2926;
+        --claro-cinza: #A7A8AA;
+        --claro-cinza-claro: #f4f5f7;
+        --chuva-baixa: #1e7e34;
+        --chuva-baixa-bg: #e6f4ea;
+        --chuva-media: #b8860b;
+        --chuva-media-bg: #fdf3d9;
+        --chuva-alta: var(--claro-vermelho-escuro);
+        --chuva-alta-bg: #fbe9ea;
+    }
+    * { box-sizing: border-box; }
+    body {
+        font-family: 'Poppins', Arial, Helvetica, sans-serif;
+        background: var(--claro-cinza-claro);
+        margin: 0;
+        color: var(--claro-preto);
+    }
+    .topo-claro {
+        position: relative; overflow: hidden;
+        background: linear-gradient(135deg, var(--claro-vermelho-forte) 0%, var(--claro-vermelho) 55%, var(--claro-vermelho-escuro) 100%);
+        padding: 18px 28px;
+        display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+        box-shadow: 0 2px 10px rgba(175,39,47,0.25);
+    }
+    .sol-deco { position: absolute; right: -30px; bottom: -30px; width: 150px; height: 150px; opacity: .14; pointer-events: none; }
+    .topo-claro .marca-esquerda { display: flex; align-items: center; gap: 14px; position: relative; z-index: 1; }
+    .topo-claro img.logo { height: 42px; width: 42px; object-fit: contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25)); }
+    .topo-claro .titulos h1 { color: #fff; font-size: 20px; font-weight: 800; margin: 0; letter-spacing: 0.2px; }
+    .topo-claro .titulos .subtitulo { color: rgba(255,255,255,0.88); font-size: 12.5px; margin-top: 2px; }
+    .topo-claro .acoes { position: relative; z-index: 1; }
+    .topo-claro .acoes a { color: #fff; text-decoration: none; font-size: 13px; font-weight: 600; }
+    .topo-claro .acoes a:hover { text-decoration: underline; }
+
+    .conteudo { padding: 24px 28px 40px; max-width: 1200px; margin: 0 auto; }
+    h2.secao { font-size: 16px; font-weight: 700; color: var(--claro-preto); margin: 28px 0 14px; }
+
+    .card-resumo-gerencial { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 16px 18px; }
+    .resumo-topo { display: flex; gap: 24px; flex-wrap: wrap; margin-bottom: 14px; }
+    .resumo-contagem { font-size: 14px; color: var(--chuva-baixa); }
+    .resumo-contagem strong { font-size: 20px; }
+    .resumo-mdu { color: var(--claro-vermelho-escuro); }
+    .chip-recomendacao { display: inline-block; padding: 3px 11px; border-radius: 20px; font-weight: 700; font-size: 12.5px; }
+    .chip-campo { background: var(--chuva-baixa-bg); color: var(--chuva-baixa); }
+    .chip-mdu { background: var(--chuva-alta-bg); color: var(--chuva-alta); }
+    .regioes-afetadas { margin-top: 14px; padding-top: 12px; border-top: 1px solid #f0efed; font-size: 13.5px; color: #55504b; }
+
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; }
+    .card-ddd { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); padding: 14px 16px; }
+    .card-ddd .ddd-nome { font-weight: 700; font-size: 14px; color: var(--claro-preto); }
+    .card-ddd .pico { margin-top: 8px; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; }
+    .risco-baixo { background: var(--chuva-baixa-bg); color: var(--chuva-baixa); }
+    .risco-medio { background: var(--chuva-media-bg); color: var(--chuva-media); }
+    .risco-alto { background: var(--chuva-alta-bg); color: var(--chuva-alta); }
+    .card-ddd .pico strong { font-size: 16px; }
+
+    .card-cidade { background: #fff; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07); margin-bottom: 16px; overflow: hidden; }
+    .card-cidade .cidade-header { padding: 12px 16px; background: var(--claro-preto); color: #fff; font-weight: 700; font-size: 15px; }
+    .tabela-dias { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tabela-dias th, .tabela-dias td { padding: 9px 14px; text-align: left; border-bottom: 1px solid #f0efed; }
+    .tabela-dias th { background: #faf9f8; font-weight: 600; color: #6e6a66; font-size: 12px; text-transform: uppercase; letter-spacing: 0.3px; }
+    .tabela-dias tr:last-child td { border-bottom: none; }
+    .chip-chuva { display: inline-block; padding: 2px 9px; border-radius: 20px; font-weight: 700; font-size: 12px; }
+
+    .sem-dados { background: #fff; border-radius: 10px; padding: 24px; text-align: center; color: #8a8580; }
+
+    .rodape-marca {
+        max-width: 1200px; margin: 30px auto 0; padding: 0 28px 10px;
+        display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+        color: #b3aeaa; font-size: 11px;
+    }
+</style>
+</head>
+<body>
+
+<div class="topo-claro">
+    <svg class="sol-deco" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="35" cy="65" r="14" stroke="#fff" stroke-width="7"/>
+        <rect x="30" y="8" width="9" height="26" fill="#fff"/>
+        <rect x="55" y="70" width="26" height="9" fill="#fff"/>
+        <rect x="52" y="18" width="9" height="34" fill="#fff" transform="rotate(45 56 35)"/>
+    </svg>
+    <div class="marca-esquerda">
+        <img class="logo" src="/static/logo-claro.png" alt="Claro" onerror="this.style.display='none'">
+        <div class="titulos">
+            <h1>Relatório de Clima</h1>
+            <div class="subtitulo">Próximos 7 dias — gerado em {{ relatorio.gerado_em }}</div>
+        </div>
+    </div>
+    <div class="acoes">
+        <a href="/portal">← Voltar ao Portal</a>
+    </div>
+</div>
+
+<div class="conteudo">
+    <h2 class="secao" style="margin-top: 0;">📋 Resumo Gerencial — Recomendação de Atuação</h2>
+    <div class="card-resumo-gerencial">
+        <div class="resumo-topo">
+            <div class="resumo-contagem">
+                <strong>{{ relatorio.resumo_gerencial.dias_favoraveis }}</strong> dia(s) favorável(is) pra campo
+            </div>
+            <div class="resumo-contagem resumo-mdu">
+                <strong>{{ relatorio.resumo_gerencial.dias_mdu }}</strong> dia(s) com foco recomendado em MDU
+            </div>
+        </div>
+        <table class="tabela-dias">
+            <thead><tr><th>Data</th><th>Chuva média (todas as regiões)</th><th>Recomendação</th></tr></thead>
+            <tbody>
+                {% for d in relatorio.resumo_gerencial.dias %}
+                <tr>
+                    <td>{{ d.data }}</td>
+                    <td>{{ d.chance_chuva_media }}%</td>
+                    <td>
+                        {% if d.recomendacao == 'CAMPO' %}
+                        <span class="chip-recomendacao chip-campo">☀️ Favorável pra campo</span>
+                        {% else %}
+                        <span class="chip-recomendacao chip-mdu">🏢 Foco em MDU</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if relatorio.resumo_gerencial.ddds_mais_afetados %}
+        <div class="regioes-afetadas">
+            <strong>Regiões mais afetadas na semana:</strong>
+            {% for a in relatorio.resumo_gerencial.ddds_mais_afetados %}
+            DDD {{ a.ddd }} ({{ a.media_semana }}% médio){% if not loop.last %} · {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <h2 class="secao">Resumo por DDD — pico de chance de chuva na semana</h2>
+    {% if relatorio.por_ddd %}
+    <div class="cards-grid">
+        {% for grupo in relatorio.por_ddd %}
+        {% set pico = grupo.pico_chuva %}
+        <div class="card-ddd">
+            <div class="ddd-nome">DDD {{ grupo.ddd }}</div>
+            {% if pico %}
+            <div class="pico {{ 'risco-alto' if pico.chance_chuva_media >= 70 else ('risco-medio' if pico.chance_chuva_media >= 40 else 'risco-baixo') }}">
+                <strong>{{ pico.chance_chuva_media }}%</strong> em {{ pico.data }}<br>
+                {{ pico.temp_min }}° a {{ pico.temp_max }}°C
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="sem-dados">Sem dados de previsão disponíveis no momento.</div>
+    {% endif %}
+
+    <h2 class="secao">Cidades em destaque — detalhamento dos 7 dias</h2>
+    {% for c in relatorio.cidades_destaque %}
+    <div class="card-cidade">
+        <div class="cidade-header">{{ c.cidade }}{% if not c.sem_dados %} — DDD {{ c.ddd }}{% endif %}</div>
+        {% if c.sem_dados %}
+        <div class="sem-dados">Sem previsão disponível pra essa cidade.</div>
+        {% else %}
+        <table class="tabela-dias">
+            <thead>
+                <tr><th>Data</th><th>Condição</th><th>Temperatura</th><th>Chance de chuva</th></tr>
+            </thead>
+            <tbody>
+                {% for d in c.dias %}
+                <tr>
+                    <td>{{ d.data }}</td>
+                    <td>{{ d.condicao }}</td>
+                    <td>{{ d.temp_min }}° a {{ d.temp_max }}°C</td>
+                    <td>
+                        <span class="chip-chuva {{ 'risco-alto' if d.chance_chuva >= 70 else ('risco-medio' if d.chance_chuva >= 40 else 'risco-baixo') }}">
+                            {{ d.chance_chuva }}%
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+
+<div class="rodape-marca">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+        <circle cx="7" cy="17" r="3.2" stroke="#c9c4c0" stroke-width="2"/>
+        <rect x="10.2" y="4" width="2.4" height="6.5" rx="1" fill="#c9c4c0"/>
+        <rect x="15.5" y="6.2" width="2.4" height="7.5" rx="1" fill="#c9c4c0" transform="rotate(45 16.7 10)"/>
+        <rect x="14" y="16" width="6" height="2.2" rx="1" fill="#c9c4c0"/>
+    </svg>
+    Claro · Relatório de Clima
+</div>
+
+</body>
+</html>

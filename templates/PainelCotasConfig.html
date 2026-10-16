@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Configurar Extração — Painel de Cotas — Claro</title>
+<link rel="icon" type="image/png" href="/static/favicon.png">
+<link rel="shortcut icon" href="/static/favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --claro-vermelho: #DA291C;
+        --claro-vermelho-forte: #ED1C24;
+        --claro-vermelho-escuro: #AF272F;
+        --claro-preto: #2D2926;
+        --claro-cinza-claro: #f4f5f7;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'Poppins', Arial, Helvetica, sans-serif; background: var(--claro-cinza-claro); margin: 0; color: var(--claro-preto); }
+
+    .topo-claro {
+        background: linear-gradient(135deg, var(--claro-vermelho-forte) 0%, var(--claro-vermelho) 55%, var(--claro-vermelho-escuro) 100%);
+        padding: 18px 28px; display: flex; align-items: center; gap: 14px;
+        box-shadow: 0 2px 10px rgba(175,39,47,0.25);
+    }
+    .topo-claro img.logo { height: 42px; width: 42px; object-fit: contain; filter: drop-shadow(0 1px 3px rgba(0,0,0,0.25)); }
+    .topo-claro .titulos h1 { color: #fff; font-size: 19px; font-weight: 800; margin: 0; }
+    .topo-claro .titulos .subtitulo { color: rgba(255,255,255,0.88); font-size: 12.5px; margin-top: 2px; }
+    .topo-claro .titulos .subtitulo a { color: #fff; font-weight: 600; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.5); }
+    .topo-claro .titulos .subtitulo a:hover { border-bottom-color: #fff; }
+
+    .conteudo { padding: 24px 28px 40px; max-width: 640px; margin: 0 auto; }
+
+    .flash { padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 14px; font-weight: 500; }
+    .flash-sucesso { background: #e6f4ea; color: #1e7e34; border: 1px solid #b7e0c4; }
+    .flash-erro { background: #fbe9ea; color: var(--claro-vermelho-escuro); border: 1px solid #eabfc2; }
+
+    .caixa { background: #fff; border: 1px solid #e7e5e4; border-radius: 12px; padding: 22px; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+    label { font-weight: 600; font-size: 13.5px; display: block; margin-bottom: 6px; color: var(--claro-preto); }
+    .ajuda { font-size: 12px; color: #8a8580; margin-bottom: 8px; }
+    textarea {
+        width: 100%; box-sizing: border-box; font-family: 'Poppins', monospace; font-size: 13px;
+        padding: 10px; border: 1px solid #ddd9d5; border-radius: 8px; resize: vertical;
+    }
+    textarea:focus { outline: none; border-color: var(--claro-vermelho); box-shadow: 0 0 0 3px rgba(218,41,28,0.12); }
+
+    .classes-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 14px; margin-top: 6px; margin-bottom: 20px; }
+    .classe-item { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; }
+    .classe-item input { accent-color: var(--claro-vermelho); }
+
+    button {
+        background: linear-gradient(135deg, var(--claro-vermelho-forte), var(--claro-vermelho-escuro));
+        color: #fff; border: none; padding: 11px 22px; border-radius: 8px; cursor: pointer;
+        font-size: 14px; font-weight: 700; font-family: inherit; margin-top: 18px;
+        transition: filter 0.15s, transform 0.1s;
+    }
+    button:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+    .nota {
+        margin-top: 18px; font-size: 12px; color: #6b6560; background: var(--claro-cinza-claro);
+        border-radius: 8px; padding: 12px 14px; line-height: 1.5;
+    }
+</style>
+</head>
+<body>
+
+<div class="topo-claro">
+    <img class="logo" src="/static/logo-claro.png" alt="Claro" onerror="this.style.display='none'">
+    <div class="titulos">
+        <h1>Configurar Extração</h1>
+        <div class="subtitulo">
+            Acesso restrito a ADM &nbsp;·&nbsp; <a href="/portal/painel-cotas">← Voltar ao Painel de Cotas</a>
+        </div>
+    </div>
+</div>
+
+<div class="conteudo">
+
+{% with mensagens = get_flashed_messages(with_categories=true) %}
+  {% for categoria, msg in mensagens %}
+    <div class="flash flash-{{ categoria }}">{{ msg }}</div>
+  {% endfor %}
+{% endwith %}
+
+<div class="caixa">
+    <form method="POST" action="/portal/painel-cotas/config">
+        <label for="cidades">Cidades (uma por linha, como aparece na tela do Painel de Cotas)</label>
+        <div class="ajuda">Ex: CAMPINAS, SANTOS, RIBEIRAO PRETO — maiúsculo, sem acento.</div>
+        <textarea id="cidades" name="cidades" rows="12">{{ cidades_salvas }}</textarea>
+
+        <label style="margin-top:18px;" for="cidades_cards">Cidades nos cards de resumo (nome como aparece no painel)</label>
+        <div class="ajuda">Ex: Campinas, Santos, Ribeirão Preto — independente da lista acima; controla só os cards do topo, o detalhado sempre mostra todas as cidades importadas.</div>
+        <textarea id="cidades_cards" name="cidades_cards" rows="6">{{ cidades_cards_salvas }}</textarea>
+
+        <label style="margin-top:18px;">Classes</label>
+        <div class="classes-grid">
+            {% for chave, rotulo in classes_disponiveis %}
+                <label class="classe-item">
+                    <input type="checkbox" name="classes" value="{{ chave }}"
+                        {% if chave in classes_salvas %}checked{% endif %}>
+                    {{ rotulo }}
+                </label>
+            {% endfor %}
+        </div>
+
+        <button type="submit">Salvar e baixar config_cotas.py</button>
+    </form>
+
+    <div class="nota">
+        Ao salvar, tudo isso fica guardado aqui (sempre carrega a última
+        escolha da próxima vez que você abrir esta página).
+        As <strong>cidades e classes de extração</strong> também geram o
+        download de <strong>config_cotas.py</strong> — coloque esse arquivo
+        na mesma pasta do <strong>1_download_cotas.py</strong> no seu PC,
+        ele é lido automaticamente na próxima execução. Já as
+        <strong>cidades dos cards</strong> valem só pra exibição no painel,
+        não afetam o download nem a extração.
+    </div>
+</div>
+
+<div class="caixa" style="margin-top: 22px;">
+    <label>Nomes de cidade por prefixo</label>
+    <div class="ajuda">
+        O sistema identifica cada cidade por um código curto (o prefixo do
+        Bucket, ex: <code>CAS</code>, <code>STS</code>). Prefixos sem nome
+        cadastrado aparecem no painel como "XXX (sem nome cadastrado)" —
+        preencha abaixo pra corrigir. A lista vem do último CSV importado.
+    </div>
+
+    {% if prefixos_e_nomes %}
+    <form method="POST" action="/portal/painel-cotas/config/mapa-cidades">
+        <table style="width:100%; border-collapse: collapse; margin-top: 10px;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; font-size:12px; color:#8a8580; padding:4px 8px 8px 0;">Prefixo</th>
+                    <th style="text-align:left; font-size:12px; color:#8a8580; padding:4px 0 8px;">Nome da cidade</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for prefixo, nome_atual in prefixos_e_nomes %}
+                <tr>
+                    <td style="padding:4px 8px 4px 0; font-family: monospace; font-weight:600;">{{ prefixo }}</td>
+                    <td style="padding:4px 0;">
+                        <input type="text" name="cidade_{{ prefixo }}" value="{{ nome_atual }}"
+                            placeholder="ex: Piracicaba"
+                            style="width:100%; box-sizing:border-box; padding:7px 10px; border:1px solid #ddd9d5; border-radius:7px; font-family:'Poppins',sans-serif; font-size:13px;">
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <button type="submit">Salvar nomes de cidade</button>
+    </form>
+    {% else %}
+        <div class="ajuda">Nenhum CSV importado ainda — os prefixos aparecem aqui depois da primeira importação.</div>
+    {% endif %}
+</div>
+
+</div>
+
+</body>
+</html>

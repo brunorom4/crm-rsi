@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<a href="/?data={{ data_escolhida }}" class="btn btn-sm btn-outline-secondary mb-3">← Voltar ao Dashboard</a>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-person-fill"></i> {{ usuario['nome'] }} — {{ data_escolhida }}</h2>
+        <hr>
+        {% if atendimentos %}
+        <table class="table align-middle">
+            <thead><tr><th>Contrato</th><th>Tabulação</th><th>Início</th><th>Fim</th><th>Duração</th></tr></thead>
+            <tbody>
+                {% for a in atendimentos %}
+                <tr>
+                    <td>{{ a['contrato'] }}</td>
+                    <td>{{ a['tabulacao'] }}</td>
+                    <td>{{ a['data_inicio'] }}</td>
+                    <td>{{ a['data_fim'] }}</td>
+                    <td>{{ '%.1f' | format(a['minutos']) }} min</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">Nenhum atendimento registrado nessa data.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

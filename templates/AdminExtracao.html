@@ -1,0 +1,133 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+{% if pode('extracao_pontualidade') %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-clock-fill"></i> Extração de Login, Logout e Pausas</h2>
+        <p class="text-muted">
+            Gera uma planilha Excel com o histórico de início/fim de tratamento (login/logout)
+            e de pausas de todo mundo, dentro do período escolhido — uma aba pra cada.
+        </p>
+        <hr>
+        <form action="/extracao/pontualidade/gerar" method="GET" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label">Data início</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ hoje }}" required>
+            </div>
+            <div>
+                <label class="form-label">Data fim</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ hoje }}" required>
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-file-earmark-excel"></i> Gerar Excel</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if pode('extracao_tratamentos') %}
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-download"></i> Extração de Tratamentos</h2>
+        <p class="text-muted">
+            Gera uma planilha Excel com todos os contratos já atribuídos a alguém
+            (em andamento + finalizados) dentro do período escolhido.
+        </p>
+        <hr>
+        <form action="/admin/extracao/gerar" method="GET" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label">Data início</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ hoje }}" required>
+            </div>
+            <div>
+                <label class="form-label">Data fim</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ hoje }}" required>
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-file-earmark-excel"></i> Gerar Excel</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if pode('extracao_gpon') %}
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-broadcast"></i> Extração de Tratamento GPON Indisponível</h2>
+        <p class="text-muted">
+            Gera uma planilha Excel com o resultado das análises da fila de GPON Indisponível
+            (agendados, HP liberado, bloqueio, etc.) dentro do período escolhido.
+        </p>
+        <hr>
+        <form action="/admin/extracao/gpon" method="GET" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label">Data início</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ hoje }}" required>
+            </div>
+            <div>
+                <label class="form-label">Data fim</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ hoje }}" required>
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-file-earmark-excel"></i> Gerar Excel</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if pode('extracao_ausencias') %}
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-calendar-x"></i> Extração de Ausências</h2>
+        <p class="text-muted">
+            Gera uma planilha Excel com todos os registros de falta (justificada ou injustificada)
+            dentro do período escolhido.
+        </p>
+        <hr>
+        <form action="/admin/extracao/ausencias" method="GET" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label">Data início</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ hoje }}" required>
+            </div>
+            <div>
+                <label class="form-label">Data fim</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ hoje }}" required>
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-file-earmark-excel"></i> Gerar Excel</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if pode('extracao_usuarios') %}
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-person-lines-fill"></i> Extração de Usuários</h2>
+        <p class="text-muted">
+            Gera uma planilha Excel com os dados cadastrais de todo mundo (nome, login, e-mail,
+            perfil, celular, ramal, status e último IP de acesso). Não inclui foto de perfil.
+        </p>
+        <hr>
+        <a href="/admin/extracao/usuarios" class="btn btn-danger"><i class="bi bi-file-earmark-excel"></i> Gerar Excel</a>
+    </div>
+</div>
+{% endif %}
+
+{% if pode('extracao_followup_atrasado') %}
+<div class="card card-shadow mt-4">
+    <div class="card-body">
+        <h2><i class="bi bi-hourglass-split"></i> Extração de Followup Atrasado</h2>
+        <p class="text-muted">
+            Contratos parados em followup vencido (2ª/3ª tentativa) há mais de X horas -- com quem está
+            atribuído, se essa pessoa está ausente hoje, última tabulação e datas de início/fim da última tratativa.
+        </p>
+        <hr>
+        <form action="/admin/extracao/followup-atrasado" method="GET" class="d-flex gap-2 align-items-end flex-wrap">
+            <div>
+                <label class="form-label">Vencido há mais de (horas)</label>
+                <input type="number" name="horas" class="form-control" value="48" min="1" style="width: 120px;">
+            </div>
+            <button type="submit" class="btn btn-danger"><i class="bi bi-file-earmark-excel"></i> Gerar Excel</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

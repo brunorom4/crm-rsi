@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="hero-band">
+    <div class="hero-eyebrow">Comunicados</div>
+    <h1><i class="bi bi-megaphone-fill"></i> Informações</h1>
+    <p>Avisos e novidades da operação</p>
+</div>
+
+<div class="d-flex justify-content-end gap-2 mb-3" style="margin-top: -18px; position: relative; z-index: 2;">
+    {% if pode_ver_relatorio %}
+    <a href="/noticias/relatorio" class="btn btn-light border"><i class="bi bi-bar-chart-line-fill"></i> Relatório de leitura</a>
+    {% endif %}
+    {% if pode_postar %}
+    <a href="/noticias/nova" class="btn btn-danger"><i class="bi bi-plus-circle-fill"></i> Nova notícia</a>
+    {% endif %}
+</div>
+
+{% if lista %}
+<div class="card card-shadow p-0 overflow-hidden">
+    <div class="row g-0">
+        <div class="col-md-4 col-lg-3" style="border-right: 1px solid var(--gray-300); max-height: 640px; overflow-y: auto;">
+            {% for n in lista %}
+            <a href="/noticias/{{ n['id'] }}" class="text-decoration-none text-reset d-block"
+               style="border-bottom: 1px solid var(--gray-300); {% if noticia_selecionada and noticia_selecionada['id'] == n['id'] %}background: var(--gray-100);{% endif %}">
+                <div class="p-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h6 class="mb-1 {{ 'fw-bold' if not n['lida'] else '' }}" style="font-size: 14px;">
+                            {% if not n['lida'] %}<span style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--red); margin-right:6px;"></span>{% endif %}
+                            {{ n['titulo'] }}
+                        </h6>
+                    </div>
+                    <div class="text-muted small mb-1">{{ n['autor'] }} — {{ n['data_publicacao'][:16] }}</div>
+                    <div class="text-muted" style="font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        {{ n['conteudo_html'] | striptags }}
+                    </div>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+
+        <div class="col-md-8 col-lg-9" style="max-height: 640px; overflow-y: auto;">
+            {% if noticia_selecionada %}
+            <div class="p-4">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h4 class="mb-1">{{ noticia_selecionada['titulo'] }}</h4>
+                    {% if pode_postar %}
+                    <div class="d-flex gap-2 flex-shrink-0 ms-3">
+                        <a href="/noticias/{{ noticia_selecionada['id'] }}/editar" class="btn btn-sm btn-outline-dark"><i class="bi bi-pencil-fill"></i> Editar</a>
+                        <form action="/noticias/{{ noticia_selecionada['id'] }}/excluir" method="POST" onsubmit="return confirm('Excluir essa notícia? Isso não pode ser desfeito.');">
+                            <button type="submit" class="btn btn-sm btn-outline-danger"><i class="bi bi-trash-fill"></i> Excluir</button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="text-muted small mb-4">{{ noticia_selecionada['autor'] }} — {{ noticia_selecionada['data_publicacao'][:16] }}</div>
+                <div class="ql-snow">
+                    <div class="ql-editor" style="padding: 0;">
+                        {{ noticia_selecionada['conteudo_html'] | safe }}
+                    </div>
+                </div>
+            </div>
+            <link href="https://cdn.jsdelivr.net/npm/quill@2.0.2/dist/quill.snow.css" rel="stylesheet">
+            {% else %}
+            <div class="d-flex flex-column align-items-center justify-content-center text-muted h-100 py-5">
+                <i class="bi bi-envelope-open" style="font-size: 42px;"></i>
+                <p class="mt-2 mb-0">Selecione uma notícia na lista ao lado pra ler.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card card-shadow">
+    <div class="card-body text-center text-muted py-5">
+        <p class="mb-0">Nenhuma notícia publicada ainda.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

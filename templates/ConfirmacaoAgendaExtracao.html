@@ -1,0 +1,63 @@
+{% extends "layout_confirmacao_agenda.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-file-earmark-excel"></i> Extração — Confirmação de Agenda</h2>
+        <hr>
+        <form method="GET" class="d-flex gap-2 align-items-end flex-wrap mb-3">
+            <div class="input-group" style="width: auto;">
+                <span class="input-group-text">De</span>
+                <input type="date" name="data_de" class="form-control" value="{{ data_de }}">
+            </div>
+            <div class="input-group" style="width: auto;">
+                <span class="input-group-text">Até</span>
+                <input type="date" name="data_ate" class="form-control" value="{{ data_ate }}">
+            </div>
+            <select name="fechamento" class="form-select" style="width: auto;">
+                <option value="">Fechamento (todos)</option>
+                {% for f in fechamentos %}
+                <option value="{{ f }}" {% if fechamento_filtro == f %}selected{% endif %}>{{ f }}</option>
+                {% endfor %}
+            </select>
+            <select name="operador" class="form-select" style="width: auto;">
+                <option value="">Pessoa (todas)</option>
+                {% for op in operadores_distintos %}
+                <option value="{{ op }}" {% if operador_filtro == op %}selected{% endif %}>{{ op }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-light border"><i class="bi bi-funnel-fill"></i> Filtrar</button>
+            <a href="/confirmacao-agenda/extracao?data_de={{ data_de }}&data_ate={{ data_ate }}&fechamento={{ fechamento_filtro }}&operador={{ operador_filtro }}&exportar=1"
+               class="btn btn-outline-dark"><i class="bi bi-file-earmark-excel"></i> Exportar Excel</a>
+        </form>
+
+        {% if tratamentos %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>Contrato</th><th>DDD</th><th>Cidade</th><th>Fechamento</th>
+                        <th>Nova Data</th><th>Operador</th><th>Data Tratamento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in tratamentos %}
+                    <tr>
+                        <td>{{ t['cd_contrato'] }}</td>
+                        <td>{{ t['ddd'] }}</td>
+                        <td>{{ t['cidade'] }}</td>
+                        <td>{{ t['fechamento'] }}</td>
+                        <td>{{ t['nova_data_agendamento'] or '—' }}</td>
+                        <td>{{ t['operador'] }}</td>
+                        <td>{{ t['data_tratamento'] }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhum tratamento nesse período.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

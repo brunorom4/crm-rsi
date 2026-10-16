@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRM Migração RSI — Portal</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
+    <link rel="shortcut icon" href="/static/favicon.ico">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        html, body {
+            margin: 0; padding: 0; min-height: 100%;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .cena {
+            position: relative;
+            min-height: 100vh;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background: url('/static/img/login-fundo.png') center center / cover no-repeat;
+            padding: 40px 16px 60px;
+        }
+
+        .cena::before {
+            content: '';
+            position: absolute; inset: 0;
+            background: linear-gradient(180deg, rgba(10,5,10,.35) 0%, rgba(10,5,10,0) 22%, rgba(10,5,10,0) 70%, rgba(10,5,10,.45) 100%);
+            z-index: 1;
+        }
+
+        /* Header do card -- ficava em position:absolute antes, flutuando
+           por cima do card. Com mais botões o card cresceu e passou a
+           sobrepor o título (bug real reportado pelo Bruno, 2026-09-17,
+           com foto mostrando "Olá, Bruno" em cima de "Migração Fibra").
+           Botei tudo dentro do fluxo normal do próprio card -- isso nunca
+           mais sobrepõe nada, não importa quantos botões tiver daqui pra
+           frente. */
+        .painel-portal {
+            position: relative;
+            z-index: 5;
+            width: 100%;
+            max-width: 760px;
+            background: rgba(253, 248, 240, 0.5);
+            border-radius: 22px;
+            padding: 30px 34px 26px;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.4);
+            text-align: center;
+        }
+
+        .cabecalho-portal { display: flex; flex-direction: column; align-items: center; margin-bottom: 18px; }
+        .logo-topo {
+            width: 76px; height: 76px;
+            border-radius: 50%;
+            background: white;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+            margin-bottom: 10px;
+        }
+        .logo-topo img { max-width: 62%; max-height: 62%; object-fit: contain; }
+        .cabecalho-portal h1 {
+            font-family: 'Poppins', sans-serif;
+            font-weight: 800;
+            font-size: 1.5rem;
+            color: #2a1010;
+            margin: 0;
+            letter-spacing: 0.02em;
+        }
+        .cabecalho-portal .subtitulo-app {
+            display: inline-block;
+            font-size: 0.68rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            color: #a2001d;
+            text-transform: uppercase;
+            margin-top: 6px;
+            background: rgba(162, 0, 29, 0.1);
+            padding: 3px 12px;
+            border-radius: 999px;
+        }
+
+        .saudacao { margin: 0 0 4px; font-family: 'Poppins', sans-serif; font-weight: 800; font-size: 1.1rem; color: #2a1010; }
+        .perfil-badge {
+            display: inline-block; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.08em;
+            text-transform: uppercase; color: #a2001d; background: rgba(162,0,29,0.1);
+            padding: 3px 12px; border-radius: 999px; margin-bottom: 20px;
+        }
+
+        .erro {
+            background: rgba(220,53,69,0.92);
+            color: white;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            margin-bottom: 18px;
+            text-align: left;
+            line-height: 1.4;
+        }
+
+        /* Grade de botões -- 2 colunas quando o card tem espaço, 1 coluna
+           em tela estreita (celular) -- pedido do Bruno, 2026-09-17. */
+        .grade-botoes {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 14px;
+            margin-bottom: 6px;
+        }
+        @media (max-width: 620px) {
+            .grade-botoes { grid-template-columns: 1fr; }
+        }
+
+        .btn-portal {
+            width: 100%;
+            height: 100%;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+            padding: 18px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(0,0,0,0.08);
+            box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+            font-weight: 700;
+            font-size: 0.95rem;
+            letter-spacing: 0.01em;
+            cursor: pointer;
+            text-decoration: none;
+            transition: filter 0.15s, transform 0.1s;
+        }
+        .btn-portal:hover { filter: brightness(0.97); transform: translateY(-1px); }
+        .btn-portal i { font-size: 1.1rem; }
+        .btn-portal small { display: block; font-weight: 500; font-size: 0.72rem; opacity: 0.85; margin-top: 2px; line-height: 1.3; }
+
+        .btn-ferramenta, .btn-painel, .btn-cotas, .btn-confirmacao, .btn-clima, .btn-backlog {
+            background: #FDF8F0;
+            color: #000;
+        }
+
+        /* Ambiente Espelho (só ADM) -- fora da grade, de propósito, pra não
+           parecer um módulo do dia a dia */
+        .btn-espelho {
+            height: auto;
+            margin-top: 14px;
+            background: #FFF4E5;
+            color: #8a4b00;
+            border: 2px dashed #e08600;
+            box-shadow: none;
+        }
+
+        .sem-opcoes { font-size: 0.85rem; color: #6b625c; margin-top: 8px; }
+
+        .rodape-portal { margin-top: 18px; }
+        .rodape-portal a { color: #a2001d; font-size: 0.8rem; font-weight: 700; text-decoration: none; }
+        .rodape-portal a:hover { text-decoration: underline; }
+
+        .rodape {
+            position: absolute;
+            bottom: 14px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            z-index: 5;
+            color: rgba(255,240,225,0.85);
+            font-size: 0.72rem;
+            letter-spacing: 0.02em;
+            text-shadow: 0 1px 8px rgba(0,0,0,0.6);
+        }
+    </style>
+</head>
+<body>
+    <div class="cena">
+        <div class="painel-portal">
+            <div class="cabecalho-portal">
+                <div class="logo-topo">
+                    <img src="/static/logo-claro.png" alt="Claro" onerror="this.style.display='none'">
+                </div>
+                <h1>Portal</h1>
+                <span class="subtitulo-app">Migração Fibra</span>
+            </div>
+
+            <p class="saudacao">Olá, {{ usuario_logado['nome'].split(' ')[0] if usuario_logado else '' }}</p>
+            <span class="perfil-badge">{{ usuario_logado['perfil'] | exibir_perfil if usuario_logado else '' }}</span>
+
+            {% if erro_ferramenta %}
+            <div class="erro"><i class="bi bi-exclamation-triangle-fill"></i> {{ erro_ferramenta }}</div>
+            {% endif %}
+
+            <div class="grade-botoes">
+                {% if pode_ferramenta %}
+                <a href="/portal/ferramenta" class="btn-portal btn-ferramenta">
+                    <span><i class="bi bi-headset"></i> CRM Migração</span>
+                    <small>Tratamento Migrações, Qualidade, Pausas</small>
+                </a>
+                {% endif %}
+
+                {% if pode_painel %}
+                <a href="/portal/painel" class="btn-portal btn-painel">
+                    <span><i class="bi bi-bar-chart-line-fill"></i> Painel de Resultados</span>
+                    <small>Geração, Execução, Forecast e Quebra de Agenda Brownfield RSI</small>
+                </a>
+                {% endif %}
+
+                {% if pode_confirmacao_agenda %}
+                <a href="/confirmacao-agenda" class="btn-portal btn-confirmacao">
+                    <span><i class="bi bi-calendar-check"></i> Confirmação de Agenda</span>
+                    <small>Tratamento da Confirmação de Agenda por DDD</small>
+                </a>
+                {% endif %}
+
+                {% if pode_relatorio_clima %}
+                <a href="/relatorio-clima" class="btn-portal btn-clima">
+                    <span><i class="bi bi-cloud-sun-fill"></i> Relatório de Clima</span>
+                    <small>Previsão dos próximos 7 dias por DDD e cidade</small>
+                </a>
+                {% endif %}
+
+                {% if pode_backlog %}
+                <a href="/backlog" class="btn-portal btn-backlog">
+                    <span><i class="bi bi-stack"></i> Tratamento de Backlog</span>
+                    <small>Fila de contratos em backlog por DDD</small>
+                </a>
+                {% endif %}
+
+                <a href="/portal/painel-cotas" class="btn-portal btn-cotas">
+                    <span><i class="bi bi-graph-up"></i> Painel de Cotas</span>
+                    <small>Disponibilidade de agenda por Cidade e Classe</small>
+                </a>
+            </div>
+
+            {% if mostrar_link_espelho %}
+            <a href="/espelho/entrar" class="btn-portal btn-espelho">
+                <span><i class="bi bi-cone-striped"></i> Ambiente Espelho</span>
+                <small>Cópia de teste para validar versões novas (só ADM)</small>
+            </a>
+            {% endif %}
+
+            <div class="rodape-portal">
+                <a href="/trocar-senha"><i class="bi bi-lock-fill"></i> Trocar senha</a>
+                &nbsp;·&nbsp;
+                <a href="/logout"><i class="bi bi-box-arrow-right"></i> Sair</a>
+            </div>
+        </div>
+
+        <div class="rodape">
+            Desenvolvido por Bruno Roma — Gestão da Qualidade RSI — Todos os direitos reservados.
+        </div>
+    </div>
+</body>
+</html>

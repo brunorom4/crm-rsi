@@ -1,0 +1,80 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-calendar-x-fill"></i> Tratamento de Quebra</h2>
+        <hr>
+        <p class="text-muted small mb-3">
+            Quebras de agenda dos seus contratos. Escolha
+            <strong>Reagendado</strong> pra remarcar (carrega no relatório de Agendados por Data igual a um
+            agendamento normal) ou <strong>Cancelado</strong> se o cliente não quiser mais.
+        </p>
+
+        <form method="GET" class="d-flex gap-2 mb-4 align-items-end flex-wrap">
+            <div class="input-group" style="width: auto;">
+                <span class="input-group-text">De</span>
+                <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio or '' }}">
+            </div>
+            <div class="input-group" style="width: auto;">
+                <span class="input-group-text">Até</span>
+                <input type="date" name="data_fim" class="form-control" value="{{ data_fim or '' }}">
+            </div>
+            <select name="status" class="form-select" style="width: auto;">
+                <option value="PENDENTE" {% if status_filtro == 'PENDENTE' %}selected{% endif %}>Pendente</option>
+                <option value="CONCLUIDO" {% if status_filtro == 'CONCLUIDO' %}selected{% endif %}>Concluído</option>
+                <option value="TODOS" {% if status_filtro == 'TODOS' %}selected{% endif %}>Todos</option>
+            </select>
+            <input type="text" name="contrato" class="form-control" style="width: auto;" placeholder="Buscar contrato" value="{{ contrato_filtro or '' }}">
+            <select name="motivo" class="form-select" style="width: auto;">
+                <option value="">Motivo (todos)</option>
+                {% for m in motivos_disponiveis %}
+                <option value="{{ m }}" {% if motivo_filtro == m %}selected{% endif %}>{{ m }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-light border"><i class="bi bi-funnel-fill"></i> Filtrar</button>
+        </form>
+
+        {% if pendentes %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>OS</th>
+                        <th>Contrato</th>
+                        <th>Cidade</th>
+                        <th>Data da quebra</th>
+                        <th>Motivo</th>
+                        {% if status_filtro == 'TODOS' %}<th>Status</th>{% endif %}
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for q in pendentes %}
+                    <tr>
+                        <td>{{ q['cod_os'] }}</td>
+                        <td>{{ q['contrato'] }}</td>
+                        <td>{{ q['cidade'] or '—' }}</td>
+                        <td>{{ q['dat_agenda'] }}</td>
+                        <td>{{ q['motivo_reagendamento'] or '—' }}</td>
+                        {% if status_filtro == 'TODOS' %}
+                        <td>{{ 'Concluído' if q['id'] in tratadas_ids else 'Pendente' }}</td>
+                        {% endif %}
+                        <td>
+                            {% if q['id'] not in tratadas_ids %}
+                            <a href="/quebra/tratamento/{{ q['id'] }}" class="btn btn-sm btn-danger">Tratar</a>
+                            {% else %}
+                            <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma quebra encontrada com esse filtro.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

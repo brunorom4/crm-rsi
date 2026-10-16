@@ -1,0 +1,101 @@
+{% extends "layout_confirmacao_agenda.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4" style="padding: 24px;">
+    <h5><i class="bi bi-search"></i> Buscar Contrato</h5>
+    <p class="text-muted small">Encontra um contrato de qualquer status (tratado, não tratado, pendente) pra rever o fechamento.</p>
+    <hr>
+    <form method="GET" class="d-flex gap-2">
+        <input type="text" name="contrato" class="form-control" placeholder="Número do contrato" value="{{ cd_contrato }}" required>
+        <button type="submit" class="btn btn-danger"><i class="bi bi-search"></i> Buscar</button>
+    </form>
+</div>
+
+{% if buscou %}
+    {% if not contrato %}
+    <div class="card card-shadow" style="padding: 24px;">
+        <p class="text-muted mb-0">Nenhum contrato encontrado com o número <strong>{{ cd_contrato }}</strong>.</p>
+    </div>
+    {% else %}
+    <div class="card card-shadow mb-4" style="padding: 24px;">
+        <div class="row">
+            <div class="col-md-3"><strong>Contrato</strong><br>{{ contrato['cd_contrato'] }}</div>
+            <div class="col-md-3"><strong>Cidade</strong><br>{{ contrato['cidade'] }} (DDD {{ contrato['ddd'] }})</div>
+            <div class="col-md-3"><strong>Data Agendada</strong><br>{{ contrato['data_agendamento'] }}</div>
+            <div class="col-md-3"><strong>Período</strong><br>{{ contrato['periodo'] }}</div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-4"><strong>Produto De</strong><br>{{ contrato['produto_de'] }}</div>
+            <div class="col-md-4"><strong>Produto Para</strong><br>{{ contrato['produto_para'] }}</div>
+            <div class="col-md-4"><strong>Status atual</strong><br>{{ contrato['status'] }}</div>
+        </div>
+    </div>
+
+    {% if historico %}
+    <div class="card card-shadow mb-4" style="padding: 24px;">
+        <h5><i class="bi bi-clock-history"></i> Histórico de Tratamentos</h5>
+        <hr>
+        <table class="table table-sm">
+            <thead><tr><th>Data</th><th>Operador</th><th>Fechamento</th><th>Nova Data</th><th>Observação</th></tr></thead>
+            <tbody>
+                {% for h in historico %}
+                <tr>
+                    <td>{{ h['data_tratamento'] }}</td>
+                    <td>{{ h['operador'] }}</td>
+                    <td>{{ h['fechamento'] }}</td>
+                    <td>{{ h['nova_data_agendamento'] or '—' }}</td>
+                    <td>{{ h['observacao'] or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <div class="card card-shadow" style="padding: 24px;">
+        <h5><i class="bi bi-pencil-square"></i> Rever Fechamento</h5>
+        <hr>
+        <form action="/confirmacao-agenda/buscar/tratar" method="POST">
+            <input type="hidden" name="id_contrato" value="{{ contrato['id'] }}">
+            <input type="hidden" name="cd_contrato" value="{{ contrato['cd_contrato'] }}">
+
+            <select name="fechamento" id="fechamentoBusca" class="form-select mb-3" onchange="atualizarCamposReagendamentoBusca()" required>
+                <option value="">Selecione...</option>
+                {% for f in fechamentos %}
+                <option value="{{ f }}">{{ f }}</option>
+                {% endfor %}
+            </select>
+
+            <div id="camposReagendamentoBusca" style="display:none;" class="mb-3 p-3 bg-light border rounded">
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">Nova Data</label>
+                        <input type="date" name="nova_data_agendamento" id="novaDataBusca" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">Novo Período</label>
+                        <input type="text" name="novo_periodo" class="form-control" placeholder="08:00 - 12:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Observação</label>
+                <textarea name="observacao" class="form-control" rows="2"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-danger"><i class="bi bi-check-lg"></i> Salvar Novo Fechamento</button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('novaDataBusca').min = new Date().toISOString().split('T')[0];
+        function atualizarCamposReagendamentoBusca() {
+            const valor = document.getElementById('fechamentoBusca').value;
+            document.getElementById('camposReagendamentoBusca').style.display = (valor === 'REAGENDADA') ? 'block' : 'none';
+            document.getElementById('novaDataBusca').required = (valor === 'REAGENDADA');
+        }
+    </script>
+    {% endif %}
+{% endif %}
+{% endblock %}

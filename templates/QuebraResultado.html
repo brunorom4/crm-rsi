@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-calendar-x-fill"></i> Resultado da Quebra de Agenda</h2>
+        <hr>
+        <p class="text-muted small mb-3">
+            Métrica: total de OS <strong>COM QUEBRA DE AGENDA</strong> / total de OS geradas no período (OS marcadas
+            como <strong>EXPURGADA</strong> não entram na conta). "Célula Local" é a quebra dos contratos das
+            cidades do nosso time (mesmo de-para de <a href="/admin/cidades-operadora">código de cidade</a> usado em
+            Execuções); "Regional" é o restante.
+        </p>
+
+        <form method="GET" class="row gy-2 gx-2 align-items-end mb-4">
+            <div class="col-auto">
+                <label class="form-label mb-0">De</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0">Até</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0">Canal</label>
+                <select name="canal" class="form-select">
+                    <option value="Todos" {% if not canal %}selected{% endif %}>Todos</option>
+                    {% for c in resultado.canais_disponiveis %}
+                    <option value="{{ c }}" {% if c == canal %}selected{% endif %}>{{ c }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-danger">Filtrar</button>
+            </div>
+        </form>
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-card-list"></i></div>
+                    <div class="kpi-titulo">Total de OS</div>
+                    <div class="kpi">{{ resultado.geral.total }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--warn);"><i class="bi bi-exclamation-triangle-fill"></i></div>
+                    <div class="kpi-titulo">Com quebra</div>
+                    <div class="kpi">{{ resultado.geral.com_quebra }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-4">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--red);"><i class="bi bi-percent"></i></div>
+                    <div class="kpi-titulo">Taxa de quebra geral</div>
+                    <div class="kpi">{{ resultado.geral.taxa if resultado.geral.taxa is not none else '—' }}{{ '%' if resultado.geral.taxa is not none else '' }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% macro tabela_grupo(titulo, icone, linhas, coluna_chave) %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi {{ icone }}"></i> {{ titulo }}</div>
+        {% if linhas %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead>
+                    <tr>
+                        <th>{{ coluna_chave }}</th>
+                        <th>Total</th>
+                        <th>Com quebra</th>
+                        <th>Taxa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in linhas %}
+                    <tr>
+                        <td>{{ l.chave }}</td>
+                        <td>{{ l.total }}</td>
+                        <td>{{ l.com_quebra }}</td>
+                        <td>{{ l.taxa }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Sem dados nesse período/filtro.</p>
+        {% endif %}
+    </div>
+</div>
+{% endmacro %}
+
+<div class="row g-4">
+    <div class="col-12">
+        {{ tabela_grupo("Por segmento (Célula Local x Regional)", "bi-diagram-3-fill", resultado.por_segmento, "Segmento") }}
+    </div>
+    <div class="col-lg-6">
+        {{ tabela_grupo("Por agrupamento da quebra", "bi-collection-fill", resultado.por_agrupamento, "Agrupamento") }}
+    </div>
+    <div class="col-lg-6">
+        {{ tabela_grupo("Por responsável pela quebra", "bi-person-lines-fill", resultado.por_responsavel, "Responsável") }}
+    </div>
+    <div class="col-lg-6">
+        {{ tabela_grupo("Por cidade", "bi-geo-alt-fill", resultado.por_cidade, "Cidade") }}
+    </div>
+    <div class="col-lg-6">
+        {{ tabela_grupo("Por canal", "bi-signpost-split-fill", resultado.por_canal, "Canal") }}
+    </div>
+</div>
+<p class="text-muted small">As visões "por agrupamento" e "por responsável" só listam OS que de fato tiveram quebra -- por isso a coluna "Taxa" nelas é a participação de cada grupo no total de quebras do período (ex: 100 de 1.000 quebras totais = 10%), não uma taxa de quebra própria do grupo. Nas demais visões (segmento, cidade, canal) a Taxa continua sendo a taxa de quebra de fato dentro daquele grupo.</p>
+{% endblock %}

@@ -1,0 +1,49 @@
+{
+  "cidades": [
+    "CAMPINAS",
+    "SANTOS",
+    "RIBEIRAO PRETO",
+    "SAO JOSE DOS CAMPOS",
+    "SOROCABA",
+    "AMERICANA",
+    "ARACATUBA",
+    "ARARAQUARA",
+    "BAURU",
+    "FRANCA",
+    "GUARUJA",
+    "HORTOLANDIA",
+    "INDAIATUBA",
+    "ITAPETININGA",
+    "JACAREI",
+    "JAU",
+    "LIMEIRA",
+    "MARILIA",
+    "MOGI GUACU",
+    "MOGI MIRIM",
+    "PAULINIA",
+    "PINDAMONHANGABA",
+    "PIRACICABA",
+    "PRAIA GRANDE",
+    "RIO CLARO",
+    "SANTA BARBARA D OESTE",
+    "SAO CARLOS",
+    "SAO JOSE DO RIO PRETO",
+    "SAO VICENTE",
+    "SUMARE",
+    "TAUBATE",
+    "VALINHOS",
+    "VINHEDO",
+    "VOTORANTIM"
+  ],
+  "classes": [
+    "1",
+    "15"
+  ],
+  "cidades_cards": [
+    "CAMPINAS",
+    "SANTOS",
+    "RIBEIRAO PRETO",
+    "SAO JOSE DOS CAMPOS",
+    "SOROCABA"
+  ]
+}

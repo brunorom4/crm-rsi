@@ -1,0 +1,41 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow">
+    <div class="card-body">
+        <h2><i class="bi bi-person-plus-fill"></i> Cadastro de Cliente</h2>
+        <hr>
+        <form action="/salvar_cadastro" method="POST">
+            <div class="mb-3">
+                <label class="form-label">Nome do Cliente</label>
+                <input type="text" name="cliente" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Contrato</label>
+                <input type="text" name="contrato" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Cidade</label>
+                <input type="text" name="cidade" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Node</label>
+                <input type="text" name="node" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Código do Imóvel</label>
+                <input type="text" name="codigo_imovel" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Telefone Celular</label>
+                <input type="text" name="telefone_celular" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">E-mail</label>
+                <input type="email" name="email" class="form-control">
+            </div>
+            <button type="submit" class="btn btn-danger">Salvar Cliente</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

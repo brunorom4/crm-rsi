@@ -1,0 +1,162 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2><i class="bi bi-calendar-x-fill"></i> Gestão de Quebra de Agenda</h2>
+        <hr>
+        <p class="text-muted small mb-3">
+            Fila de demandas de quebra por Assistente: contratos que a própria pessoa agendou na ferramenta e que
+            tiveram <strong>COM QUEBRA DE AGENDA</strong> no período, separados entre pendente (ainda sem tratativa
+            em <a href="/quebra/tratamento">Tratamento de Quebra</a>) e já tratado.
+        </p>
+
+        <form method="GET" class="row gy-2 gx-2 align-items-end mb-4">
+            <div class="col-auto">
+                <label class="form-label mb-0">De</label>
+                <input type="date" name="data_inicio" class="form-control" value="{{ data_inicio }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0">Até</label>
+                <input type="date" name="data_fim" class="form-control" value="{{ data_fim }}">
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0">Operador</label>
+                <select name="operador" class="form-select">
+                    <option value="">Todos</option>
+                    {% for op in resultado.operadores_disponiveis %}
+                    <option value="{{ op }}" {% if op == operador_filtro %}selected{% endif %}>{{ op }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0">Contrato</label>
+                <input type="text" name="contrato" class="form-control" value="{{ contrato_filtro }}" placeholder="Número do contrato">
+            </div>
+            <div class="col-auto">
+                <label class="form-label mb-0">Motivo da quebra</label>
+                <select name="motivo" class="form-select">
+                    <option value="">Todos</option>
+                    {% for m in resultado.motivos_disponiveis %}
+                    <option value="{{ m }}" {% if m == motivo_filtro %}selected{% endif %}>{{ m }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-danger">Filtrar</button>
+            </div>
+        </form>
+
+        <div class="row g-3">
+            <div class="col-6 col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-card-list"></i></div>
+                    <div class="kpi-titulo">Total de demandas</div>
+                    <div class="kpi">{{ resultado.geral.total }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--warn);"><i class="bi bi-hourglass-split"></i></div>
+                    <div class="kpi-titulo">Pendentes</div>
+                    <div class="kpi">{{ resultado.geral.pendentes }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--ok);"><i class="bi bi-check-circle-fill"></i></div>
+                    <div class="kpi-titulo">Já tratadas</div>
+                    <div class="kpi">{{ resultado.geral.tratadas }}{% if resultado.geral.taxa_tratamento is not none %} <small class="text-muted fs-6">({{ resultado.geral.taxa_tratamento }}%)</small>{% endif %}</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="kpi-card">
+                    <div class="kpi-badge" style="--badge: var(--red);"><i class="bi bi-people-fill"></i></div>
+                    <div class="kpi-titulo">Assistentes com pendência</div>
+                    <div class="kpi">{{ resultado.geral.operadores_com_pendencia }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-people-fill"></i> Por Assistente</div>
+        {% if resultado.por_operador %}
+        <div class="table-responsive">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Assistente</th>
+                        <th>Total</th>
+                        <th>Pendentes</th>
+                        <th>Tratadas</th>
+                        <th>Taxa de tratamento</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for o in resultado.por_operador %}
+                    <tr style="cursor: pointer;" onclick="document.getElementById('detalheOpQuebra{{ loop.index }}').classList.toggle('d-none')">
+                        <td><i class="bi bi-plus-square"></i></td>
+                        <td>{{ o.operador }}</td>
+                        <td>{{ o.total }}</td>
+                        <td>
+                            {% if o.pendentes %}
+                            <span class="status-pill status-amarelo">{{ o.pendentes }}</span>
+                            {% else %}
+                            0
+                            {% endif %}
+                        </td>
+                        <td>{{ o.tratadas }}</td>
+                        <td>{{ o.taxa_tratamento }}%</td>
+                    </tr>
+                    <tr class="d-none" id="detalheOpQuebra{{ loop.index }}">
+                        <td colspan="6" class="bg-light">
+                            <div class="table-responsive">
+                                <table class="table table-sm mb-0">
+                                    <thead>
+                                        <tr>
+                                            <th>COD OS</th>
+                                            <th>Contrato</th>
+                                            <th>Cidade</th>
+                                            <th>Data agenda</th>
+                                            <th>Agrupamento</th>
+                                            <th>Motivo</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for q in o.quebras %}
+                                        <tr>
+                                            <td>{{ q.cod_os }}</td>
+                                            <td>{{ q.contrato }}</td>
+                                            <td>{{ q.cidade }}</td>
+                                            <td>{{ q.dat_agenda }}</td>
+                                            <td>{{ q.agrupamento_quebra }}</td>
+                                            <td>{{ q.motivo_reagendamento }}</td>
+                                            <td>
+                                                {% if q.tratada %}
+                                                <span class="status-pill status-verde">{{ q.tratamento_tabulacao }}{% if q.tratamento_submotivo %} ({{ q.tratamento_submotivo }}){% endif %}</span>
+                                                {% else %}
+                                                <span class="status-pill status-amarelo">Pendente</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Nenhuma demanda de quebra encontrada nesse período/filtro.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
