@@ -11459,20 +11459,64 @@ app.register_blueprint(bp_backlog)
 # segunda trava.
 EH_ESPELHO = os.path.exists(os.path.join(PASTA_BASE, "ESPELHO.flag"))
 
-if EH_ESPELHO:
-    _MSG_BLOQUEIO_ESPELHO = "Bloqueado no ambiente espelho (sem comunicação externa)."
+# Conta de teste separada (PythonAnywhere gratuito, decidido em 2026-10-15):
+# o mesmo bloqueio vale pra ela. Quem cria o AMBIENTE_TESTE.flag é o
+# preparar_ambiente_teste.py; a pasta de produção nunca tem nenhum dos dois
+# arquivos, então em produção os dois ficam False e nada aqui é trocado.
+EH_AMBIENTE_TESTE = os.path.exists(os.path.join(PASTA_BASE, "AMBIENTE_TESTE.flag"))
+
+EH_AMBIENTE_SEGURO = EH_ESPELHO or EH_AMBIENTE_TESTE
+
+if EH_AMBIENTE_SEGURO:
+    _NOME_AMBIENTE = "ESPELHO" if EH_ESPELHO else "TESTE"
+    _MSG_BLOQUEIO_ESPELHO = "Bloqueado em ambiente de teste (sem comunicação externa)."
 
     def chamar_funcao_supabase(project_url, anon_key, nome_funcao, payload):
-        print(f"[ESPELHO] chamada ao Supabase bloqueada: {nome_funcao}", file=sys.stderr)
+        print(f"[{_NOME_AMBIENTE}] chamada ao Supabase bloqueada: {nome_funcao}", file=sys.stderr)
         return False, _MSG_BLOQUEIO_ESPELHO
 
     def enviar_mensagem_telegram(token, chat_id, texto):
-        print("[ESPELHO] envio direto ao Telegram bloqueado", file=sys.stderr)
+        print(f"[{_NOME_AMBIENTE}] envio direto ao Telegram bloqueado", file=sys.stderr)
         return False, _MSG_BLOQUEIO_ESPELHO
 
     def escrever_arquivo_relatorio(pasta_destino, corpo_html):
-        print("[ESPELHO] gravação do relatório de e-mail bloqueada", file=sys.stderr)
+        print(f"[{_NOME_AMBIENTE}] gravação do relatório de e-mail bloqueada", file=sys.stderr)
         return False, _MSG_BLOQUEIO_ESPELHO
+
+    # Faixa de aviso em TODA página HTML. Injetada aqui, na resposta, e não
+    # no layout.html de propósito: nove templates (Portal, Login, os painéis
+    # de cotas, o relatório de clima, os layouts do backlog e da confirmação)
+    # não estendem o layout, e são justamente os primeiros que a pessoa vê.
+    # Fazendo na resposta, qualquer página -- inclusive as que forem criadas
+    # depois -- fica coberta sem precisar lembrar de marcar cada uma.
+    #
+    # Fica fixa no rodapé porque a .sidebar é position:fixed com 100vh: uma
+    # faixa no topo cobriria o logo do menu.
+    _FAIXA_AMBIENTE = (
+        '<div style="position:fixed;left:0;right:0;bottom:0;z-index:99999;'
+        'background:#B45309;color:#fff;font-family:system-ui,-apple-system,'
+        'Segoe UI,Roboto,sans-serif;font-size:13px;font-weight:600;'
+        'letter-spacing:.3px;text-align:center;padding:7px 12px;'
+        'box-shadow:0 -2px 10px rgba(0,0,0,.25);">'
+        f'AMBIENTE DE {_NOME_AMBIENTE} &nbsp;&middot;&nbsp; dados copiados da produção'
+        ' &nbsp;&middot;&nbsp; nada aqui afeta o sistema real</div>'
+    )
+
+    @app.after_request
+    def _injetar_faixa_ambiente(resposta):
+        # direct_passthrough = resposta de arquivo (send_file/send_from_directory):
+        # ler o corpo dela quebraria o envio, então passa direto.
+        if resposta.direct_passthrough:
+            return resposta
+        if not (resposta.content_type or "").startswith("text/html"):
+            return resposta
+        try:
+            corpo = resposta.get_data(as_text=True)
+            if "</body>" in corpo:
+                resposta.set_data(corpo.replace("</body>", _FAIXA_AMBIENTE + "</body>", 1))
+        except Exception as erro:  # nunca derrubar uma página por causa da faixa
+            print(f"[{_NOME_AMBIENTE}] não consegui injetar a faixa: {erro}", file=sys.stderr)
+        return resposta
 
 
 @app.context_processor
@@ -11484,7 +11528,8 @@ def injetar_link_espelho():
     if not EH_ESPELHO and request.environ.get("crm_espelho.disponivel"):
         usuario = usuario_atual()
         mostrar = bool(usuario and usuario["perfil"] == "ADM")
-    return {"mostrar_link_espelho": mostrar, "eh_espelho": EH_ESPELHO}
+    return {"mostrar_link_espelho": mostrar, "eh_espelho": EH_ESPELHO,
+            "eh_ambiente_teste": EH_AMBIENTE_TESTE}
 
 
 @app.route("/espelho/entrar")
