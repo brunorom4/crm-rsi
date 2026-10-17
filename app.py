@@ -4315,9 +4315,27 @@ def dashboard():
             for cidade, valores in sorted(valores_por_cidade.items(), reverse=True)
         ]
 
+    # Cards da fila e funil do mês (pedido do Bruno, 2026-10-17).
+    # "Outros" fecha a conta da base: em análise GPON, bloqueados no GED etc.
+    outros_status = conn.execute(
+        "SELECT COUNT(*) FROM mailing WHERE status NOT IN ('PENDENTE','EM_ANDAMENTO','ENFILEIRADO','CONCLUIDO')"
+    ).fetchone()[0]
+    # Em rota hoje: mesma regra do relatório Agendados por Data (última
+    # tratativa do contrato = Agendado para hoje).
+    em_rota_hoje = conn.execute("""
+        SELECT COUNT(*) FROM atividades a
+        WHERE a.id IN (SELECT MAX(id) FROM atividades GROUP BY contrato)
+          AND a.tabulacao = 'Agendado' AND a.data_agendamento = ?
+    """, (hoje_str_dashboard,)).fetchone()[0]
+    conversao_exec_agend = round(execucoes_mes["total"] / agendados_mes_time * 100) if agendados_mes_time else None
+
     conn.close()
     return render_template(
         "Dashboard.html",
+        outros_status=outros_status,
+        em_rota_hoje=em_rota_hoje,
+        hoje_str_dashboard=hoje_str_dashboard,
+        conversao_exec_agend=conversao_exec_agend,
         pendentes=pendentes,
         andamento=andamento,
         enfileirados=enfileirados,
@@ -11814,6 +11832,11 @@ app.register_blueprint(bp_sincronia)
 # tarefa_backup_nuvem.py, acompanhada pelo Monitor.
 from backup_nuvem import bp_backup_nuvem
 app.register_blueprint(bp_backup_nuvem)
+
+# Resumo do Enfileiramento por bloco de prioridade -- subpágina do Dashboard
+# (2026-10-17), mesma trava da visão de equipe.
+from resumo_enfileiramento import bp_resumo_enfileiramento
+app.register_blueprint(bp_resumo_enfileiramento)
 
 
 # ==========================

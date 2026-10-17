@@ -8,37 +8,104 @@
 </div>
 
 {% if not escopo_pessoal %}
-<div class="row g-3 kpi-row mb-4">
-    <div class="col-md-3">
-        <div class="kpi-card">
-            <div class="kpi-badge" style="--badge: var(--gray-900);"><i class="bi bi-hourglass-split"></i></div>
-            <div class="kpi-titulo">Pendentes</div>
-            <div class="kpi">{{ pendentes }}</div>
+{# Cards da fila + funil do mês (pedido do Bruno, 2026-10-17). A base é uma
+   barra única dividida -- as fatias somam o total, não são etapas de funil.
+   O funil de verdade é o do mês: Agendados -> Executados. #}
+{% set total_base = pendentes + andamento + enfileirados + concluidos + outros_status %}
+{% set fatias = [
+    ('Concluídos', concluidos, 'var(--fila-1)', 'bi-check-circle-fill'),
+    ('Enfileirados (follow up)', enfileirados, 'var(--fila-2)', 'bi-arrow-repeat'),
+    ('Em andamento', andamento, 'var(--fila-3)', 'bi-telephone-outbound-fill'),
+    ('Outros', outros_status, 'var(--fila-outros)', 'bi-three-dots'),
+    ('Pendentes', pendentes, 'var(--fila-5)', 'bi-hourglass-split'),
+] %}
+<style>
+    .fila-root { --fila-1: #2a78d6; --fila-2: #eb6834; --fila-3: #1baf7a; --fila-5: #e87ba4; --fila-outros: #b4b2ab;
+                 --fila-surface: #ffffff; --fila-trilho: #ECEBE8; --fila-txt: #14141A; --fila-txt-2: #52514e; }
+    html[data-theme="dark"] .fila-root { --fila-1: #3987e5; --fila-2: #d95926; --fila-3: #199e70; --fila-5: #d55181; --fila-outros: #6b6a66;
+                 --fila-surface: #1E1E24; --fila-trilho: #313138; --fila-txt: #E6E6E9; --fila-txt-2: #C3C2C8; }
+    .fila-root .barra-base { display: flex; gap: 2px; height: 26px; border-radius: 6px; overflow: hidden; background: var(--fila-trilho); }
+    .fila-root .barra-base > div { min-width: 0; }
+    .fila-root .barra-base > div.visivel { min-width: 3px; }
+    .fila-root .legenda-base { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 18px; margin-top: 14px; }
+    .fila-root .legenda-base .item { display: flex; gap: 8px; align-items: flex-start; }
+    .fila-root .legenda-base .cor { width: 12px; height: 12px; border-radius: 3px; margin-top: 4px; flex: none; }
+    .fila-root .legenda-base .nome { font-size: 12px; color: var(--fila-txt-2); font-weight: 600; }
+    .fila-root .legenda-base .num { font-size: 20px; font-weight: 800; color: var(--fila-txt); font-variant-numeric: tabular-nums; line-height: 1.15; }
+    .fila-root .legenda-base .pct { font-size: 12px; color: var(--fila-txt-2); font-weight: 600; }
+    .fila-root .funil-etapa { display: grid; grid-template-columns: 96px 1fr 70px; align-items: center; gap: 10px; }
+    .fila-root .funil-etapa .rot { font-size: 12.5px; color: var(--fila-txt-2); font-weight: 600; }
+    .fila-root .funil-etapa .trilho { height: 22px; background: var(--fila-trilho); border-radius: 0 6px 6px 0; }
+    .fila-root .funil-etapa .valor-barra { height: 100%; background: var(--fila-1); border-radius: 0 4px 4px 0; }
+    .fila-root .funil-etapa .num { font-size: 18px; font-weight: 800; color: var(--fila-txt); text-align: right; font-variant-numeric: tabular-nums; }
+    .fila-root .funil-conv { margin: 6px 0 6px 106px; font-size: 12.5px; color: var(--fila-txt-2); }
+    .fila-root .funil-conv b { color: var(--fila-txt); font-size: 15px; }
+    .fila-root .rota-num { font-size: 40px; font-weight: 800; color: var(--fila-txt); font-variant-numeric: tabular-nums; line-height: 1; }
+</style>
+<div class="fila-root">
+<div class="card card-shadow mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-baseline flex-wrap gap-2 mb-2">
+            <div class="section-title mb-0"><i class="bi bi-stack"></i> Base de contratos agora</div>
+            <div class="small" style="color: var(--fila-txt-2)">{{ '{:,}'.format(total_base).replace(',', '.') }} contratos no total</div>
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="kpi-card">
-            <div class="kpi-badge" style="--badge: var(--red);"><i class="bi bi-telephone-outbound-fill"></i></div>
-            <div class="kpi-titulo">Em andamento</div>
-            <div class="kpi">{{ andamento }}</div>
+        <div class="barra-base" role="img" aria-label="Divisão da base de contratos por status">
+            {% for nome, qtd, cor, icone in fatias %}{% if qtd %}
+            <div class="visivel" style="flex: {{ qtd }} 1 0; background: {{ cor }};" title="{{ nome }}: {{ '{:,}'.format(qtd).replace(',', '.') }} ({{ '%.1f' | format(qtd / total_base * 100) }}%)"></div>
+            {% endif %}{% endfor %}
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="kpi-card">
-            <div class="kpi-badge" style="--badge: var(--warn);"><i class="bi bi-arrow-repeat"></i></div>
-            <div class="kpi-titulo">Enfileirados (follow up)</div>
-            <div class="kpi">{{ enfileirados }}</div>
+        <div class="legenda-base">
+            {% for nome, qtd, cor, icone in fatias %}
+            <div class="item">
+                <span class="cor" style="background: {{ cor }}"></span>
+                <div>
+                    <div class="nome"><i class="bi {{ icone }}"></i> {{ nome }}</div>
+                    <div class="num">{{ '{:,}'.format(qtd).replace(',', '.') }}</div>
+                    <div class="pct">{{ '%.1f' | format(qtd / total_base * 100 if total_base else 0) }}% da base</div>
+                </div>
+            </div>
+            {% endfor %}
         </div>
-    </div>
-    <div class="col-md-3">
-        <div class="kpi-card">
-            <div class="kpi-badge" style="--badge: var(--ok);"><i class="bi bi-check-circle-fill"></i></div>
-            <div class="kpi-titulo">Concluídos</div>
-            <div class="kpi">{{ concluidos }}</div>
+        <div class="small mt-3 d-flex flex-wrap gap-3">
+            <a href="/dashboard/enfileiramento"><i class="bi bi-bar-chart-steps"></i> Resumo do enfileiramento por prioridade →</a>
+            <a href="/dashboard/mailing"><i class="bi bi-people-fill"></i> Mailing por cidade, node, DDD, saturação e produto →</a>
         </div>
     </div>
 </div>
-<p class="text-muted small mb-4"><a href="/dashboard/mailing"><i class="bi bi-people-fill"></i> Ver mailing por cidade, node, DDD, saturação e produto →</a></p>
+
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-funnel"></i> Funil do mês ({{ mes_referencia[5:7] }}/{{ mes_referencia[:4] }})</div>
+                {% set maior_funil = [agendados_mes_time, execucoes_mes.total, 1] | max %}
+                <div class="funil-etapa">
+                    <div class="rot">Agendados</div>
+                    <div class="trilho"><div class="valor-barra" style="width: {{ (agendados_mes_time / maior_funil * 100) | round(1) }}%"></div></div>
+                    <div class="num">{{ '{:,}'.format(agendados_mes_time).replace(',', '.') }}</div>
+                </div>
+                <div class="funil-conv"><i class="bi bi-arrow-down"></i> conversão <b>{{ conversao_exec_agend ~ '%' if conversao_exec_agend is not none else '—' }}</b> (executados ÷ agendados no mês)</div>
+                <div class="funil-etapa">
+                    <div class="rot">Executados</div>
+                    <div class="trilho"><div class="valor-barra" style="width: {{ (execucoes_mes.total / maior_funil * 100) | round(1) }}%"></div></div>
+                    <div class="num">{{ '{:,}'.format(execucoes_mes.total).replace(',', '.') }}</div>
+                </div>
+                <div class="small mt-3" style="color: var(--fila-txt-2)">Executados contam a baixa no mês, mesmo de agendamentos feitos no mês anterior — por isso a conversão pode passar de 100% no começo do mês.</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <div class="section-title"><i class="bi bi-truck"></i> Em rota hoje</div>
+                <div class="rota-num">{{ '{:,}'.format(em_rota_hoje).replace(',', '.') }}</div>
+                <div class="small mt-2" style="color: var(--fila-txt-2)">agendamentos com visita marcada para hoje (mesma regra do relatório Agendados por Data)</div>
+                <a class="small d-inline-block mt-2" href="/relatorios/agendados?data={{ hoje_str_dashboard }}">Ver a lista →</a>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
 {% else %}
 <div class="kpi-row mb-4"></div>
 {% endif %}
