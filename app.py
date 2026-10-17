@@ -11782,6 +11782,12 @@ app.register_blueprint(bp_cruzamento_ged)
 from sincroniza_agenda import bp_sincroniza_agenda
 app.register_blueprint(bp_sincroniza_agenda)
 
+# Painel de Custos da Esteira de Migração (visão exclusiva do ADM) -- pedido
+# do Bruno, 2026-10-16. Vive em painel_custos.py (tabelas custos_mensais /
+# custos_config no crm.db, semeadas com a planilha histórica na 1ª subida).
+from painel_custos import bp_painel_custos
+app.register_blueprint(bp_painel_custos)
+
 
 # ==========================
 # AMBIENTE DE TESTE -- conta separada no PythonAnywhere (2026-10-15)

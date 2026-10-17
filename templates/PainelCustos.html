@@ -1,0 +1,472 @@
+{% extends "layout.html" %}
+
+{% macro brl(v, casas=2) -%}
+{%- if v is none -%}—{%- else -%}R$ {{ ("{:,.%df}" % casas).format(v).replace(",", "X").replace(".", ",").replace("X", ".") }}{%- endif -%}
+{%- endmacro %}
+{% macro num(v, casas=0) -%}
+{%- if v is none -%}—{%- else -%}{{ ("{:,.%df}" % casas).format(v).replace(",", "X").replace(".", ",").replace("X", ".") }}{%- endif -%}
+{%- endmacro %}
+
+{% block conteudo %}
+<style>
+    .custos-root {
+        --c-surface: #ffffff;
+        --c-text: #14141A;
+        --c-text-2: #52514e;
+        --c-muted: #8a8a90;
+        --c-grid: #ECEBE8;
+        --c-serie-1: #2a78d6;
+        --c-serie-2: #eb6834;
+        --c-serie-3: #1baf7a;
+        --c-serie-4: #eda100;
+        --c-meta: #6E6E76;
+        --c-media: #9C9CA4;
+        --c-projecao: #A9C7EE;
+        --c-bom: #1d7f3e;
+        --c-ruim: #b42318;
+    }
+    html[data-theme="dark"] .custos-root {
+        --c-surface: #1E1E24;
+        --c-text: #E6E6E9;
+        --c-text-2: #C3C2C8;
+        --c-muted: #9C9CA4;
+        --c-grid: #313138;
+        --c-serie-1: #3987e5;
+        --c-serie-2: #d95926;
+        --c-serie-3: #199e70;
+        --c-serie-4: #c98500;
+        --c-meta: #B5B5BC;
+        --c-media: #7C7C84;
+        --c-projecao: #2D4F7C;
+        --c-bom: #6FD08C;
+        --c-ruim: #FF8A80;
+    }
+    .custos-root .filtros { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .custos-root .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .custos-root .tile { background: var(--c-surface); border-radius: 12px; padding: 14px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+    .custos-root .tile .rotulo { font-size: 11.5px; color: var(--c-text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .custos-root .tile .valor { font-size: 24px; font-weight: 800; color: var(--c-text); line-height: 1.25; font-variant-numeric: tabular-nums; }
+    .custos-root .tile .sub { font-size: 12px; color: var(--c-text-2); }
+    .custos-root .bom { color: var(--c-bom); font-weight: 600; }
+    .custos-root .ruim { color: var(--c-ruim); font-weight: 600; }
+    .custos-root .grid-graficos { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 16px; }
+    @media (max-width: 560px) { .custos-root .grid-graficos { grid-template-columns: 1fr; } }
+    .custos-root .grafico-titulo { font-weight: 700; font-size: 14.5px; color: var(--c-text); margin-bottom: 2px; }
+    .custos-root .grafico-sub { font-size: 12px; color: var(--c-text-2); margin-bottom: 6px; }
+    .custos-root .analises li { margin-bottom: 8px; color: var(--c-text); }
+    .custos-root .analises .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .custos-root .tabela-custos { font-size: 12.5px; font-variant-numeric: tabular-nums; }
+    .custos-root .tabela-custos th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .02em; color: var(--c-text-2); white-space: nowrap; }
+    .custos-root .tabela-custos td { white-space: nowrap; }
+    .custos-root .tabela-custos tr.futuro td { color: var(--c-muted); }
+    .custos-root .tag { font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 9px; border: 1px solid var(--c-grid); color: var(--c-text-2); }
+    .custos-root .tag.proj { border-style: dashed; }
+    .custos-root .tag.div { border-color: var(--c-serie-2); color: var(--c-text); }
+    .custos-root .rolagem { max-height: 560px; overflow: auto; }
+    .custos-root .form-mes .form-label { font-size: 12px; margin-bottom: 2px; color: var(--c-text-2); }
+</style>
+
+<div class="custos-root">
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+                <h2 class="mb-1"><i class="bi bi-cash-coin"></i> Painel de Custos — Esteira de Migração</h2>
+                <p class="text-muted mb-0 small">
+                    Custo da operação × migrações executadas. Histórico de jan/2023 a jul/2026 vindo da planilha;
+                    meses sem número de migrações usam as execuções importadas no CRM. Visão exclusiva do ADM.
+                </p>
+            </div>
+            <form action="/admin/custos/meta" method="POST" class="d-flex gap-2 align-items-end">
+                <div>
+                    <label class="form-label small mb-0">Meta de custo por migração</label>
+                    <input type="text" name="meta" class="form-control form-control-sm" style="width: 140px;"
+                           placeholder="ex: 90,00" value="{{ ('%.2f' % meta).replace('.', ',') if meta else '' }}">
+                </div>
+                <button class="btn btn-sm btn-outline-dark">Salvar meta</button>
+            </form>
+        </div>
+        {% if ok %}<div class="alert alert-success mt-3 mb-0 py-2">{{ ok }}</div>{% endif %}
+        {% if erro %}<div class="alert alert-danger mt-3 mb-0 py-2">{{ erro }}</div>{% endif %}
+        <hr>
+        <div class="filtros">
+            <label class="small text-muted">Período dos gráficos:</label>
+            <select id="filtroPeriodo" class="form-select form-select-sm" style="width: auto;">
+                <option value="todos">Histórico completo</option>
+                <option value="12">Últimos 12 meses</option>
+                {% for a in anos|reverse %}<option value="{{ a.ano }}">{{ a.ano }}</option>{% endfor %}
+            </select>
+            <span class="small text-muted">Mês corrente e projeções aparecem nos gráficos, mas ficam fora dos totais.</span>
+        </div>
+    </div>
+</div>
+
+{% set an = analise %}
+{% if an %}
+<div class="tiles mb-4">
+    <div class="tile">
+        <div class="rotulo">Custo por migração — {{ an.ultimo.rotulo }}</div>
+        <div class="valor">{{ brl(an.ultimo.custo_unitario) }}</div>
+        <div class="sub">
+            {% if meta %}meta {{ brl(meta) }} ·
+            {% if an.ultimo.custo_unitario <= meta %}<span class="bom">dentro da meta</span>{% else %}<span class="ruim">{{ brl(an.ultimo.custo_unitario - meta) }} acima</span>{% endif %}
+            {% else %}último mês fechado{% endif %}
+        </div>
+    </div>
+    <div class="tile">
+        <div class="rotulo">Custo por migração — 12 meses</div>
+        <div class="valor">{{ brl(an.unitario_12m) }}</div>
+        <div class="sub">média ponderada (custo ÷ migrações)</div>
+    </div>
+    <div class="tile">
+        <div class="rotulo">Custo mensal atual</div>
+        <div class="valor">{{ brl(an.quadro_atual.custo_total, 0) }}</div>
+        <div class="sub">{{ an.quadro_atual.assistentes }} assistentes{% if an.quadro_atual.analistas %} + {{ an.quadro_atual.analistas }} analista{% endif %}{% if an.quadro_atual.supervisores %} + {{ an.quadro_atual.supervisores }} supervisor{% endif %} ({{ an.quadro_atual.rotulo }})</div>
+    </div>
+    {% if an.mes_corrente %}
+    <div class="tile">
+        <div class="rotulo">{{ an.quadro_atual.rotulo }} — em andamento</div>
+        <div class="valor">{{ num(an.mes_corrente.feitos) }} <span style="font-size:14px;font-weight:600;">migrações</span></div>
+        <div class="sub">{{ an.mes_corrente.du_passados }} de {{ an.mes_corrente.du_total }} dias úteis · projeção {{ num(an.mes_corrente.projecao) }} → {{ brl(an.mes_corrente.unitario_projetado) }}/migração</div>
+    </div>
+    {% endif %}
+    <div class="tile">
+        <div class="rotulo">Acumulado (meses fechados)</div>
+        <div class="valor">{{ brl(an.custo_acumulado, 0) }}</div>
+        <div class="sub">{{ num(an.migracoes_acumuladas) }} migrações · {{ brl(an.unitario_geral) }}/migração</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="grid-graficos mb-4">
+    <div class="card card-shadow"><div class="card-body">
+        <div class="grafico-titulo">Custo por migração</div>
+        <div class="grafico-sub">Por mês, com média móvel de 3 meses{% if meta %} e a meta{% endif %}. Ponto claro = projeção ou mês em andamento. <span id="avisoCorte"></span></div>
+        <div id="grafUnitario"></div>
+    </div></div>
+    <div class="card card-shadow"><div class="card-body">
+        <div class="grafico-titulo">Migrações por mês</div>
+        <div class="grafico-sub">Realizado × projeção/mês em andamento.</div>
+        <div id="grafMigracoes"></div>
+    </div></div>
+    <div class="card card-shadow"><div class="card-body">
+        <div class="grafico-titulo">Custo mensal e composição</div>
+        <div class="grafico-sub">HC dos assistentes, máquinas, analista e supervisor.</div>
+        <div id="grafComposicao"></div>
+    </div></div>
+    <div class="card card-shadow"><div class="card-body">
+        <div class="grafico-titulo">Produtividade</div>
+        <div class="grafico-sub">Migrações por assistente no mês.</div>
+        <div id="grafProdutividade"></div>
+    </div></div>
+</div>
+
+{% if an %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-lightbulb"></i> Análises</div>
+        <ul class="analises mb-0">
+            <li>
+                <strong>Melhor mês:</strong> <span class="num">{{ an.melhor.rotulo }}</span> com
+                <span class="num">{{ brl(an.melhor.custo_unitario) }}</span>/migração ({{ num(an.melhor.migracoes) }} migrações, {{ an.melhor.assistentes }} assistentes).
+                <strong>Pior mês:</strong> <span class="num">{{ an.pior.rotulo }}</span> com
+                <span class="num">{{ brl(an.pior.custo_unitario) }}</span>{% if an.pior.observacao %} — {{ an.pior.observacao|lower }}{% endif %}.
+                {% if an.fora_comparacao %}<span class="text-muted small">(Fora da comparação por produção abaixo de 20 migrações: {% for x in an.fora_comparacao %}{{ x.rotulo }}{% if not loop.last %}, {% endif %}{% endfor %}.)</span>{% endif %}
+            </li>
+            {% if an.tendencia %}
+            <li>
+                <strong>Tendência:</strong> nos últimos 3 meses fechados o custo por migração foi
+                <span class="num">{{ brl(an.tendencia.ult3) }}</span>, contra <span class="num">{{ brl(an.tendencia.ant3) }}</span> nos 3 anteriores
+                (<span class="{{ 'bom' if an.tendencia.variacao <= 0 else 'ruim' }}">{{ '%+.1f' % an.tendencia.variacao }}%</span>).
+            </li>
+            {% endif %}
+            {% if meta %}
+            <li>
+                <strong>Ponto de equilíbrio:</strong> com o quadro de {{ an.quadro_atual.rotulo }}
+                ({{ brl(an.quadro_atual.custo_total, 0) }}/mês), a meta de {{ brl(meta) }} exige
+                <span class="num">{{ num(an.migracoes_para_meta) }}</span> migrações no mês
+                {% if an.mes_corrente and an.mes_corrente.projecao %} — a projeção do mês é <span class="num">{{ num(an.mes_corrente.projecao) }}</span>
+                ({% if an.mes_corrente.projecao >= an.migracoes_para_meta %}<span class="bom">atinge</span>{% else %}<span class="ruim">faltam {{ num(an.migracoes_para_meta - an.mes_corrente.projecao) }}</span>{% endif %}){% endif %}.
+            </li>
+            {% else %}
+            <li class="text-muted">Defina a meta de custo por migração (no topo) para ver o ponto de equilíbrio do mês.</li>
+            {% endif %}
+            {% if an.paralisados %}
+            <li>
+                <strong>Paralisações:</strong>
+                {% for x in an.paralisados %}{{ x.rotulo }} ({{ brl(x.custo_unitario) }}){% if not loop.last %}, {% endif %}{% endfor %}
+                — meses em que a equipe apoiou o Comercial; o custo continuou e a produção caiu.
+            </li>
+            {% endif %}
+            {% if an.divergencias %}
+            <li>
+                <strong>Planilha × CRM:</strong> em <span class="num">{{ an.divergencias|length }}</span> meses o número da planilha difere em mais de 5% das execuções importadas no CRM
+                (marcados com <span class="tag div">CRM ≠</span> na tabela). A partir de jul/2025 a planilha parece deslocada um mês em relação ao CRM — vale conferir e, se for o caso, usar o ajuste manual.
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-calendar3"></i> Visão anual (meses fechados)</div>
+        <div class="table-responsive">
+        <table class="table table-sm tabela-custos mb-0" style="max-width: 900px;">
+            <thead><tr><th>Ano</th><th class="text-end">Meses</th><th class="text-end">Custo</th><th class="text-end">Migrações</th><th class="text-end">Migrações/mês</th><th class="text-end">Assistentes (média)</th><th class="text-end">Custo/migração</th><th class="text-end">vs ano anterior</th></tr></thead>
+            <tbody>
+            {% for a in anos %}
+            <tr>
+                <td class="fw-semibold">{{ a.ano }}</td><td class="text-end">{{ a.meses }}</td>
+                <td class="text-end">{{ brl(a.custo, 0) }}</td><td class="text-end">{{ num(a.migracoes) }}</td>
+                <td class="text-end">{{ num(a.migr_mes) }}</td><td class="text-end">{{ num(a.hc_medio, 1) }}</td>
+                <td class="text-end fw-semibold">{{ brl(a.unitario) }}</td>
+                <td class="text-end">{% if a.var_unitario is not none %}<span class="{{ 'bom' if a.var_unitario <= 0 else 'ruim' }}">{{ '%+.1f' % a.var_unitario }}%</span>{% else %}—{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-shadow mb-4" id="editar-mes">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-pencil-square"></i> Editar mês</div>
+        <p class="small text-muted">Escolha o mês (ou clique em <i class="bi bi-pencil"></i> na tabela). Migrações em branco = usa a planilha (histórico) ou, se não houver, o CRM.</p>
+        <form action="/admin/custos/mes" method="POST" class="form-mes row g-2 align-items-end" id="formMes">
+            <div class="col-6 col-md-2"><label class="form-label">Mês</label>
+                <input type="month" name="mes" id="f_mes" class="form-control form-control-sm" required></div>
+            <div class="col-6 col-md-1"><label class="form-label">Assistentes</label>
+                <input type="text" name="assistentes" id="f_assistentes" class="form-control form-control-sm"></div>
+            <div class="col-6 col-md-1"><label class="form-label">Analistas</label>
+                <input type="text" name="analistas" id="f_analistas" class="form-control form-control-sm"></div>
+            <div class="col-6 col-md-1"><label class="form-label">Supervisores</label>
+                <input type="text" name="supervisores" id="f_supervisores" class="form-control form-control-sm"></div>
+            <div class="col-6 col-md-2"><label class="form-label">Custo HC / assistente</label>
+                <input type="text" name="custo_hc_assistente" id="f_custo_hc_assistente" class="form-control form-control-sm"></div>
+            <div class="col-6 col-md-1"><label class="form-label">Máquina / pessoa</label>
+                <input type="text" name="custo_maquina" id="f_custo_maquina" class="form-control form-control-sm"></div>
+            <div class="col-6 col-md-2"><label class="form-label">Custo / analista</label>
+                <input type="text" name="custo_analista" id="f_custo_analista" class="form-control form-control-sm"></div>
+            <div class="col-6 col-md-2"><label class="form-label">Custo / supervisor</label>
+                <input type="text" name="custo_supervisor" id="f_custo_supervisor" class="form-control form-control-sm"></div>
+            <div class="col-6 col-md-2"><label class="form-label">Migrações (ajuste manual)</label>
+                <input type="text" name="migracoes_ajuste" id="f_migracoes_ajuste" class="form-control form-control-sm" placeholder="em branco = automático"></div>
+            <div class="col-12 col-md-5"><label class="form-label">Observação</label>
+                <input type="text" name="observacao" id="f_observacao" class="form-control form-control-sm"></div>
+            <div class="col-12 col-md-5 d-flex gap-3 flex-wrap">
+                <div class="form-check"><input class="form-check-input" type="checkbox" name="projecao" id="f_projecao" value="1"><label class="form-check-label small" for="f_projecao">Projeção</label></div>
+                <div class="form-check"><input class="form-check-input" type="checkbox" name="aplicar_seguintes" id="f_aplicar" value="1"><label class="form-check-label small" for="f_aplicar">Aplicar quadro e custos aos meses seguintes</label></div>
+                <button class="btn btn-sm btn-danger ms-auto"><i class="bi bi-check2"></i> Salvar mês</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4" id="tabela-meses">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-table"></i> Mês a mês</div>
+        <div class="rolagem">
+        <table class="table table-sm table-hover tabela-custos mb-0">
+            <thead><tr>
+                <th>Mês</th><th class="text-end">Assist.</th><th class="text-end">Anal.</th><th class="text-end">Sup.</th>
+                <th class="text-end">HC/assist.</th><th class="text-end">Máq./pessoa</th><th class="text-end">Analista</th><th class="text-end">Supervisor</th>
+                <th class="text-end">Custo total</th><th class="text-end">Migrações</th><th>Fonte</th><th class="text-end">CRM</th>
+                <th class="text-end">Custo/migração</th><th>Obs.</th><th></th>
+            </tr></thead>
+            <tbody>
+            {% for m in meses|reverse %}
+            <tr class="{{ 'futuro' if m.futuro }}">
+                <td class="fw-semibold">{{ m.rotulo }}
+                    {% if m.projecao %}<span class="tag proj">projeção</span>{% endif %}
+                    {% if m.em_andamento %}<span class="tag">em andamento</span>{% endif %}</td>
+                <td class="text-end">{{ m.assistentes }}</td><td class="text-end">{{ m.analistas }}</td><td class="text-end">{{ m.supervisores }}</td>
+                <td class="text-end">{{ brl(m.custo_hc_assistente) }}</td><td class="text-end">{{ brl(m.custo_maquina) }}</td>
+                <td class="text-end">{{ brl(m.custo_analista) if m.analistas else '—' }}</td><td class="text-end">{{ brl(m.custo_supervisor) if m.supervisores else '—' }}</td>
+                <td class="text-end fw-semibold">{{ brl(m.custo_total) }}</td>
+                <td class="text-end">{{ num(m.migracoes) }}</td>
+                <td>{{ m.fonte }}</td>
+                <td class="text-end">{{ num(m.migracoes_crm) }}{% if m.migracoes_planilha and m.migracoes_crm is not none and (m.migracoes_crm - m.migracoes_planilha)|abs > m.migracoes_planilha * 0.05 %} <span class="tag div" title="Difere mais de 5% do número da planilha">CRM ≠</span>{% endif %}</td>
+                <td class="text-end fw-semibold">{{ brl(m.custo_unitario) }}</td>
+                <td class="small" style="white-space: normal; min-width: 160px;">{{ m.observacao or '' }}</td>
+                <td><button type="button" class="btn btn-sm btn-link p-0" onclick="editarMes('{{ m.mes }}')" title="Editar {{ m.rotulo }}"><i class="bi bi-pencil"></i></button></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@6.7.0/dist/apexcharts.min.js"></script>
+<script>
+(function () {
+    const MESES = {{ meses | tojson }};
+    const META = {{ meta | tojson }};
+
+    function br(v, casas) {
+        if (v === null || v === undefined) return '—';
+        return v.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+    }
+    function tokens() {
+        const s = getComputedStyle(document.querySelector('.custos-root'));
+        const g = n => s.getPropertyValue(n).trim();
+        return { texto: g('--c-text'), texto2: g('--c-text-2'), grade: g('--c-grid'), s1: g('--c-serie-1'), s2: g('--c-serie-2'),
+                 s3: g('--c-serie-3'), s4: g('--c-serie-4'), meta: g('--c-meta'), media: g('--c-media'), proj: g('--c-projecao'),
+                 escuro: document.documentElement.getAttribute('data-theme') === 'dark' };
+    }
+    function filtrar(periodo) {
+        // até o mês corrente (inclui projeção/em andamento, exclui futuro vazio)
+        let base = MESES.filter(m => !m.futuro || m.projecao);
+        if (periodo === '12') base = base.slice(-12);
+        else if (periodo !== 'todos') base = base.filter(m => m.mes.startsWith(periodo));
+        return base;
+    }
+    function baseOpts(t, tipo, altura) {
+        return {
+            chart: { type: tipo, height: altura || 290, toolbar: { show: false }, foreColor: t.texto2, fontFamily: 'inherit',
+                     background: 'transparent', animations: { enabled: false }, zoom: { enabled: false } },
+            theme: { mode: t.escuro ? 'dark' : 'light' },
+            grid: { borderColor: t.grade, strokeDashArray: 0, xaxis: { lines: { show: false } } },
+            dataLabels: { enabled: false },
+            legend: { position: 'top', horizontalAlign: 'left', fontSize: '12px', labels: { colors: t.texto2 }, markers: { size: 6 } },
+            tooltip: { theme: t.escuro ? 'dark' : 'light', shared: true, intersect: false },
+            xaxis: { labels: { rotate: -45, rotateAlways: false, style: { fontSize: '11px' } }, axisTicks: { show: false } },
+        };
+    }
+
+    let graficos = [];
+    function desenhar() {
+        graficos.forEach(g => g.destroy()); graficos = [];
+        const t = tokens();
+        const dados = filtrar(document.getElementById('filtroPeriodo').value);
+        const rot = dados.map(m => m.rotulo);
+        const parcial = m => m.projecao || m.em_andamento;
+
+        // 1) custo por migração + média móvel 3m + meta
+        const unit = dados.map(m => m.custo_unitario);
+        const mm3 = unit.map((_, i) => {
+            const janela = dados.slice(Math.max(0, i - 2), i + 1).filter(m => m.migracoes && !parcial(m));
+            if (janela.length < 3) return null;
+            const c = janela.reduce((s, m) => s + m.custo_total, 0), q = janela.reduce((s, m) => s + m.migracoes, 0);
+            return q ? +(c / q).toFixed(2) : null;
+        });
+        // Corte do eixo: um mês fora da curva (início da operação, paralisação)
+        // achata todo o resto. Se o maior valor passar de 3x o percentil 80,
+        // o eixo vai até 1,6x o P80 e os meses cortados são citados no aviso
+        // (valor real no tooltip e na tabela).
+        const validos = unit.filter(v => v !== null).sort((x, y) => x - y);
+        let tetoUnit;
+        const aviso = document.getElementById('avisoCorte');
+        aviso.textContent = '';
+        if (validos.length >= 5) {
+            const p80 = validos[Math.floor(validos.length * 0.8) - 1];
+            if (validos[validos.length - 1] > 3 * p80) {
+                tetoUnit = Math.ceil(p80 * 1.6 / 50) * 50;
+                const cortados = dados.filter(m => m.custo_unitario > tetoUnit).map(m => m.rotulo + ' (R$ ' + br(m.custo_unitario, 0) + ')');
+                aviso.textContent = 'Eixo cortado em R$ ' + br(tetoUnit, 0) + ' — acima disso: ' + cortados.join(', ') + '.';
+            }
+        }
+        const o1 = baseOpts(t, 'line');
+        Object.assign(o1, {
+            series: [{ name: 'Custo por migração', data: unit }, { name: 'Média móvel 3 meses', data: mm3 }],
+            colors: [t.s1, t.media],
+            stroke: { width: [2, 2], curve: 'straight', dashArray: [0, 4] },
+            markers: { size: 4, strokeWidth: 2, strokeColors: 'var(--c-surface)', hover: { size: 6 },
+                       discrete: dados.map((m, i) => parcial(m) ? { seriesIndex: 0, dataPointIndex: i, fillColor: t.proj, strokeColor: t.s1, size: 5 } : null).filter(Boolean) },
+            yaxis: { labels: { formatter: v => v === null ? '' : 'R$ ' + br(v, 0) }, min: 0, max: tetoUnit, forceNiceScale: !tetoUnit },
+            tooltip: { ...o1.tooltip, y: { formatter: (v, o) => v === null || v === undefined ? '—' : 'R$ ' + br(v, 2) + (o && o.seriesIndex === 0 && parcial(dados[o.dataPointIndex]) ? ' (parcial/projeção)' : '') } },
+        });
+        o1.xaxis.categories = rot;
+        if (META) o1.annotations = { yaxis: [{ y: META, borderColor: t.meta, strokeDashArray: 5,
+            label: { text: 'Meta R$ ' + br(META, 2), position: 'left', textAnchor: 'start', borderWidth: 0,
+                     style: { background: 'transparent', color: t.texto2, fontSize: '11px' } } }] };
+        
+
+        // 2) migrações: realizado x parcial (empilhado, cada mês ocupa um dos dois)
+        const o2 = baseOpts(t, 'bar');
+        Object.assign(o2, {
+            series: [{ name: 'Realizado', data: dados.map(m => parcial(m) ? null : m.migracoes) },
+                     { name: 'Projeção / em andamento', data: dados.map(m => parcial(m) ? m.migracoes : null) }],
+            colors: [t.s1, t.proj], chart: { ...o2.chart, stacked: true },
+            plotOptions: { bar: { columnWidth: '68%', borderRadius: 4, borderRadiusApplication: 'end' } },
+            stroke: { show: true, width: 2, colors: ['transparent'] },
+            yaxis: { labels: { formatter: v => br(v, 0) } },
+            tooltip: { ...o2.tooltip, shared: false, intersect: true, y: { formatter: (v, o) => br(v, 0) + ' migrações · fonte: ' + dados[o.dataPointIndex].fonte } },
+        });
+        o2.xaxis.categories = rot;
+        
+
+        // 3) composição do custo (empilhado)
+        const o3 = baseOpts(t, 'bar');
+        Object.assign(o3, {
+            series: [{ name: 'HC assistentes', data: dados.map(m => m.composicao.hc) },
+                     { name: 'Máquinas', data: dados.map(m => m.composicao.maquina) },
+                     { name: 'Analista', data: dados.map(m => m.composicao.analista) },
+                     { name: 'Supervisor', data: dados.map(m => m.composicao.supervisor) }],
+            colors: [t.s1, t.s2, t.s3, t.s4], chart: { ...o3.chart, stacked: true },
+            plotOptions: { bar: { columnWidth: '68%', borderRadius: 4, borderRadiusApplication: 'end', borderRadiusWhenStacked: 'last' } },
+            stroke: { show: true, width: 2, colors: [t.escuro ? '#1E1E24' : '#ffffff'] },
+            yaxis: { labels: { formatter: v => 'R$ ' + br(v / 1000, 0) + 'k' } },
+            tooltip: { ...o3.tooltip, y: { formatter: v => 'R$ ' + br(v, 2) } },
+        });
+        o3.xaxis.categories = rot;
+        
+
+        // 4) produtividade
+        const o4 = baseOpts(t, 'line');
+        Object.assign(o4, {
+            series: [{ name: 'Migrações por assistente', data: dados.map(m => m.produtividade) }],
+            colors: [t.s3], stroke: { width: 2, curve: 'straight' },
+            markers: { size: 4, strokeWidth: 2, strokeColors: 'var(--c-surface)', hover: { size: 6 } },
+            legend: { show: false },
+            yaxis: { labels: { formatter: v => v === null ? '' : br(v, 0) }, min: 0 },
+            tooltip: { ...o4.tooltip, y: { formatter: (v, o) => v === null || v === undefined ? '—' : br(v, 1) + ' por assistente (' + dados[o.dataPointIndex].assistentes + ' assistentes)' } },
+        });
+        o4.xaxis.categories = rot;
+        
+
+        // Muitos meses: mostra um rótulo a cada N no eixo X (o tooltip segue
+        // mostrando o mês de cada ponto).
+        const passo = rot.length > 14 ? Math.ceil(rot.length / 8) : 1;
+        [o1, o2, o3, o4].forEach(o => {
+            o.xaxis.categories = rot.map((r, i) => (i % passo === 0) ? r : ' '.repeat(i + 1));
+            o.xaxis.labels.rotate = 0;
+            o.xaxis.labels.hideOverlappingLabels = true;
+            o.tooltip.x = { formatter: (v, opt) => (opt && opt.dataPointIndex !== undefined) ? rot[opt.dataPointIndex] : v };
+        });
+        graficos = [['#grafUnitario', o1], ['#grafMigracoes', o2], ['#grafComposicao', o3], ['#grafProdutividade', o4]]
+            .map(([sel, o]) => new ApexCharts(document.querySelector(sel), o));
+        graficos.forEach(g => g.render());
+    }
+
+    document.getElementById('filtroPeriodo').addEventListener('change', desenhar);
+    // Redesenha quando o tema muda (botão claro/escuro do layout altera data-theme)
+    new MutationObserver(desenhar).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    if (window.ApexCharts) desenhar();
+
+    // ---- formulário de edição ----
+    const porMes = Object.fromEntries(MESES.map(m => [m.mes, m]));
+    const fmt = v => (v === null || v === undefined) ? '' : String(v).replace('.', ',');
+    window.editarMes = function (mes) {
+        const m = porMes[mes]; if (!m) return;
+        document.getElementById('f_mes').value = mes;
+        ['assistentes', 'analistas', 'supervisores'].forEach(k => document.getElementById('f_' + k).value = m[k] ?? 0);
+        ['custo_hc_assistente', 'custo_maquina', 'custo_analista', 'custo_supervisor'].forEach(k => document.getElementById('f_' + k).value = fmt(m[k]));
+        document.getElementById('f_migracoes_ajuste').value = m.migracoes_ajuste ?? '';
+        document.getElementById('f_observacao').value = m.observacao || '';
+        document.getElementById('f_projecao').checked = !!m.projecao;
+        document.getElementById('f_aplicar').checked = false;
+        document.getElementById('editar-mes').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
+    document.getElementById('f_mes').addEventListener('change', e => { if (porMes[e.target.value]) window.editarMes(e.target.value); });
+    const atual = MESES.find(m => m.em_andamento) || MESES[MESES.length - 1];
+    if (atual) window.editarMes(atual.mes), window.scrollTo(0, 0);
+})();
+</script>
+{% endblock %}

@@ -400,6 +400,7 @@
             <div class="nav-label">Administração</div>
             <ul class="sidebar-menu">
                 <li><a href="/admin/backup" title="Baixa um zip com código, telas e banco de dados -- roda isso antes de subir qualquer versão nova"><i class="bi bi-cloud-arrow-down-fill"></i> <span class="texto-menu">Backup Completo</span></a></li>
+                <li><a href="/admin/custos" class="{{ 'active' if request.path == '/admin/custos' }}"><i class="bi bi-cash-coin"></i> <span class="texto-menu">Painel de Custos</span></a></li>
                 <li><a href="/admin/historico-tarefas" class="{{ 'active' if request.path == '/admin/historico-tarefas' }}"><i class="bi bi-clock-history"></i> <span class="texto-menu">Histórico de Tarefas</span></a></li>
                 <li><a href="/admin/modo" class="{{ 'active' if request.path == '/admin/modo' }}"><i class="bi bi-gear-fill"></i> <span class="texto-menu">Modo de Trabalho</span></a></li>
                 <li><a href="/admin/importacao" class="{{ 'active' if request.path == '/admin/importacao' }}"><i class="bi bi-upload"></i> <span class="texto-menu">Importação de Dados</span></a></li>
