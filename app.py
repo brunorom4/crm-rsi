@@ -11803,6 +11803,12 @@ app.register_blueprint(bp_painel_custos)
 from saude_sistema import bp_saude
 app.register_blueprint(bp_saude)
 
+# Sincronização de DADOS produção -> broma (pedido do Bruno, 2026-10-17).
+# Na produção expõe /interno/sincronia/exportar (protegido por token em
+# ~/token_sincronia.txt); na broma, a tela /admin/sincronia busca e aplica.
+from sincronia_teste import bp_sincronia
+app.register_blueprint(bp_sincronia)
+
 
 # ==========================
 # AMBIENTE DE TESTE -- conta separada no PythonAnywhere (2026-10-15)

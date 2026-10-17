@@ -1,0 +1,69 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<style>
+    .sinc-root { --c-surface: #ffffff; --c-text: #14141A; --c-text-2: #52514e; --c-borda: #ECEBE8; }
+    html[data-theme="dark"] .sinc-root { --c-surface: #1E1E24; --c-text: #E6E6E9; --c-text-2: #C3C2C8; --c-borda: #313138; }
+    .sinc-root .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .sinc-root .item { background: var(--c-surface); border: 1px solid var(--c-borda); border-radius: 12px; padding: 12px 14px; }
+    .sinc-root .item .rotulo { font-size: 11.5px; color: var(--c-text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .sinc-root .item .valor { font-size: 17px; font-weight: 700; color: var(--c-text); font-variant-numeric: tabular-nums; }
+    .sinc-root .item .sub { font-size: 12px; color: var(--c-text-2); }
+    .sinc-root ol li { margin-bottom: 4px; }
+</style>
+
+<div class="sinc-root">
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h2 class="mb-1"><i class="bi bi-arrow-repeat"></i> Atualizar dados da produção</h2>
+        <p class="text-muted small mb-0">Traz para este ambiente de teste uma cópia atual dos bancos e arquivos da produção. O código não muda (código vem do git).</p>
+
+        {% if ok %}<div class="alert alert-success mt-3 mb-0 py-2"><i class="bi bi-check-circle-fill"></i> Dados atualizados. O site foi recarregado — se alguma tela estranhar, dê F5.</div>{% endif %}
+        {% if erro %}<div class="alert alert-danger mt-3 mb-0 py-2"><i class="bi bi-x-circle-fill"></i> Não atualizou: {{ erro }}</div>{% endif %}
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-clock-history"></i> Situação</div>
+        <div class="grade mb-3">
+            <div class="item">
+                <div class="rotulo">Dados da produção de</div>
+                <div class="valor">{{ ultima.dados_da_producao_em[8:10] ~ '/' ~ ultima.dados_da_producao_em[5:7] ~ ' ' ~ ultima.dados_da_producao_em[11:16] if ultima and ultima.dados_da_producao_em else 'Nunca sincronizado' }}</div>
+                <div class="sub">{% if ultima %}por {{ ultima.quem }} · {{ ultima.tamanho }} em {{ ultima.segundos }}s{% else %}ainda sem sincronização por aqui{% endif %}</div>
+            </div>
+            <div class="item">
+                <div class="rotulo">Código</div>
+                <div class="valor">teste {{ versao_teste or '?' }}</div>
+                <div class="sub">{% if ultima and ultima.versao_producao %}produção estava em {{ ultima.versao_producao }}{% if ultima.versao_producao != versao_teste %} · <b>diferentes</b>{% else %} · iguais{% endif %}{% else %}versão da produção aparece após sincronizar{% endif %}</div>
+            </div>
+            <div class="item">
+                <div class="rotulo">Token</div>
+                <div class="valor">{% if tem_token %}<i class="bi bi-check-circle-fill text-success"></i> Configurado{% else %}<i class="bi bi-x-circle-fill text-danger"></i> Falta{% endif %}</div>
+                <div class="sub">~/token_sincronia.txt</div>
+            </div>
+        </div>
+
+        <form method="post" onsubmit="this.querySelector('button').disabled=true; this.querySelector('button').innerHTML='<span class=\'spinner-border spinner-border-sm\'></span> Atualizando… (pode levar até 1 minuto)';">
+            <button type="submit" class="btn btn-danger" {% if not tem_token %}disabled{% endif %}>
+                <i class="bi bi-cloud-arrow-down-fill"></i> Atualizar agora
+            </button>
+            <span class="small text-muted ms-2">Substitui todos os dados deste ambiente de teste. Telegram, Supabase e e-mail continuam desligados.</span>
+        </form>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body small">
+        <div class="section-title"><i class="bi bi-info-circle"></i> Como funciona</div>
+        <ol class="mb-2">
+            <li>A broma pede os dados para <code>{{ url_producao }}</code>, usando o token que fica nas duas contas.</li>
+            <li>A produção faz uma cópia consistente dos bancos, sem parar quem está usando, e devolve junto com as pastas de dados.</li>
+            <li>Os bancos são conferidos antes de qualquer troca. Se algo vier quebrado, este ambiente fica como estava.</li>
+            <li>Integrações externas são desligadas de novo e o site recarrega sozinho.</li>
+        </ol>
+        Se o site estiver fora do ar, o mesmo processo roda pelo console Bash: <code>cd ~/CRM_RSI && python sincronia_teste.py</code>
+    </div>
+</div>
+</div>
+{% endblock %}
