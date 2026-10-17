@@ -4,9 +4,9 @@
 {% macro n(v) %}{{ '{:,}'.format(v).replace(',', '.') }}{% endmacro %}
 {% macro pct(v, t) %}{{ ('%.1f' | format(v / t * 100)).replace('.', ',') if t else '0' }}%{% endmacro %}
 <style>
-    .enf-root { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #6250d6; --s5: #e87ba4; --s-outros: #b4b2ab;
+    .enf-root { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #6250d6; --s5: #e34948; --s-outros: #b4b2ab;
                 --c-surface: #ffffff; --c-text: #14141A; --c-text-2: #52514e; --c-grid: #ECEBE8; }
-    html[data-theme="dark"] .enf-root { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9085e9; --s5: #d55181; --s-outros: #6b6a66;
+    html[data-theme="dark"] .enf-root { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #9085e9; --s5: #e66767; --s-outros: #6b6a66;
                 --c-surface: #1E1E24; --c-text: #E6E6E9; --c-text-2: #C3C2C8; --c-grid: #313138; }
     .enf-root .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
     .enf-root .tile { background: var(--c-surface); border-radius: 12px; padding: 13px 15px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }

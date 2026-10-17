@@ -20,9 +20,9 @@
     ('Pendentes', pendentes, 'var(--fila-5)', 'bi-hourglass-split'),
 ] %}
 <style>
-    .fila-root { --fila-1: #2a78d6; --fila-2: #eb6834; --fila-3: #1baf7a; --fila-5: #e87ba4; --fila-outros: #b4b2ab;
+    .fila-root { --fila-1: #2a78d6; --fila-2: #eb6834; --fila-3: #1baf7a; --fila-5: #e34948; --fila-outros: #b4b2ab;
                  --fila-surface: #ffffff; --fila-trilho: #ECEBE8; --fila-txt: #14141A; --fila-txt-2: #52514e; }
-    html[data-theme="dark"] .fila-root { --fila-1: #3987e5; --fila-2: #d95926; --fila-3: #199e70; --fila-5: #d55181; --fila-outros: #6b6a66;
+    html[data-theme="dark"] .fila-root { --fila-1: #3987e5; --fila-2: #d95926; --fila-3: #199e70; --fila-5: #e66767; --fila-outros: #6b6a66;
                  --fila-surface: #1E1E24; --fila-trilho: #313138; --fila-txt: #E6E6E9; --fila-txt-2: #C3C2C8; }
     .fila-root .barra-base { display: flex; gap: 2px; height: 26px; border-radius: 6px; overflow: hidden; background: var(--fila-trilho); }
     .fila-root .barra-base > div { min-width: 0; }
@@ -90,7 +90,6 @@
                     <div class="trilho"><div class="valor-barra" style="width: {{ (execucoes_mes.total / maior_funil * 100) | round(1) }}%"></div></div>
                     <div class="num">{{ '{:,}'.format(execucoes_mes.total).replace(',', '.') }}</div>
                 </div>
-                <div class="small mt-3" style="color: var(--fila-txt-2)">Executados contam a baixa no mês, mesmo de agendamentos feitos no mês anterior — por isso a conversão pode passar de 100% no começo do mês.</div>
             </div>
         </div>
     </div>
@@ -99,7 +98,7 @@
             <div class="card-body">
                 <div class="section-title"><i class="bi bi-truck"></i> Em rota hoje</div>
                 <div class="rota-num">{{ '{:,}'.format(em_rota_hoje).replace(',', '.') }}</div>
-                <div class="small mt-2" style="color: var(--fila-txt-2)">agendamentos com visita marcada para hoje (mesma regra do relatório Agendados por Data)</div>
+                <div class="small mt-2" style="color: var(--fila-txt-2)">agendamentos com visita marcada para hoje</div>
                 <a class="small d-inline-block mt-2" href="/relatorios/agendados?data={{ hoje_str_dashboard }}">Ver a lista →</a>
             </div>
         </div>
