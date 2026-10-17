@@ -5033,7 +5033,7 @@ def relatorio_agendados():
 
     conn = conectar()
     resultados = conn.execute("""
-        SELECT m.cidade, a.contrato, a.data_agendamento, a.janela_agendamento,
+        SELECT a.id AS atividade_id, m.cidade, a.contrato, a.data_agendamento, a.janela_agendamento,
                a.operador AS tratado_por, a.observacao
         FROM atividades a
         JOIN mailing m ON m.contrato = a.contrato
@@ -5044,9 +5044,14 @@ def relatorio_agendados():
         AND a.data_agendamento = ?
         ORDER BY a.janela_agendamento, a.contrato
     """, (data_escolhida,)).fetchall()
+    # Linhas cujo último ajuste veio de fora do CRM (sincronização com a
+    # Confirmação de Agenda, 2026-10-16) ganham a marcação "Reagendado fora do CRM".
+    from sincroniza_agenda import ids_reagendados_externamente
+    reagendados_fora = ids_reagendados_externamente(conn, [r["atividade_id"] for r in resultados])
     conn.close()
 
-    return render_template("RelatorioAgendados.html", data_escolhida=data_escolhida, resultados=resultados)
+    return render_template("RelatorioAgendados.html", data_escolhida=data_escolhida, resultados=resultados,
+                           reagendados_fora=reagendados_fora)
 
 
 # ==========================
@@ -9137,18 +9142,36 @@ def admin_importacao_confirmacao_agenda():
     if not arquivo or arquivo.filename == "":
         return redirect("/admin/importacao?erro_conf=" + urllib.parse.quote("Nenhum arquivo selecionado."))
 
+    # Lido uma vez só em memória: a mesma planilha alimenta a Confirmação de
+    # Agenda E a sincronização dos agendamentos (reagendamentos fora do CRM,
+    # 2026-10-16 -- ver sincroniza_agenda.py).
+    conteudo = arquivo.read()
     try:
-        resultado = processar_importacao_confirmacao(arquivo, os.path.join(PASTA_BASE, "crm.db"))
+        resultado = processar_importacao_confirmacao(io.BytesIO(conteudo), os.path.join(PASTA_BASE, "crm.db"))
     except Exception as erro:
         return redirect("/admin/importacao?erro_conf=" + urllib.parse.quote(f"Não consegui processar o arquivo: {erro}"))
 
     if "erro" in resultado:
         return redirect("/admin/importacao?erro_conf=" + urllib.parse.quote(resultado["erro"]))
 
+    sinc_params = ""
+    try:
+        from sincroniza_agenda import sincronizar_com_planilha
+        conn_sinc = conectar()
+        sinc = sincronizar_com_planilha(conn_sinc, pd.read_excel(io.BytesIO(conteudo)),
+                                        usuario_atual()["nome"], arquivo.filename)
+        conn_sinc.close()
+        if sinc:
+            sinc_params = (f"&sinc_ajustados={sinc['ajustados']}&sinc_protegidos={sinc['protegidos']}"
+                           f"&sinc_ausentes={sinc['ausentes']}")
+    except Exception as erro:  # a importação da Confirmação já foi gravada -- não perde por causa disso
+        print(f"[sincroniza_agenda] falhou: {erro}", file=sys.stderr)
+        sinc_params = "&sinc_erro=" + urllib.parse.quote(str(erro)[:200])
+
     return redirect(
         f"/admin/importacao?conf_novos={resultado['novos']}&conf_atualizados={resultado['atualizados']}"
         f"&conf_ignorados={resultado['ignorados']}&conf_sem_ddd={resultado['sem_ddd']}"
-        f"&conf_em_andamento={resultado['em_andamento_preservados']}"
+        f"&conf_em_andamento={resultado['em_andamento_preservados']}" + sinc_params
     )
 
 
@@ -11518,6 +11541,13 @@ app.register_blueprint(bp_backlog)
 # aviso das telas de atendimento (_alerta_ged.html).
 from cruzamento_ged import bp_cruzamento_ged
 app.register_blueprint(bp_cruzamento_ged)
+
+# Sincronização dos agendamentos com a planilha da Confirmação de Agenda
+# (reagendamentos feitos fora do CRM) -- pedido do Bruno, 2026-10-16. Roda
+# dentro de admin_importacao_confirmacao_agenda; aqui só registra a tela
+# /agendados/reagendamentos-externos.
+from sincroniza_agenda import bp_sincroniza_agenda
+app.register_blueprint(bp_sincroniza_agenda)
 
 
 # ==========================

@@ -18,6 +18,7 @@
             {% if resultados %}
             <button type="button" class="btn btn-outline-dark" onclick="copiarTabela()">📋 Copiar tabela</button>
             {% endif %}
+            <a href="/agendados/reagendamentos-externos" class="btn btn-outline-secondary ms-auto"><i class="bi bi-arrow-repeat"></i> Reagendamentos fora do CRM</a>
         </form>
 
         {% if resultados %}
@@ -31,7 +32,7 @@
                     <td>{{ r['data_agendamento'] }}</td>
                     <td>{{ r['janela_agendamento'] }}</td>
                     <td>{{ r['tratado_por'] }}</td>
-                    <td>{{ r['observacao'] }}</td>
+                    <td>{% if r['atividade_id'] in reagendados_fora %}<span class="badge text-bg-warning me-1" title="Data/período corrigidos pela base de Confirmação de Agenda: reagendado pelo cliente ou por outro canal, fora do CRM">Reagendado fora do CRM</span> {% endif %}{{ r['observacao'] }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

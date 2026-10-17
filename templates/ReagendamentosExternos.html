@@ -1,0 +1,132 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<style>
+    .sinc-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 14px 0 4px; }
+    .sinc-kpi { background: #fff; border-radius: 12px; padding: 13px 16px; box-shadow: 0 1px 4px rgba(0,0,0,.07); border-left: 4px solid #d6d3d1; }
+    .sinc-kpi .rotulo { font-size: 11.5px; color: #6b6b6b; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .sinc-kpi .valor { font-size: 24px; font-weight: 800; line-height: 1.2; }
+    .sinc-kpi.verde { border-left-color: #2e7d32; }
+    .sinc-kpi.ambar { border-left-color: #B45309; }
+    .sinc-kpi.cinza { border-left-color: #78716c; }
+    .sinc-tabela { font-size: 13px; }
+    .sinc-tabela th { font-size: 12px; text-transform: uppercase; letter-spacing: .02em; color: #555; white-space: nowrap; }
+    .riscado { text-decoration: line-through; color: #8a8a8a; }
+    .tabela-rolagem { max-height: 480px; overflow: auto; }
+</style>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <h2 class="mb-1"><i class="bi bi-arrow-repeat"></i> Reagendamentos fora do CRM</h2>
+                <p class="text-muted mb-0">
+                    A cada importação da planilha de Confirmação de Agenda, os agendamentos de hoje em diante são comparados
+                    com a data e o período atuais da agenda (contrato + cidade). O que mudou fora do CRM (cliente pelo site,
+                    app, WhatsApp, ou o próprio campo) é corrigido em Agendados por Data e registrado no histórico do contrato.
+                </p>
+            </div>
+            <a href="/relatorios/agendados" class="btn btn-outline-dark"><i class="bi bi-calendar-check"></i> Agendados por data</a>
+        </div>
+        {% if execucoes %}
+        <form method="GET" class="d-flex gap-2 align-items-center mt-3">
+            <label class="small text-muted">Importação:</label>
+            <select name="execucao" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                {% for e in execucoes %}
+                <option value="{{ e['id'] }}" {{ 'selected' if atual and e['id'] == atual['id'] }}>{{ e['executado_em'] }} — {{ e['executado_por'] }} ({{ e['ajustados'] or 0 }} ajustado{{ 's' if (e['ajustados'] or 0) != 1 }})</option>
+                {% endfor %}
+            </select>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+{% if not atual %}
+<div class="card card-shadow"><div class="card-body text-muted">Nenhuma sincronização ainda. Ela roda sozinha na próxima importação da Confirmação de Agenda.</div></div>
+{% else %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <p class="small text-muted mb-0">Importação de {{ atual['executado_em'] }} por {{ atual['executado_por'] }}{% if atual['arquivo'] %} — arquivo {{ atual['arquivo'] }}{% endif %}, {{ atual['linhas_planilha'] }} linhas.</p>
+        <div class="sinc-kpis">
+            <div class="sinc-kpi"><div class="rotulo">Agendados avaliados</div><div class="valor">{{ atual['agendados_avaliados'] }}</div></div>
+            <div class="sinc-kpi"><div class="rotulo">Encontrados na planilha</div><div class="valor">{{ atual['na_planilha'] }}</div></div>
+            <div class="sinc-kpi verde"><div class="rotulo">Reagendados fora do CRM</div><div class="valor">{{ atual['ajustados'] }}</div></div>
+            <div class="sinc-kpi ambar"><div class="rotulo">Divergentes protegidos</div><div class="valor">{{ atual['protegidos'] }}</div></div>
+            <div class="sinc-kpi cinza"><div class="rotulo">Não estão na planilha</div><div class="valor">{{ atual['ausentes'] }}</div></div>
+        </div>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-check2-circle"></i> Reagendados fora do CRM — já corrigidos ({{ itens['AJUSTADO']|length }})</div>
+        {% if itens['AJUSTADO'] %}
+        <div class="tabela-rolagem">
+        <table class="table table-sm sinc-tabela mb-0">
+            <thead><tr><th>Contrato</th><th>Cidade</th><th>Antes</th><th>Agora</th><th>Agendado por</th><th>Motivo / usuário na base</th></tr></thead>
+            <tbody>
+            {% for i in itens['AJUSTADO'] %}
+            <tr>
+                <td><a href="/contrato/{{ i['contrato'] }}/timeline" target="_blank">{{ i['contrato'] }}</a></td>
+                <td>{{ i['cidade'] }}</td>
+                <td class="riscado">{{ i['data_anterior'] }} · {{ i['janela_anterior'] }}</td>
+                <td class="fw-semibold">{{ i['data_planilha'] }} · {{ i['janela_planilha'] }}</td>
+                <td>{{ i['operador'] }}</td>
+                <td>{{ i['motivo_reag'] or '—' }}{% if i['user_reag'] %} <span class="text-muted">({{ i['user_reag'] }})</span>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}<p class="text-muted mb-0">Nenhum reagendamento fora do CRM nessa importação.</p>{% endif %}
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-shield-check"></i> Divergentes protegidos ({{ itens['PROTEGIDO']|length }})</div>
+        <p class="small text-muted">O time mexeu nesses agendamentos no mesmo dia da importação, então a planilha pode ter sido extraída antes do ajuste e o CRM foi mantido. A importação do dia seguinte confere de novo.</p>
+        {% if itens['PROTEGIDO'] %}
+        <div class="tabela-rolagem">
+        <table class="table table-sm sinc-tabela mb-0">
+            <thead><tr><th>Contrato</th><th>Cidade</th><th>No CRM</th><th>Na planilha</th><th>Última mudança no CRM</th></tr></thead>
+            <tbody>
+            {% for i in itens['PROTEGIDO'] %}
+            <tr>
+                <td><a href="/contrato/{{ i['contrato'] }}/timeline" target="_blank">{{ i['contrato'] }}</a></td>
+                <td>{{ i['cidade'] }}</td>
+                <td>{{ i['data_anterior'] }} · {{ i['janela_anterior'] }}</td>
+                <td>{{ i['data_planilha'] }} · {{ i['janela_planilha'] }}</td>
+                <td>{{ i['ultimo_ajuste_crm'] or '—' }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}<p class="text-muted mb-0">Nenhum.</p>{% endif %}
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-question-circle"></i> Agendados que não aparecem na planilha ({{ itens['AUSENTE']|length }})</div>
+        <p class="small text-muted">Possível cancelamento, execução antecipada ou OS fora do recorte da exportação. Nada foi alterado, é só para conferência.</p>
+        {% if itens['AUSENTE'] %}
+        <div class="tabela-rolagem">
+        <table class="table table-sm sinc-tabela mb-0">
+            <thead><tr><th>Contrato</th><th>Cidade</th><th>Agendado para</th><th>Período</th><th>Agendado por</th></tr></thead>
+            <tbody>
+            {% for i in itens['AUSENTE'] %}
+            <tr>
+                <td><a href="/contrato/{{ i['contrato'] }}/timeline" target="_blank">{{ i['contrato'] }}</a></td>
+                <td>{{ i['cidade'] }}</td><td>{{ i['data_anterior'] }}</td><td>{{ i['janela_anterior'] }}</td><td>{{ i['operador'] }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}<p class="text-muted mb-0">Nenhum.</p>{% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

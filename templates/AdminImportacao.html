@@ -71,6 +71,18 @@
                     {{ request.args.get('conf_em_andamento') }} preservado(s) (alguém tratando agora).
                 </div>
                 {% endif %}
+                {% if request.args.get('sinc_ajustados') is not none %}
+                <div class="alert alert-info">
+                    <strong>Agendamentos sincronizados:</strong>
+                    <strong>{{ request.args.get('sinc_ajustados') }}</strong> reagendado(s) fora do CRM corrigido(s) em Agendados por Data,
+                    {{ request.args.get('sinc_protegidos') }} divergente(s) protegido(s) (o time mexeu depois da extração),
+                    {{ request.args.get('sinc_ausentes') }} agendado(s) que não aparecem na planilha.
+                    <a href="/agendados/reagendamentos-externos" class="alert-link">Ver detalhes</a>
+                </div>
+                {% endif %}
+                {% if request.args.get('sinc_erro') %}
+                <div class="alert alert-warning">A Confirmação de Agenda foi importada, mas a sincronização dos agendamentos falhou: {{ request.args.get('sinc_erro') }}</div>
+                {% endif %}
 
                 <p class="text-muted small">
                     Planilha .xlsx padrão (mesmo formato da exportação de agenda), com as colunas
