@@ -1,0 +1,268 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<style>
+    .saude-root {
+        --s-surface: #ffffff; --s-text: #14141A; --s-text-2: #52514e; --s-grid: #ECEBE8;
+        --s-serie-1: #2a78d6; --s-serie-3: #1baf7a; --s-erro: #c4314b;
+        --s-ok-bg: #E6F4EA; --s-ok-tx: #1d6b34; --s-warn-bg: #FFF4D6; --s-warn-tx: #7a5200;
+        --s-bad-bg: #FDE7EA; --s-bad-tx: #9b1c2e; --s-neu-bg: #F1F1EF; --s-neu-tx: #55555b;
+    }
+    html[data-theme="dark"] .saude-root {
+        --s-surface: #1E1E24; --s-text: #E6E6E9; --s-text-2: #C3C2C8; --s-grid: #313138;
+        --s-serie-1: #3987e5; --s-serie-3: #199e70; --s-erro: #e66767;
+        --s-ok-bg: rgba(46,160,67,.18); --s-ok-tx: #7EE2A0; --s-warn-bg: rgba(212,167,44,.18); --s-warn-tx: #F2CC60;
+        --s-bad-bg: rgba(218,54,51,.20); --s-bad-tx: #FF9B95; --s-neu-bg: rgba(255,255,255,.05); --s-neu-tx: #C9C9CF;
+    }
+    .saude-root .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+    .saude-root .tile { background: var(--s-surface); border-radius: 12px; padding: 13px 15px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+    .saude-root .tile .rotulo { font-size: 11.5px; color: var(--s-text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .saude-root .tile .valor { font-size: 24px; font-weight: 800; color: var(--s-text); font-variant-numeric: tabular-nums; }
+    .saude-root .tile .sub { font-size: 12px; color: var(--s-text-2); }
+    .saude-root .rotinas { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+    .saude-root .rotina { border-radius: 12px; padding: 12px 14px; background: var(--s-surface); box-shadow: 0 1px 4px rgba(0,0,0,.07); border-left: 5px solid var(--s-grid); }
+    .saude-root .rotina .nome { font-weight: 700; color: var(--s-text); font-size: 14px; }
+    .saude-root .rotina .como { font-size: 11.5px; color: var(--s-text-2); }
+    .saude-root .selo { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 10px; margin: 6px 0 4px; }
+    .saude-root .st-ok { border-left-color: var(--s-ok-tx); } .saude-root .st-ok .selo { background: var(--s-ok-bg); color: var(--s-ok-tx); }
+    .saude-root .st-warn { border-left-color: var(--s-warn-tx); } .saude-root .st-warn .selo { background: var(--s-warn-bg); color: var(--s-warn-tx); }
+    .saude-root .st-bad { border-left-color: var(--s-bad-tx); } .saude-root .st-bad .selo { background: var(--s-bad-bg); color: var(--s-bad-tx); }
+    .saude-root .st-neu .selo { background: var(--s-neu-bg); color: var(--s-neu-tx); }
+    .saude-root .grid-graficos { display: grid; grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); gap: 16px; }
+    @media (max-width: 480px) { .saude-root .grid-graficos { grid-template-columns: 1fr; } }
+    .saude-root .grafico-titulo { font-weight: 700; font-size: 14.5px; color: var(--s-text); }
+    .saude-root .grafico-sub { font-size: 12px; color: var(--s-text-2); margin-bottom: 4px; }
+    .saude-root .tabela { font-size: 12.5px; }
+    .saude-root .tabela th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .02em; color: var(--s-text-2); white-space: nowrap; }
+    .saude-root pre.trecho { font-size: 11px; white-space: pre-wrap; max-height: 220px; overflow: auto; background: var(--s-neu-bg); color: var(--s-text); padding: 8px; border-radius: 8px; margin: 6px 0 0; }
+    .saude-root .aviso-alerta { border-radius: 10px; padding: 9px 12px; margin-bottom: 8px; background: var(--s-warn-bg); color: var(--s-warn-tx); font-weight: 600; font-size: 13px; }
+</style>
+
+<div class="saude-root">
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <h2 class="mb-1"><i class="bi bi-heart-pulse"></i> Monitor</h2>
+                <p class="text-muted small mb-0">Rotinas agendadas, erros 500 e fila do dia. Atualizado em {{ agora.strftime('%d/%m %H:%M') }} — recarregue a página para atualizar.</p>
+            </div>
+            <a href="/admin/saude" class="btn btn-sm btn-outline-dark"><i class="bi bi-arrow-clockwise"></i> Atualizar</a>
+        </div>
+        {% if ok %}<div class="alert alert-success mt-3 mb-0 py-2">{{ ok }}</div>{% endif %}
+        {% if erro %}<div class="alert alert-danger mt-3 mb-0 py-2">{{ erro }}</div>{% endif %}
+        {% if alertas_agora %}
+        <div class="mt-3">
+            {% for tipo, msg in alertas_agora %}<div class="aviso-alerta"><i class="bi bi-exclamation-triangle-fill"></i> {{ msg }}</div>{% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ---------- 1) ROTINAS ---------- #}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-alarm"></i> Rotinas de hoje</div>
+        {% set p = pulso %}
+        {% set pulso_ruim = p.minutos is none or p.minutos > pulso_parado_min %}
+        <div class="rotinas mb-2">
+            <div class="rotina {{ 'st-bad' if pulso_ruim else 'st-ok' }}">
+                <div class="nome">Pulso do Supabase</div>
+                <div class="como">Cron que chama o CRM a cada 10–15 min (relatório diário, fotos da fila e alertas)</div>
+                {% if p.ultimo is none %}
+                <span class="selo"><i class="bi bi-x-circle-fill"></i> Nunca recebido</span>
+                <div class="small">O CRM ainda não recebeu nenhuma chamada do Cron. Sem ele, a fila não é fotografada nem os alertas saem.</div>
+                {% elif pulso_ruim %}
+                <span class="selo"><i class="bi bi-x-circle-fill"></i> Parado há {{ p.minutos }} min</span>
+                <div class="small">Último às {{ p.ultimo[11:16] }} de {{ p.ultimo[8:10] }}/{{ p.ultimo[5:7] }}. Confira o Cron no Supabase.</div>
+                {% else %}
+                <span class="selo"><i class="bi bi-check-circle-fill"></i> Ativo</span>
+                <div class="small">Último há {{ p.minutos }} min · {{ p.hoje }} chamadas hoje.</div>
+                {% endif %}
+            </div>
+            {% for r in rotinas %}
+            {% set mapa = {'ok': ('st-ok', 'bi-check-circle-fill', 'Rodou'), 'erro': ('st-bad', 'bi-x-circle-fill', 'Falhou'),
+                           'atrasada': ('st-bad', 'bi-exclamation-octagon-fill', 'Atrasada'), 'rodando': ('st-warn', 'bi-hourglass-split', 'Rodando'),
+                           'aguardando': ('st-neu', 'bi-clock', 'Aguardando horário'), 'nao_hoje': ('st-neu', 'bi-dash-circle', 'Não roda hoje'),
+                           'desativado': ('st-neu', 'bi-toggle-off', 'Desativada'), 'sem_registro': ('st-warn', 'bi-question-circle-fill', 'Sem registro hoje')} %}
+            {% set m = mapa.get(r.estado, ('st-neu', 'bi-question-circle', r.estado)) %}
+            <div class="rotina {{ m[0] }}">
+                <div class="nome">{{ r.nome }}</div>
+                <div class="como">{{ r.como }}{% if r.horario %} · prevista {{ r.horario }}{% endif %}</div>
+                <span class="selo"><i class="bi {{ m[1] }}"></i> {{ m[2] }}{% if r.estado == 'ok' and r.quando %} às {{ r.quando[11:16] if r.quando|length > 10 else '' }}{% endif %}</span>
+                {% if r.detalhe %}<div class="small">{{ r.detalhe }}</div>{% endif %}
+                {% if r.ultima and r.estado != 'ok' %}<div class="small text-muted">Última execução conhecida: {{ r.ultima }}</div>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        <details class="mt-2">
+            <summary class="small fw-semibold">Últimas execuções registradas</summary>
+            <table class="table table-sm tabela mt-2 mb-0">
+                <thead><tr><th>Rotina</th><th>Início</th><th>Fim</th><th>Resultado</th><th>Detalhe</th></tr></thead>
+                <tbody>
+                {% for h in historico_rotinas %}
+                <tr><td>{{ h['rotina'] }}</td><td>{{ h['inicio'] }}</td><td>{{ h['fim'] or '—' }}</td>
+                    <td>{% if h['ok'] == 1 %}<i class="bi bi-check-circle-fill"></i> ok{% elif h['ok'] == 0 %}<i class="bi bi-x-circle-fill"></i> erro{% else %}<i class="bi bi-hourglass-split"></i> sem fim{% endif %}</td>
+                    <td class="small">{{ h['detalhe'] or '' }}</td></tr>
+                {% else %}
+                <tr><td colspan="5" class="text-muted">Nenhum registro ainda — as tarefas passam a registrar a partir desta versão.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </details>
+    </div>
+</div>
+
+{# ---------- 3) FILA ---------- #}
+{% set f = foto %}
+<div class="tiles mb-4">
+    <div class="tile"><div class="rotulo">Disponíveis para distribuir</div><div class="valor">{{ f.disponiveis }}</div><div class="sub">{{ f.pendentes }} pendentes no total</div></div>
+    <div class="tile"><div class="rotulo">Followups vencidos</div><div class="valor">{{ f.followups_vencidos }}</div><div class="sub">{{ f.enfileirados }} enfileirados</div></div>
+    <div class="tile"><div class="rotulo">Em atendimento agora</div><div class="valor">{{ f.em_andamento }}</div><div class="sub">{{ f.operadores_online }} operadores logados fora de pausa</div></div>
+    <div class="tile"><div class="rotulo">Tratativas na última hora</div><div class="valor">{{ f.tratativas_ultima_hora }}</div><div class="sub">GPON: {{ f.gpon }} · fora da fila (GED): {{ f.bloqueados_ged }}</div></div>
+    <div class="tile"><div class="rotulo">Erros 500 — 24h</div><div class="valor">{{ erros_24h }}</div><div class="sub">{{ erros|length }} tipo(s) de erro nos últimos 7 dias</div></div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+            <div class="section-title mb-0"><i class="bi bi-graph-up"></i> Fila ao longo do dia</div>
+            <form method="GET" class="d-flex gap-2 align-items-center">
+                <select name="dia" class="form-select form-select-sm" style="width:auto;" onchange="this.form.submit()">
+                    {% set dias_opts = dias_com_fotos if dia in dias_com_fotos else [dia] + dias_com_fotos %}
+                    {% for d in dias_opts %}<option value="{{ d }}" {{ 'selected' if d == dia }}>{{ d[8:10] }}/{{ d[5:7] }}/{{ d[:4] }}</option>{% endfor %}
+                </select>
+            </form>
+        </div>
+        {% if fotos|length < 2 %}<p class="small text-muted">A fila é fotografada a cada pulso (10–15 min). O gráfico de hoje se completa ao longo do dia; tratativas por hora vêm direto do histórico.</p>{% endif %}
+        <div class="grid-graficos">
+            <div><div class="grafico-titulo">Mailing disponível</div><div class="grafico-sub">Contratos PENDENTES que podem ser distribuídos.</div><div id="gDisponiveis"></div></div>
+            <div><div class="grafico-titulo">Followups vencidos</div><div class="grafico-sub">2ª/3ª tentativa e retornos já no horário.</div><div id="gFollowups"></div></div>
+            <div><div class="grafico-titulo">Tratativas por hora</div><div class="grafico-sub">Todas as tabulações registradas no dia.</div><div id="gTratativas"></div></div>
+        </div>
+    </div>
+</div>
+
+{# ---------- 2) ERROS ---------- #}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-bug"></i> Erros 500 — últimas 24 horas</div>
+        <div id="gErros"></div>
+        <div class="section-title mt-3" style="font-size: 14px;">Erros dos últimos 7 dias, por tela</div>
+        {% if erros %}
+        <div class="table-responsive">
+        <table class="table table-sm tabela mb-0">
+            <thead><tr><th>Tela (rota)</th><th>Erro</th><th class="text-end">Vezes</th><th>Último</th><th>Último usuário</th><th></th></tr></thead>
+            <tbody>
+            {% for e in erros %}
+            <tr>
+                <td><code>{{ e['rota'] }}</code></td>
+                <td><strong>{{ e['tipo'] }}</strong><div class="small text-muted" style="max-width: 420px; white-space: normal;">{{ e['mensagem'] }}</div></td>
+                <td class="text-end">{{ e['qtd'] }}</td>
+                <td class="small">{{ e['ultimo'] }}</td>
+                <td class="small">{{ e['usuario'] or '—' }}</td>
+                <td><details><summary class="small">detalhe</summary><pre class="trecho">{{ e['trecho'] }}</pre></details></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0"><i class="bi bi-check-circle"></i> Nenhum erro 500 registrado nos últimos 7 dias.</p>
+        {% endif %}
+    </div>
+</div>
+
+{# ---------- ALERTAS ---------- #}
+<div class="card card-shadow mb-4" id="alertas">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-bell"></i> Alertas no Telegram</div>
+        <p class="small text-muted">Avaliados a cada pulso do Supabase, no mesmo grupo do relatório diário. Cada tipo de alerta se repete no máximo uma vez a cada {{ cfg.cooldown_min }} min.</p>
+        <form action="/admin/saude/config" method="POST" class="row g-2 align-items-end">
+            <div class="col-12"><div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="alertas_ativos" id="alertasAtivos" value="1" {{ 'checked' if cfg.alertas_ativos == '1' }}>
+                <label class="form-check-label" for="alertasAtivos">Alertas ligados</label></div></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">Operação das</label><input type="time" name="horario_inicio" class="form-control form-control-sm" value="{{ cfg.horario_inicio }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">até</label><input type="time" name="horario_fim" class="form-control form-control-sm" value="{{ cfg.horario_fim }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">Fila parada: operadores ≥</label><input type="number" name="min_operadores_travou" class="form-control form-control-sm" value="{{ cfg.min_operadores_travou }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">…sem tratativa há (min)</label><input type="number" name="min_parado_travou" class="form-control form-control-sm" value="{{ cfg.min_parado_travou }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">Mailing disponível abaixo de</label><input type="number" name="limite_fila_baixa" class="form-control form-control-sm" value="{{ cfg.limite_fila_baixa }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">Followups vencidos acima de</label><input type="number" name="limite_followup_vencido" class="form-control form-control-sm" value="{{ cfg.limite_followup_vencido }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">Erros 500 por hora ≥</label><input type="number" name="limite_erros_hora" class="form-control form-control-sm" value="{{ cfg.limite_erros_hora }}"></div>
+            <div class="col-6 col-md-2"><label class="form-label small mb-0">Repetir no máx. a cada (min)</label><input type="number" name="cooldown_min" class="form-control form-control-sm" value="{{ cfg.cooldown_min }}"></div>
+            <div class="col-12 col-md-8 d-flex gap-2">
+                <button class="btn btn-sm btn-danger"><i class="bi bi-check2"></i> Salvar</button>
+            </div>
+        </form>
+        <form action="/admin/saude/teste-alerta" method="POST" class="mt-2"><button class="btn btn-sm btn-outline-dark"><i class="bi bi-send"></i> Enviar alerta de teste</button></form>
+        <p class="small text-muted mt-2 mb-1">Também alerta: followups vencidos que crescem 50% em 1 hora, e rotina atrasada ou com falha (a qualquer hora).</p>
+        <details class="mt-2" {{ 'open' if historico_alertas }}>
+            <summary class="small fw-semibold">Últimos alertas</summary>
+            <table class="table table-sm tabela mt-2 mb-0">
+                <thead><tr><th>Quando</th><th>Tipo</th><th>Mensagem</th><th>Enviado</th></tr></thead>
+                <tbody>
+                {% for a in historico_alertas %}
+                <tr><td class="small">{{ a['quando'] }}</td><td class="small">{{ a['tipo'] }}</td><td class="small">{{ a['mensagem'] }}</td>
+                    <td class="small">{% if a['enviado'] %}<i class="bi bi-check-circle-fill"></i> sim{% else %}<i class="bi bi-x-circle-fill"></i> não — {{ a['erro'] }}{% endif %}</td></tr>
+                {% else %}
+                <tr><td colspan="4" class="text-muted">Nenhum alerta enviado ainda.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </details>
+    </div>
+</div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/apexcharts@6.7.0/dist/apexcharts.min.js"></script>
+<script>
+(function () {
+    const FOTOS = {{ fotos | tojson }};
+    const TRAT = {{ tratativas_hora | tojson }};
+    const ERROS = {{ erros_hora | tojson }};
+    const br = v => (v === null || v === undefined) ? '—' : v.toLocaleString('pt-BR');
+    function t() {
+        const s = getComputedStyle(document.querySelector('.saude-root')); const g = n => s.getPropertyValue(n).trim();
+        return { texto2: g('--s-text-2'), grade: g('--s-grid'), s1: g('--s-serie-1'), s3: g('--s-serie-3'), erro: g('--s-erro'),
+                 escuro: document.documentElement.getAttribute('data-theme') === 'dark' };
+    }
+    function base(k, tipo) {
+        return { chart: { type: tipo, height: 230, toolbar: { show: false }, foreColor: k.texto2, fontFamily: 'inherit', background: 'transparent', animations: { enabled: false }, zoom: { enabled: false } },
+                 theme: { mode: k.escuro ? 'dark' : 'light' }, grid: { borderColor: k.grade, xaxis: { lines: { show: false } } },
+                 dataLabels: { enabled: false }, legend: { show: false }, tooltip: { theme: k.escuro ? 'dark' : 'light' },
+                 xaxis: { labels: { rotate: 0, hideOverlappingLabels: true, style: { fontSize: '11px' } }, axisTicks: { show: false }, tickAmount: 8 },
+                 yaxis: { min: 0, labels: { formatter: v => br(Math.round(v)) } } };
+    }
+    let gs = [];
+    function desenhar() {
+        gs.forEach(g => g.destroy()); gs = [];
+        const k = t();
+        const horas = FOTOS.map(f => f.slot.slice(11, 16));
+        const linha = (sel, nome, dados, cor) => {
+            const o = base(k, 'line');
+            Object.assign(o, { series: [{ name: nome, data: dados }], colors: [cor], stroke: { width: 2, curve: 'straight' },
+                               markers: { size: FOTOS.length < 30 ? 3 : 0, hover: { size: 5 } } });
+            o.xaxis.categories = horas;
+            if (!FOTOS.length) o.noData = { text: 'Sem fotos da fila neste dia ainda' };
+            gs.push(new ApexCharts(document.querySelector(sel), o));
+        };
+        linha('#gDisponiveis', 'Disponíveis', FOTOS.map(f => f.disponiveis), k.s1);
+        linha('#gFollowups', 'Followups vencidos', FOTOS.map(f => f.followups_vencidos), k.s1);
+        const barra = (sel, nome, cats, dados, cor, altura, nomesCompletos) => {
+            const o = base(k, 'bar');
+            Object.assign(o, { series: [{ name: nome, data: dados }], colors: [cor],
+                               plotOptions: { bar: { columnWidth: '60%', borderRadius: 4, borderRadiusApplication: 'end' } } });
+            o.chart.height = altura || 230; o.xaxis.categories = cats; o.xaxis.tickAmount = undefined;
+            if (nomesCompletos) o.tooltip.x = { formatter: (v, opt) => (opt && opt.dataPointIndex !== undefined) ? nomesCompletos[opt.dataPointIndex] : v };
+            gs.push(new ApexCharts(document.querySelector(sel), o));
+        };
+        barra('#gTratativas', 'Tratativas', TRAT.map(x => x.hora), TRAT.map(x => x.qtd), k.s3);
+        barra('#gErros', 'Erros 500', ERROS.map((x, i) => i % 3 === 0 ? x.hora : ' '.repeat(i + 1)), ERROS.map(x => x.qtd), k.erro, 200, ERROS.map(x => x.hora));
+        gs.forEach(g => g.render());
+    }
+    new MutationObserver(desenhar).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    if (window.ApexCharts) desenhar();
+})();
+</script>
+{% endblock %}

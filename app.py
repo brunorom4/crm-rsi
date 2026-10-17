@@ -8380,6 +8380,14 @@ def interno_verificar_envio_diario():
     if not _autorizado_rota_interna():
         return jsonify({"ok": False, "erro": "não autorizado"}), 403
 
+    # Mesmo pulso alimenta o Painel de Saúde do Sistema (2026-10-17): foto da
+    # fila, alertas e limpeza de histórico. Nunca derruba o envio do relatório.
+    try:
+        from saude_sistema import pulso
+        pulso(origem="supabase")
+    except Exception as erro_pulso:
+        print(f"[saude_sistema] pulso não executado: {erro_pulso}", file=sys.stderr)
+
     conn = conectar()
     config = conn.execute("""
         SELECT supabase_project_url, supabase_anon_key, supabase_telegram_ativo,
@@ -11787,6 +11795,13 @@ app.register_blueprint(bp_sincroniza_agenda)
 # custos_config no crm.db, semeadas com a planilha histórica na 1ª subida).
 from painel_custos import bp_painel_custos
 app.register_blueprint(bp_painel_custos)
+
+# Painel de Saúde do Sistema (visão do ADM) -- pedido do Bruno, 2026-10-17.
+# saude_sistema.py: rotinas agendadas, erros 500 (sinal got_request_exception,
+# ligado no registro do blueprint) e fila do dia com alertas no Telegram, tudo
+# alimentado pelo pulso do Cron do Supabase (/interno/verificar_envio_diario).
+from saude_sistema import bp_saude
+app.register_blueprint(bp_saude)
 
 
 # ==========================

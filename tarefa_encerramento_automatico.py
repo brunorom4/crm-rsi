@@ -25,5 +25,8 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app import encerrar_jornadas_esquecidas
+# Registro no Painel de Saúde do Sistema (/admin/saude) -- 2026-10-17.
+from saude_sistema import registrar_rotina
 
-encerrar_jornadas_esquecidas()
+with registrar_rotina("encerramento_automatico"):
+    encerrar_jornadas_esquecidas()

@@ -19,6 +19,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from confirmacao_agenda import marcar_nao_tratados_do_dia
 from datetime import datetime
 
+# Registro no Painel de Saúde do Sistema (/admin/saude) -- 2026-10-17.
+from saude_sistema import registrar_rotina
+
 agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-qtd = marcar_nao_tratados_do_dia()
+with registrar_rotina("confirmacao_nao_tratado"):
+    qtd = marcar_nao_tratados_do_dia()
 print(f"[{agora_str}] Confirmação de Agenda: {qtd} contrato(s) marcado(s) como NAO_TRATADO.")

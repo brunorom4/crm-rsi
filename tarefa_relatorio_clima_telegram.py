@@ -23,22 +23,28 @@ from datetime import datetime
 from relatorio_clima import montar_relatorio_clima, montar_texto_telegram
 from app import enviar_relatorio_telegram_via_supabase, conectar
 
+# Registro no Painel de Saúde do Sistema (/admin/saude) -- 2026-10-17.
+from saude_sistema import registrar_rotina
+
 agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-conn = conectar()
-config = conn.execute("SELECT supabase_project_url, supabase_anon_key FROM configuracoes WHERE id=1").fetchone()
-conn.close()
+with registrar_rotina("relatorio_clima"):
+    conn = conectar()
+    config = conn.execute("SELECT supabase_project_url, supabase_anon_key FROM configuracoes WHERE id=1").fetchone()
+    conn.close()
 
-if not config or not config["supabase_project_url"] or not config["supabase_anon_key"]:
-    print(f"[{agora_str}] Supabase não configurado -- pulando envio do relatório de clima.")
-else:
-    relatorio = montar_relatorio_clima()
-    texto = montar_texto_telegram(relatorio)
-
-    sucesso, erro = enviar_relatorio_telegram_via_supabase(
-        config["supabase_project_url"], config["supabase_anon_key"], texto
-    )
-    if sucesso:
-        print(f"[{agora_str}] Relatório de clima enviado com sucesso.")
+    if not config or not config["supabase_project_url"] or not config["supabase_anon_key"]:
+        print(f"[{agora_str}] Supabase não configurado -- pulando envio do relatório de clima.")
     else:
-        print(f"[{agora_str}] Falha ao enviar relatório de clima -- {erro}")
+        relatorio = montar_relatorio_clima()
+        texto = montar_texto_telegram(relatorio)
+
+        sucesso, erro = enviar_relatorio_telegram_via_supabase(
+            config["supabase_project_url"], config["supabase_anon_key"], texto
+        )
+        if sucesso:
+            print(f"[{agora_str}] Relatório de clima enviado com sucesso.")
+        else:
+            print(f"[{agora_str}] Falha ao enviar relatório de clima -- {erro}")
+            # Falha de envio vira "Falhou" no painel (antes só aparecia no log da Task)
+            raise RuntimeError(f"falha no envio do relatório de clima: {erro}")
