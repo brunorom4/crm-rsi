@@ -51,6 +51,7 @@ import io
 import json
 import os
 import re
+import shutil
 import sqlite3
 import tempfile
 import unicodedata
@@ -211,17 +212,33 @@ def _abrir_texto(caminho, nome_original):
     AttributeError (erro real em produção, 2026-10-16; na broma, 3.11,
     passava). Arquivo de verdade em disco funciona em qualquer versão."""
     nome = (nome_original or "").lower()
-    if nome.endswith(".zip"):
-        zf = zipfile.ZipFile(caminho)
-        membros = [n for n in zf.namelist() if n.lower().endswith(".csv") and not n.startswith("__MACOSX")]
-        if not membros:
-            raise ValueError("O .zip não tem nenhum arquivo .csv dentro.")
-        bruto = zf.open(membros[0])
-    elif nome.endswith(".csv") or nome.endswith(".txt"):
-        bruto = open(caminho, "rb")
-    else:
-        raise ValueError("Envie o .zip ou o .csv da base GED.")
-    return io.TextIOWrapper(bruto, encoding="utf-8-sig", errors="replace", newline="")
+    abertos = []  # tudo que precisa ser fechado no fim, na ordem inversa
+    try:
+        if nome.endswith(".zip"):
+            zf = zipfile.ZipFile(caminho)
+            abertos.append(zf)
+            membros = [n for n in zf.namelist() if n.lower().endswith(".csv") and not n.startswith("__MACOSX")]
+            if not membros:
+                raise ValueError("O .zip não tem nenhum arquivo .csv dentro.")
+            bruto = zf.open(membros[0])
+        elif nome.endswith(".csv") or nome.endswith(".txt"):
+            bruto = open(caminho, "rb")
+        else:
+            raise ValueError("Envie o .zip ou o .csv da base GED.")
+        texto = io.TextIOWrapper(bruto, encoding="utf-8-sig", errors="replace", newline="")
+        abertos.append(texto)
+        return texto, abertos
+    except Exception:
+        _fechar_todos(abertos)
+        raise
+
+
+def _fechar_todos(abertos):
+    for obj in reversed(abertos):
+        try:
+            obj.close()
+        except Exception:
+            pass
 
 
 def ler_base_ged(arquivo_storage, chaves_interesse):
@@ -229,19 +246,27 @@ def ler_base_ged(arquivo_storage, chaves_interesse):
     está em `chaves_interesse` -- de 1,8 mi de linhas sobram uns poucos
     milhares. Devolve (status_por_chave, node_por_chave, estatisticas).
 
-    O upload é salvo primeiro num diretório temporário (apagado no fim,
-    com sucesso ou erro) -- ver _abrir_texto."""
+    O upload é salvo primeiro num diretório temporário -- ver _abrir_texto.
+    No fim, com sucesso ou erro, fecha TUDO (inclusive o ZipFile, que
+    segura o arquivo aberto) e só então apaga a pasta, ignorando falha:
+    o /tmp do PythonAnywhere é disco de rede, onde apagar arquivo ainda
+    aberto deixa um ".nfsXXXX" e o rmdir falha com "Directory not empty"
+    (erro real na broma, 2026-10-16, depois da leitura já ter dado certo).
+    A limpeza nunca pode derrubar o upload."""
     nome = (arquivo_storage.filename or "").lower()
     if not nome.endswith((".zip", ".csv", ".txt")):
         raise ValueError("Envie o .zip ou o .csv da base GED.")
-    with tempfile.TemporaryDirectory(prefix="ged_") as pasta_tmp:
+    pasta_tmp = tempfile.mkdtemp(prefix="ged_")
+    try:
         caminho = os.path.join(pasta_tmp, "base" + os.path.splitext(nome)[1])
         arquivo_storage.save(caminho)
-        texto = _abrir_texto(caminho, nome)
+        texto, abertos = _abrir_texto(caminho, nome)
         try:
             return _ler_texto_ged(texto, chaves_interesse)
         finally:
-            texto.close()
+            _fechar_todos(abertos)
+    finally:
+        shutil.rmtree(pasta_tmp, ignore_errors=True)
 
 
 def _ler_texto_ged(texto, chaves_interesse):
