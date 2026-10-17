@@ -1,0 +1,161 @@
+{# Bloco de dados do cliente -- compartilhado entre a tela de Atendimento (fila,
+   Cliente.html) e a do Buscar Contrato (AtendimentoAvulso.html), pedido do Bruno em
+   2026-10-17: as duas telas tinham ficado diferentes (o Buscar não mostrava Node,
+   Imóvel, Tentativa, Expiração, produtos/valores nem os botões de copiar, e o time
+   achava que "o template mudava" na 2ª/3ª tentativa, quando o cliente liga de volta e
+   o contrato é aberto pelo Buscar). Mexer aqui muda as duas telas juntas. #}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <h2>{{ cliente['cliente'] }}</h2>
+            <a href="/contrato/{{ cliente['contrato'] }}/timeline" target="_blank" class="btn btn-sm btn-outline-dark">
+                <i class="bi bi-clock-history"></i> Ver histórico completo
+            </a>
+        </div>
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <strong>Contrato</strong><br>
+                {{ cliente['contrato'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Cidade</strong><br>
+                {{ cliente['cidade'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Node</strong><br>
+                {{ cliente['node'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Imóvel</strong><br>
+                {{ cliente['codigo_imovel'] }}
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-md-9">
+                <strong>Endereço</strong><br>
+                {{ cliente['endereco'] }}{% if cliente['complemento'] %} — {{ cliente['complemento'] }}{% endif %}
+            </div>
+            <div class="col-md-3">
+                <strong>Cód. Operadora</strong><br>
+                {{ cod_operadora_da_cidade(cliente['cidade']) }}
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-dark mt-3" onclick="copiarCadastro()"><i class="bi bi-clipboard"></i> Copiar dados cadastrais</button>
+
+        <hr class="my-4">
+
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Status</strong><br>
+                {{ cliente['status'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Tentativa</strong><br>
+                {{ cliente['tentativa'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Operador</strong><br>
+                {{ cliente['operador'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Expiração</strong><br>
+                {{ cliente['data_expiracao'] }}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card card-shadow h-100">
+            <div class="card-body">
+                <h5><i class="bi bi-wifi"></i> Internet</h5>
+                <hr>
+                <p>{{ cliente['produto_virtua'] }}</p>
+                <h3 class="text-danger">R$ {{ cliente['valor_virtua'] }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="card card-shadow mb-4" style="border-left: 6px solid #a2001d;">
+    <div class="card-body d-flex justify-content-between align-items-center flex-wrap">
+        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Valor total que o cliente paga</h5>
+        <h2 class="text-danger mb-0">R$ {{ cliente['valor_total'] }}</h2>
+    </div>
+    <div class="card-body pt-0">
+        <button type="button" class="btn btn-sm btn-outline-dark" onclick="copiarProdutos()"><i class="bi bi-clipboard"></i> Copiar produtos e valores</button>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <h5><i class="bi bi-telephone-fill"></i> Contatos</h5>
+        <hr>
+        <div class="row">
+            <div class="col-md-3">
+                <strong>Celular</strong><br>
+                {{ cliente['telefone_celular'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Residencial</strong><br>
+                {{ cliente['telefone_residencial'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>Comercial</strong><br>
+                {{ cliente['telefone_comercial'] }}
+            </div>
+            <div class="col-md-3">
+                <strong>E-mail</strong><br>
+                {{ cliente['email'] }}
+            </div>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-dark mt-3" onclick="copiarContatos()"><i class="bi bi-clipboard"></i> Copiar contatos</button>
+    </div>
+</div>
+
+<script>
+    // Valores via |tojson (2026-10-17): antes entravam crus numa string JS -- um
+    // apóstrofo (ex.: SANTA BARBARA D'OESTE) era copiado como "&#39;" e uma quebra
+    // de linha num campo quebrava o botão.
+    const DADOS_CLIENTE_COPIA = {
+        cliente: {{ cliente['cliente'] | tojson }},
+        contrato: {{ cliente['contrato'] | tojson }},
+        cidade: {{ cliente['cidade'] | tojson }},
+        cod_operadora: {{ cod_operadora_da_cidade(cliente['cidade']) | tojson }},
+        node: {{ cliente['node'] | tojson }},
+        imovel: {{ cliente['codigo_imovel'] | tojson }},
+        endereco: {{ ((cliente['endereco'] or '') ~ ((' — ' ~ cliente['complemento']) if cliente['complemento'] else '')) | tojson }},
+        celular: {{ cliente['telefone_celular'] | tojson }},
+        residencial: {{ cliente['telefone_residencial'] | tojson }},
+        comercial: {{ cliente['telefone_comercial'] | tojson }},
+        email: {{ cliente['email'] | tojson }},
+        produto_virtua: {{ cliente['produto_virtua'] | tojson }},
+        valor_virtua: {{ cliente['valor_virtua'] | tojson }},
+        valor_total: {{ cliente['valor_total'] | tojson }},
+    };
+    function _v(x) { return (x === null || x === undefined) ? '' : String(x); }
+    function copiarCadastro() {
+        const d = DADOS_CLIENTE_COPIA;
+        copiarTexto([
+            "Cliente: " + _v(d.cliente), "Contrato: " + _v(d.contrato), "Cidade: " + _v(d.cidade),
+            "Cód. Operadora: " + _v(d.cod_operadora), "Node: " + _v(d.node), "Imóvel: " + _v(d.imovel),
+            "Endereço: " + _v(d.endereco)
+        ].join("\n"), "Dados cadastrais copiados!");
+    }
+    function copiarContatos() {
+        const d = DADOS_CLIENTE_COPIA;
+        copiarTexto([
+            "Celular: " + _v(d.celular), "Residencial: " + _v(d.residencial),
+            "Comercial: " + _v(d.comercial), "E-mail: " + _v(d.email)
+        ].join("\n"), "Contatos copiados!");
+    }
+    function copiarProdutos() {
+        const d = DADOS_CLIENTE_COPIA;
+        copiarTexto([
+            "Internet: " + _v(d.produto_virtua) + " — R$ " + _v(d.valor_virtua),
+            "Valor total: R$ " + _v(d.valor_total)
+        ].join("\n"), "Produtos e valores copiados!");
+    }
+</script>

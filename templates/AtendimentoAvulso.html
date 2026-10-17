@@ -5,30 +5,38 @@
 
 {% include "_alerta_ged.html" %}
 
+{% include "_cliente_dados.html" %}
+
 <div class="card card-shadow mb-4">
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <h2>{{ cliente['cliente'] }}</h2>
-            <a href="/contrato/{{ cliente['contrato'] }}/timeline" target="_blank" class="btn btn-sm btn-outline-dark">
-                <i class="bi bi-clock-history"></i> Ver histórico completo
-            </a>
-        </div>
-        <div class="row mt-4">
-            <div class="col-md-3"><strong>Contrato</strong><br>{{ cliente['contrato'] }}</div>
-            <div class="col-md-3"><strong>Cidade</strong><br>{{ cliente['cidade'] }}</div>
-            <div class="col-md-3"><strong>Status</strong><br>{{ cliente['status'] }}</div>
-            <div class="col-md-3"><strong>Operador atual</strong><br>{{ cliente['operador'] or '—' }}</div>
-        </div>
-        <div class="row mt-3">
-            <div class="col-md-9">
-                <strong>Endereço</strong><br>
-                {{ cliente['endereco'] }}{% if cliente['complemento'] %} — {{ cliente['complemento'] }}{% endif %}
-            </div>
-            <div class="col-md-3">
-                <strong>Cód. Operadora</strong><br>
-                {{ cod_operadora_da_cidade(cliente['cidade']) }}
-            </div>
-        </div>
+        <h5><i class="bi bi-clock-history"></i> Histórico de atendimentos</h5>
+        <hr>
+        {% if historico %}
+        <table class="table table-sm">
+            <thead><tr><th>Data</th><th>Operador</th><th>Tabulação</th><th>Observação</th></tr></thead>
+            <tbody>
+                {# Mostra data_ordenacao (já calculada em _mesclar_historico_com_ajustes como
+                   data_fim, quando a tabulação foi de fato registrada) -- não data_inicio, que
+                   só reflete a distribuição original (mailing.data_distribuicao) e fica estático
+                   entre retratativas do mesmo contrato via Buscar Contrato, fazendo a tabulação
+                   de HOJE aparecer com data de dias atrás na tela (achado do Bruno, contrato
+                   555555, 2026-09-20 -- mesma causa raiz já corrigida na ORDENAÇÃO do histórico,
+                   só faltava também na data exibida; historico aqui vem sempre de
+                   _mesclar_historico_com_ajustes, que não carrega mais 'data_fim' no dict de
+                   saída -- usar aquele campo direto, sem fallback, retornaria vazio). #}
+                {% for a in historico %}
+                <tr>
+                    <td>{{ a['data_ordenacao'] }}</td>
+                    <td>{{ a['operador'] }}</td>
+                    <td>{{ a['tabulacao'] }}</td>
+                    <td>{{ a['observacao'] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted">Nenhum atendimento registrado ainda pra esse contrato.</p>
+        {% endif %}
     </div>
 </div>
 
@@ -145,52 +153,6 @@
                 </div>
             </div>
         </div>
-    </div>
-</div>
-
-<div class="card card-shadow mb-4">
-    <div class="card-body">
-        <h5><i class="bi bi-telephone-fill"></i> Contatos</h5>
-        <hr>
-        <div class="row">
-            <div class="col-md-3"><strong>Celular</strong><br>{{ cliente['telefone_celular'] }}</div>
-            <div class="col-md-3"><strong>Residencial</strong><br>{{ cliente['telefone_residencial'] }}</div>
-            <div class="col-md-3"><strong>Comercial</strong><br>{{ cliente['telefone_comercial'] }}</div>
-            <div class="col-md-3"><strong>E-mail</strong><br>{{ cliente['email'] }}</div>
-        </div>
-    </div>
-</div>
-
-<div class="card card-shadow mb-4">
-    <div class="card-body">
-        <h5><i class="bi bi-clock-history"></i> Histórico de atendimentos</h5>
-        <hr>
-        {% if historico %}
-        <table class="table table-sm">
-            <thead><tr><th>Data</th><th>Operador</th><th>Tabulação</th><th>Observação</th></tr></thead>
-            <tbody>
-                {# Mostra data_ordenacao (já calculada em _mesclar_historico_com_ajustes como
-                   data_fim, quando a tabulação foi de fato registrada) -- não data_inicio, que
-                   só reflete a distribuição original (mailing.data_distribuicao) e fica estático
-                   entre retratativas do mesmo contrato via Buscar Contrato, fazendo a tabulação
-                   de HOJE aparecer com data de dias atrás na tela (achado do Bruno, contrato
-                   555555, 2026-09-20 -- mesma causa raiz já corrigida na ORDENAÇÃO do histórico,
-                   só faltava também na data exibida; historico aqui vem sempre de
-                   _mesclar_historico_com_ajustes, que não carrega mais 'data_fim' no dict de
-                   saída -- usar aquele campo direto, sem fallback, retornaria vazio). #}
-                {% for a in historico %}
-                <tr>
-                    <td>{{ a['data_ordenacao'] }}</td>
-                    <td>{{ a['operador'] }}</td>
-                    <td>{{ a['tabulacao'] }}</td>
-                    <td>{{ a['observacao'] }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p class="text-muted">Nenhum atendimento registrado ainda pra esse contrato.</p>
-        {% endif %}
     </div>
 </div>
 

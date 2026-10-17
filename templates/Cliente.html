@@ -4,116 +4,7 @@
 
 {% include "_alerta_ged.html" %}
 
-<div class="card card-shadow mb-4">
-    <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
-            <h2>{{ cliente['cliente'] }}</h2>
-            <a href="/contrato/{{ cliente['contrato'] }}/timeline" target="_blank" class="btn btn-sm btn-outline-dark">
-                <i class="bi bi-clock-history"></i> Ver histórico completo
-            </a>
-        </div>
-        <div class="row mt-4">
-            <div class="col-md-3">
-                <strong>Contrato</strong><br>
-                {{ cliente['contrato'] }}
-            </div>
-            <div class="col-md-3">
-                <strong>Cidade</strong><br>
-                {{ cliente['cidade'] }}
-            </div>
-            <div class="col-md-3">
-                <strong>Node</strong><br>
-                {{ cliente['node'] }}
-            </div>
-            <div class="col-md-3">
-                <strong>Imóvel</strong><br>
-                {{ cliente['codigo_imovel'] }}
-            </div>
-        </div>
-        <div class="row mt-3">
-            <div class="col-md-9">
-                <strong>Endereço</strong><br>
-                {{ cliente['endereco'] }}{% if cliente['complemento'] %} — {{ cliente['complemento'] }}{% endif %}
-            </div>
-            <div class="col-md-3">
-                <strong>Cód. Operadora</strong><br>
-                {{ cod_operadora_da_cidade(cliente['cidade']) }}
-            </div>
-        </div>
-        <button type="button" class="btn btn-sm btn-outline-dark mt-3" onclick="copiarCadastro()"><i class="bi bi-clipboard"></i> Copiar dados cadastrais</button>
-
-        <hr class="my-4">
-
-        <div class="row">
-            <div class="col-md-3">
-                <strong>Status</strong><br>
-                {{ cliente['status'] }}
-            </div>
-            <div class="col-md-3">
-                <strong>Tentativa</strong><br>
-                {{ cliente['tentativa'] }}
-            </div>
-            <div class="col-md-3">
-                <strong>Operador</strong><br>
-                {{ cliente['operador'] }}
-            </div>
-            <div class="col-md-3">
-                <strong>Expiração</strong><br>
-                {{ cliente['data_expiracao'] }}
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row mb-4">
-    <div class="col-md-12">
-        <div class="card card-shadow h-100">
-            <div class="card-body">
-                <h5><i class="bi bi-wifi"></i> Internet</h5>
-                <hr>
-                <p>{{ cliente['produto_virtua'] }}</p>
-                <h3 class="text-danger">R$ {{ cliente['valor_virtua'] }}</h3>
-            </div>
-        </div>
-    </div>
-</div>
-
-
-<div class="card card-shadow mb-4" style="border-left: 6px solid #a2001d;">
-    <div class="card-body d-flex justify-content-between align-items-center flex-wrap">
-        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Valor total que o cliente paga</h5>
-        <h2 class="text-danger mb-0">R$ {{ cliente['valor_total'] }}</h2>
-    </div>
-    <div class="card-body pt-0">
-        <button type="button" class="btn btn-sm btn-outline-dark" onclick="copiarProdutos()"><i class="bi bi-clipboard"></i> Copiar produtos e valores</button>
-    </div>
-</div>
-
-<div class="card card-shadow mb-4">
-    <div class="card-body">
-        <h5><i class="bi bi-telephone-fill"></i> Contatos</h5>
-        <hr>
-        <div class="row">
-            <div class="col-md-3">
-                <strong>Celular</strong><br>
-                {{ cliente['telefone_celular'] }}
-            </div>
-            <div class="col-md-3">
-                <strong>Residencial</strong><br>
-                {{ cliente['telefone_residencial'] }}
-            </div>
-            <div class="col-md-3">
-                <strong>Comercial</strong><br>
-                {{ cliente['telefone_comercial'] }}
-            </div>
-            <div class="col-md-3">
-                <strong>E-mail</strong><br>
-                {{ cliente['email'] }}
-            </div>
-        </div>
-        <button type="button" class="btn btn-sm btn-outline-dark mt-3" onclick="copiarContatos()"><i class="bi bi-clipboard"></i> Copiar contatos</button>
-    </div>
-</div>
+{% include "_cliente_dados.html" %}
 
 <div class="card card-shadow mb-4">
     <div class="card-body">
@@ -417,36 +308,7 @@
         }
     }
 
-    function copiarCadastro() {
-        const dados = [
-            "Cliente: {{ cliente['cliente'] }}",
-            "Contrato: {{ cliente['contrato'] }}",
-            "Cidade: {{ cliente['cidade'] }}",
-            "Cód. Operadora: {{ cod_operadora_da_cidade(cliente['cidade']) }}",
-            "Node: {{ cliente['node'] }}",
-            "Imóvel: {{ cliente['codigo_imovel'] }}",
-            "Endereço: {{ cliente['endereco'] }}{% if cliente['complemento'] %} — {{ cliente['complemento'] }}{% endif %}"
-        ].join("\n");
-        copiarTexto(dados, "Dados cadastrais copiados!");
-    }
-
-    function copiarContatos() {
-        const dados = [
-            "Celular: {{ cliente['telefone_celular'] }}",
-            "Residencial: {{ cliente['telefone_residencial'] }}",
-            "Comercial: {{ cliente['telefone_comercial'] }}",
-            "E-mail: {{ cliente['email'] }}"
-        ].join("\n");
-        copiarTexto(dados, "Contatos copiados!");
-    }
-
-    function copiarProdutos() {
-        const dados = [
-            "Internet: {{ cliente['produto_virtua'] }} — R$ {{ cliente['valor_virtua'] }}",
-            "Valor total: R$ {{ cliente['valor_total'] }}"
-        ].join("\n");
-        copiarTexto(dados, "Produtos e valores copiados!");
-    }
+    // copiarCadastro / copiarContatos / copiarProdutos: em _cliente_dados.html
 
     // ===== Gerador de Script =====
     document.addEventListener('DOMContentLoaded', function () {
