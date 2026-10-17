@@ -1,0 +1,116 @@
+{% extends "layout.html" %}
+
+{% block conteudo %}
+<style>
+    .bkp-root { --c-surface: #ffffff; --c-text: #14141A; --c-text-2: #52514e; --c-borda: #ECEBE8;
+                --c-ok-bg: #E6F4EA; --c-ok-tx: #1d6b34; --c-bad-bg: #FDE7EA; --c-bad-tx: #9b1c2e; --c-neu-bg: #F1F1EF; --c-neu-tx: #55555b; }
+    html[data-theme="dark"] .bkp-root { --c-surface: #1E1E24; --c-text: #E6E6E9; --c-text-2: #C3C2C8; --c-borda: #313138;
+                --c-ok-bg: rgba(46,160,67,.18); --c-ok-tx: #7EE2A0; --c-bad-bg: rgba(218,54,51,.20); --c-bad-tx: #FF9B95; --c-neu-bg: rgba(255,255,255,.05); --c-neu-tx: #C9C9CF; }
+    .bkp-root .grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+    .bkp-root .item { background: var(--c-surface); border: 1px solid var(--c-borda); border-radius: 12px; padding: 12px 14px; }
+    .bkp-root .item .rotulo { font-size: 11.5px; color: var(--c-text-2); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+    .bkp-root .item .valor { font-size: 17px; font-weight: 700; color: var(--c-text); font-variant-numeric: tabular-nums; }
+    .bkp-root .item .sub { font-size: 12px; color: var(--c-text-2); }
+    .bkp-root .selo { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 10px; }
+    .bkp-root .selo.ok { background: var(--c-ok-bg); color: var(--c-ok-tx); }
+    .bkp-root .selo.bad { background: var(--c-bad-bg); color: var(--c-bad-tx); }
+    .bkp-root .selo.neu { background: var(--c-neu-bg); color: var(--c-neu-tx); }
+    .bkp-root .tabela { font-size: 13px; }
+    .bkp-root .tabela th { font-size: 11.5px; text-transform: uppercase; letter-spacing: .02em; color: var(--c-text-2); white-space: nowrap; }
+    .bkp-root .tabela td { font-variant-numeric: tabular-nums; vertical-align: middle; }
+</style>
+
+{% set ultima = execucoes[0] if execucoes else none %}
+{% set ultima_ok = (execucoes | selectattr('ok', 'equalto', 1) | list)[0] if execucoes and (execucoes | selectattr('ok', 'equalto', 1) | list) else none %}
+
+<div class="bkp-root">
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+                <h2 class="mb-1"><i class="bi bi-cloud-check"></i> Backups na Nuvem</h2>
+                <p class="text-muted small mb-0">Cópia diária dos bancos de dados no Supabase. Ficam os {{ manter_diarios }} últimos dias e o primeiro backup de cada mês dos últimos {{ manter_mensais }} meses.</p>
+            </div>
+            {% if not problema %}
+            <form method="post" action="/admin/backups/agora" onsubmit="var b=this.querySelector('button'); b.disabled=true; b.innerHTML='<span class=\'spinner-border spinner-border-sm\'></span> Enviando…';">
+                <button type="submit" class="btn btn-sm btn-danger"><i class="bi bi-cloud-arrow-up-fill"></i> Fazer backup agora</button>
+            </form>
+            {% endif %}
+        </div>
+        {% if ok %}<div class="alert alert-success mt-3 mb-0 py-2"><i class="bi bi-check-circle-fill"></i> {{ ok }}</div>{% endif %}
+        {% if erro %}<div class="alert alert-danger mt-3 mb-0 py-2"><i class="bi bi-x-circle-fill"></i> Falhou: {{ erro }}</div>{% endif %}
+        {% if problema %}<div class="alert alert-warning mt-3 mb-0 py-2"><i class="bi bi-exclamation-triangle-fill"></i> Backup na nuvem {{ problema }}.</div>{% endif %}
+        {% if erro_lista %}<div class="alert alert-danger mt-3 mb-0 py-2"><i class="bi bi-x-circle-fill"></i> Não consegui listar os backups: {{ erro_lista }}</div>{% endif %}
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-clock-history"></i> Situação</div>
+        <div class="grade">
+            <div class="item">
+                <div class="rotulo">Última execução</div>
+                {% if ultima %}
+                <div class="valor">{{ ultima.inicio[8:10] }}/{{ ultima.inicio[5:7] }} {{ ultima.inicio[11:16] }}</div>
+                <div class="sub">
+                    {% if ultima.ok == 1 %}<span class="selo ok"><i class="bi bi-check-circle-fill"></i> Concluído</span>
+                    {% elif ultima.ok == 0 %}<span class="selo bad"><i class="bi bi-x-circle-fill"></i> Falhou</span>
+                    {% else %}<span class="selo neu"><i class="bi bi-hourglass-split"></i> Em andamento</span>{% endif %}
+                </div>
+                {% else %}
+                <div class="valor">Nunca</div><div class="sub">aguardando a primeira execução</div>
+                {% endif %}
+            </div>
+            <div class="item">
+                <div class="rotulo">Último backup bom</div>
+                <div class="valor">{% if ultima_ok %}{{ ultima_ok.inicio[8:10] }}/{{ ultima_ok.inicio[5:7] }} {{ ultima_ok.inicio[11:16] }}{% else %}—{% endif %}</div>
+                <div class="sub">{{ ultima_ok.detalhe if ultima_ok and ultima_ok.detalhe else 'Scheduled Task diária às 03:00' }}</div>
+            </div>
+            <div class="item">
+                <div class="rotulo">Na nuvem</div>
+                <div class="valor">{{ itens | length }} arquivo{{ 's' if itens | length != 1 }}</div>
+                <div class="sub">{{ '%.0f' | format(total / 1048576) }} MB de 1 GB do plano grátis</div>
+            </div>
+        </div>
+        {% if ultima and ultima.ok == 0 %}
+        <div class="small mt-2" style="color: var(--c-bad-tx)"><b>Erro da última execução:</b> {{ ultima.detalhe }}</div>
+        {% endif %}
+    </div>
+</div>
+
+{% if itens %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-archive"></i> Arquivos guardados</div>
+        <div class="table-responsive">
+        <table class="table table-sm tabela mb-0">
+            <thead><tr><th>Tipo</th><th>Arquivo</th><th class="text-end">Tamanho</th><th>Enviado em</th><th></th></tr></thead>
+            <tbody>
+            {% for i in itens %}
+            <tr>
+                <td><span class="selo {{ 'ok' if i.pasta == 'mensal' else 'neu' }}">{{ 'Mensal' if i.pasta == 'mensal' else 'Diário' }}</span></td>
+                <td>{{ i.nome }}</td>
+                <td class="text-end">{{ '%.1f' | format(i.tamanho / 1048576) }} MB</td>
+                <td>{{ i.criado_local }}</td>
+                <td class="text-end"><a class="btn btn-sm btn-outline-secondary py-0" href="/admin/backups/baixar?caminho={{ i.caminho | urlencode }}"><i class="bi bi-download"></i> Baixar</a></td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div class="card card-shadow mb-4">
+    <div class="card-body small">
+        <div class="section-title"><i class="bi bi-life-preserver"></i> Restaurar</div>
+        A restauração é feita só pelo console Bash da produção, de propósito: funciona mesmo com o site fora do ar e exige confirmação.
+        <pre class="mt-2 mb-1"><code>cd ~/CRM_RSI
+python3.11 backup_nuvem.py --listar
+python3.11 backup_nuvem.py --restaurar 1      # pede para digitar SIM; depois, aba Web -> Reload</code></pre>
+        Antes de trocar, os bancos atuais são guardados em <code>backups/antes_do_restore_*.zip</code>.
+    </div>
+</div>
+</div>
+{% endblock %}

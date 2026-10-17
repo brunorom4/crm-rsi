@@ -400,6 +400,7 @@
             <div class="nav-label">Administração</div>
             <ul class="sidebar-menu">
                 <li><a href="/admin/backup" title="Baixa um zip com código, telas e banco de dados -- roda isso antes de subir qualquer versão nova"><i class="bi bi-cloud-arrow-down-fill"></i> <span class="texto-menu">Backup Completo</span></a></li>
+                <li><a href="/admin/backups" class="{{ 'active' if request.path == '/admin/backups' }}"><i class="bi bi-cloud-check"></i> <span class="texto-menu">Backups na Nuvem</span></a></li>
                 <li><a href="/admin/custos" class="{{ 'active' if request.path == '/admin/custos' }}"><i class="bi bi-cash-coin"></i> <span class="texto-menu">Painel de Custos</span></a></li>
                 <li><a href="/admin/saude" class="{{ 'active' if request.path == '/admin/saude' }}"><i class="bi bi-heart-pulse"></i> <span class="texto-menu">Monitor</span></a></li>
                 {% if eh_ambiente_teste %}<li><a href="/admin/sincronia" class="{{ 'active' if request.path == '/admin/sincronia' }}"><i class="bi bi-arrow-repeat"></i> <span class="texto-menu">Atualizar Dados</span></a></li>{% endif %}

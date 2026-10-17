@@ -60,6 +60,9 @@ ROTINAS = [
     {"chave": "confirmacao_nao_tratado", "nome": "Fechamento da Confirmação de Agenda (não tratados)",
      "como": "Scheduled Task diária (tarefa_confirmacao_nao_tratado.py)", "horario": "18:00",
      "dias": DIAS, "tolerancia_min": 60},
+    {"chave": "backup_nuvem", "nome": "Backup diário dos bancos na nuvem",
+     "como": "Scheduled Task diária (tarefa_backup_nuvem.py) -> Supabase Storage", "horario": "03:00",
+     "dias": DIAS, "tolerancia_min": 90},
 ]
 
 CONFIG_PADRAO = {

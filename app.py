@@ -11809,6 +11809,12 @@ app.register_blueprint(bp_saude)
 from sincronia_teste import bp_sincronia
 app.register_blueprint(bp_sincronia)
 
+# Backup diário dos bancos no Supabase Storage (2026-10-17) -- substitui o
+# backup no Google Drive. Tela em /admin/backups; rotina na Scheduled Task
+# tarefa_backup_nuvem.py, acompanhada pelo Monitor.
+from backup_nuvem import bp_backup_nuvem
+app.register_blueprint(bp_backup_nuvem)
+
 
 # ==========================
 # AMBIENTE DE TESTE -- conta separada no PythonAnywhere (2026-10-15)
