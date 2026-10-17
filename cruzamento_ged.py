@@ -52,6 +52,7 @@ import json
 import os
 import re
 import sqlite3
+import tempfile
 import unicodedata
 import zipfile
 from datetime import datetime
@@ -198,19 +199,26 @@ def _data_base_do_nome(nome_arquivo):
 # LEITURA DO ARQUIVO
 # ==========================
 
-def _abrir_texto(arquivo_storage):
+def _abrir_texto(caminho, nome_original):
     """Devolve um stream de texto do CSV -- direto, ou de dentro do .zip
     (primeiro .csv que encontrar). Lido em fluxo: o CSV inteiro (1,8 mi de
-    linhas) nunca é carregado na memória de uma vez."""
-    nome = (arquivo_storage.filename or "").lower()
+    linhas) nunca é carregado na memória de uma vez.
+
+    Recebe o CAMINHO de um arquivo já salvo em disco, nunca o stream do
+    upload: a produção roda Python 3.10, onde o SpooledTemporaryFile que o
+    Werkzeug usa pra uploads grandes não tem seekable()/readable() (só
+    existem a partir do 3.11) -- zipfile e TextIOWrapper quebravam com
+    AttributeError (erro real em produção, 2026-10-16; na broma, 3.11,
+    passava). Arquivo de verdade em disco funciona em qualquer versão."""
+    nome = (nome_original or "").lower()
     if nome.endswith(".zip"):
-        zf = zipfile.ZipFile(arquivo_storage.stream)
+        zf = zipfile.ZipFile(caminho)
         membros = [n for n in zf.namelist() if n.lower().endswith(".csv") and not n.startswith("__MACOSX")]
         if not membros:
             raise ValueError("O .zip não tem nenhum arquivo .csv dentro.")
         bruto = zf.open(membros[0])
     elif nome.endswith(".csv") or nome.endswith(".txt"):
-        bruto = arquivo_storage.stream
+        bruto = open(caminho, "rb")
     else:
         raise ValueError("Envie o .zip ou o .csv da base GED.")
     return io.TextIOWrapper(bruto, encoding="utf-8-sig", errors="replace", newline="")
@@ -219,8 +227,24 @@ def _abrir_texto(arquivo_storage):
 def ler_base_ged(arquivo_storage, chaves_interesse):
     """Lê a base GED guardando só as linhas cuja chave (contrato, cidade)
     está em `chaves_interesse` -- de 1,8 mi de linhas sobram uns poucos
-    milhares. Devolve (status_por_chave, node_por_chave, estatisticas)."""
-    texto = _abrir_texto(arquivo_storage)
+    milhares. Devolve (status_por_chave, node_por_chave, estatisticas).
+
+    O upload é salvo primeiro num diretório temporário (apagado no fim,
+    com sucesso ou erro) -- ver _abrir_texto."""
+    nome = (arquivo_storage.filename or "").lower()
+    if not nome.endswith((".zip", ".csv", ".txt")):
+        raise ValueError("Envie o .zip ou o .csv da base GED.")
+    with tempfile.TemporaryDirectory(prefix="ged_") as pasta_tmp:
+        caminho = os.path.join(pasta_tmp, "base" + os.path.splitext(nome)[1])
+        arquivo_storage.save(caminho)
+        texto = _abrir_texto(caminho, nome)
+        try:
+            return _ler_texto_ged(texto, chaves_interesse)
+        finally:
+            texto.close()
+
+
+def _ler_texto_ged(texto, chaves_interesse):
     primeira = texto.readline()
     if not primeira:
         raise ValueError("Arquivo vazio.")
