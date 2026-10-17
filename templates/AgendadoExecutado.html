@@ -55,18 +55,17 @@
                 </thead>
                 <tbody>
                     {% for r in registros %}
-                    {% set cor_fundo = r['visual']['cor'] %}
-                    <tr>
-                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['cidade'] }}</td>
-                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['contrato'] }}</td>
-                        {% if not eh_operador %}<td style="background-color: {{ cor_fundo }} !important;">{{ r['operador'] }}</td>{% endif %}
-                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['data_agendamento'] }}</td>
-                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['janela_agendamento'] }}</td>
-                        <td style="background-color: {{ cor_fundo }} !important; color: {{ r['visual']['cor_texto'] }}; font-weight: 600;">
+                    <tr class="ae-linha ae-{{ r['visual'].get('classe', 'em-rota') }}">
+                        <td>{{ r['cidade'] }}</td>
+                        <td>{{ r['contrato'] }}</td>
+                        {% if not eh_operador %}<td>{{ r['operador'] }}</td>{% endif %}
+                        <td>{{ r['data_agendamento'] }}</td>
+                        <td>{{ r['janela_agendamento'] }}</td>
+                        <td class="ae-status">
                             {{ r['visual']['rotulo'] }}
                             {% if r['visual'].get('detalhe') %}<div class="small fw-normal">{{ r['visual']['detalhe'] }}</div>{% endif %}
                         </td>
-                        <td style="background-color: {{ cor_fundo }} !important;">{{ r['dh_execucao'] or '—' }}</td>
+                        <td>{{ r['dh_execucao'] or '—' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -100,8 +99,29 @@
 </div>
 
 <style>
-    /* Cores das linhas agora vêm calculadas do Python (status_visual em
-       app.py), aplicadas via style inline -- cobre as 4 categorias:
-       Em Rota, Parado na Quebra, Cancelado na Quebra, Executado. */
+    /* Cor da linha pela categoria calculada em status_visual (app.py):
+       Em Rota, Parado na Quebra, Cancelado na Quebra, Executado. Por classe
+       (não inline) desde 2026-10-16, pra ter variante no modo escuro --
+       antes o fundo pastel ficava com o texto claro do tema por cima. */
+    #tabela-agendado-executado tr.ae-linha > td { color: #212529; }
+    #tabela-agendado-executado tr.ae-executado > td { background-color: #D4EDDA !important; }
+    #tabela-agendado-executado tr.ae-em-rota   > td { background-color: #E9ECEF !important; }
+    #tabela-agendado-executado tr.ae-parado    > td { background-color: #FFF3CD !important; }
+    #tabela-agendado-executado tr.ae-cancelado > td { background-color: #F8D7DA !important; }
+    #tabela-agendado-executado td.ae-status { font-weight: 600; }
+    #tabela-agendado-executado tr.ae-executado > td.ae-status { color: #155724; }
+    #tabela-agendado-executado tr.ae-em-rota   > td.ae-status { color: #495057; }
+    #tabela-agendado-executado tr.ae-parado    > td.ae-status { color: #856404; }
+    #tabela-agendado-executado tr.ae-cancelado > td.ae-status { color: #842029; }
+
+    html[data-theme="dark"] #tabela-agendado-executado tr.ae-linha > td { color: #E6E6E9 !important; border-color: #313138; }
+    html[data-theme="dark"] #tabela-agendado-executado tr.ae-executado > td { background-color: rgba(46, 160, 67, .20) !important; }
+    html[data-theme="dark"] #tabela-agendado-executado tr.ae-em-rota   > td { background-color: rgba(255, 255, 255, .05) !important; }
+    html[data-theme="dark"] #tabela-agendado-executado tr.ae-parado    > td { background-color: rgba(212, 167, 44, .20) !important; }
+    html[data-theme="dark"] #tabela-agendado-executado tr.ae-cancelado > td { background-color: rgba(218, 54, 51, .22) !important; }
+    html[data-theme="dark"] #tabela-agendado-executado tr.ae-executado > td.ae-status { color: #7EE2A0 !important; }
+    html[data-theme="dark"] #tabela-agendado-executado tr.ae-em-rota   > td.ae-status { color: #C9C9CF !important; }
+    html[data-theme="dark"] #tabela-agendado-executado tr.ae-parado    > td.ae-status { color: #F2CC60 !important; }
+    html[data-theme="dark"] #tabela-agendado-executado tr.ae-cancelado > td.ae-status { color: #FF9B95 !important; }
 </style>
 {% endblock %}

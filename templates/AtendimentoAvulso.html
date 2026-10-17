@@ -24,6 +24,10 @@
                 <strong>Endereço</strong><br>
                 {{ cliente['endereco'] }}{% if cliente['complemento'] %} — {{ cliente['complemento'] }}{% endif %}
             </div>
+            <div class="col-md-3">
+                <strong>Cód. Operadora</strong><br>
+                {{ cod_operadora_da_cidade(cliente['cidade']) }}
+            </div>
         </div>
     </div>
 </div>

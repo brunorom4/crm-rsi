@@ -365,7 +365,7 @@
                 {% endif %}
             </ul>
 
-            {% set pode_extracao = pode('extracao_pontualidade') or pode('extracao_tratamentos') or pode('extracao_gpon') or pode('extracao_ausencias') or pode('extracao_usuarios') %}
+            {% set pode_extracao = pode('extracao_pontualidade') or pode('extracao_tratamentos') or pode('extracao_gpon') or pode('extracao_ausencias') or pode('extracao_usuarios') or pode('extracao_followup_atrasado') or pode('extracao_quebra') %}
             {% if pode('supervisao') or pode('escalas') or pode('transferencias') or pode_extracao or pode('historico_tratamento') or pode('quebra_gestao') or pode('diario_bordo') or pode('relatorio_ged') %}
             <div class="nav-label">Gestão</div>
             <ul class="sidebar-menu">

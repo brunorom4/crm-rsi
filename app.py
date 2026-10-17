@@ -236,6 +236,24 @@ def permissao_required(modulo):
     return decorator
 
 
+@app.template_global("cod_operadora_da_cidade")
+def cod_operadora_da_cidade(cidade):
+    """Código de operadora de uma cidade (de-para em Cidades x Operadora) --
+    pedido do Bruno, 2026-10-16, pra mostrar na tela de atendimento. Se a
+    cidade tiver mais de um código cadastrado, mostra todos; '—' se nenhum."""
+    if not cidade:
+        return "—"
+    try:
+        conn = conectar()
+        codigos = [r["cod_operadora"] for r in conn.execute(
+            "SELECT cod_operadora FROM cidades_operadora WHERE UPPER(TRIM(cidade)) = UPPER(TRIM(?)) ORDER BY cod_operadora",
+            (cidade,))]
+        conn.close()
+    except Exception:
+        return "—"
+    return ", ".join(codigos) if codigos else "—"
+
+
 @app.context_processor
 def injetar_usuario_logado():
     usuario = usuario_atual()
@@ -4289,9 +4307,12 @@ def dashboard():
         for linha in linhas_mapa:
             valores_por_cidade.setdefault(linha["cidade"], {})[linha["dia"]] = linha["qtd"]
 
+        # Ordem INVERTIDA de propósito (2026-10-16): o heatmap do ApexCharts
+        # desenha a primeira série embaixo -- com a lista em A->Z, a tela
+        # mostrava Z no topo. Mandando Z->A, a tela lê de A (topo) a Z.
         mapa_calor_cidades = [
             {"name": cidade, "data": [{"x": dia[8:10] + "/" + dia[5:7], "y": valores.get(dia, 0)} for dia in dias_mapa]}
-            for cidade, valores in sorted(valores_por_cidade.items())
+            for cidade, valores in sorted(valores_por_cidade.items(), reverse=True)
         ]
 
     conn.close()
@@ -5169,15 +5190,18 @@ def agendado_executado():
         Cancelado na Quebra (vermelho suave) = quebra tratada com
         resultado diferente de Reagendado; Executado (verde) = já tem OS
         de execução batida."""
+        # "classe" (2026-10-16): a tela pinta a linha por classe CSS, com
+        # variante própria pro modo escuro -- antes as cores vinham inline e,
+        # no escuro, o texto claro do tema ficava em cima do fundo pastel.
         if l["dh_execucao"]:
-            return {"rotulo": "Executado", "cor": "#D4EDDA", "cor_texto": "#155724"}
+            return {"rotulo": "Executado", "classe": "executado", "cor": "#D4EDDA", "cor_texto": "#155724"}
         if not l["quebra_motivo"]:
-            return {"rotulo": "Em Rota", "cor": "#E9ECEF", "cor_texto": "#495057"}
+            return {"rotulo": "Em Rota", "classe": "em-rota", "cor": "#E9ECEF", "cor_texto": "#495057"}
         if not l["quebra_tabulacao"]:
-            return {"rotulo": "Parado na Quebra", "cor": "#FFF3CD", "cor_texto": "#856404", "detalhe": l["quebra_motivo"]}
+            return {"rotulo": "Parado na Quebra", "classe": "parado", "cor": "#FFF3CD", "cor_texto": "#856404", "detalhe": l["quebra_motivo"]}
         if l["quebra_tabulacao"] == "Reagendado":
-            return {"rotulo": "Em Rota", "cor": "#E9ECEF", "cor_texto": "#495057", "detalhe": "Reagendado após quebra"}
-        return {"rotulo": "Cancelado na Quebra", "cor": "#F8D7DA", "cor_texto": "#842029", "detalhe": l["quebra_tabulacao"]}
+            return {"rotulo": "Em Rota", "classe": "em-rota", "cor": "#E9ECEF", "cor_texto": "#495057", "detalhe": "Reagendado após quebra"}
+        return {"rotulo": "Cancelado na Quebra", "classe": "cancelado", "cor": "#F8D7DA", "cor_texto": "#842029", "detalhe": l["quebra_tabulacao"]}
 
     registros = [{
         "cidade": l["cidade"] or "—",
@@ -8396,6 +8420,7 @@ def interno_verificar_envio_diario():
 EXTRACOES_SUBITENS = (
     "extracao_pontualidade", "extracao_tratamentos", "extracao_gpon",
     "extracao_ausencias", "extracao_usuarios", "extracao_followup_atrasado",
+    "extracao_quebra",
 )
 
 
@@ -8546,6 +8571,197 @@ def admin_extracao_gerar():
         buffer,
         as_attachment=True,
         download_name=nome_arquivo,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/admin/extracao/tratativas")
+@login_required
+@permissao_required("extracao_tratamentos")
+def admin_extracao_tratativas():
+    """TODAS as tratativas do período, uma linha por tratativa (atividade) --
+    pedido do Bruno, 2026-10-16. A Extração de Tratamentos (/gerar) traz uma
+    linha por CONTRATO e só os em andamento/concluídos, então 2ª/3ª
+    tentativa, retorno etc. de quem ainda está na fila ficavam de fora.
+    Data de referência: quando a tratativa foi salva (data_fim). Inclui uma
+    aba de resumo (pessoa x tabulação) e os ajustes de agendamento do período
+    (remarcações, que não são tratativas novas e por isso não contam no total)."""
+    data_inicio = request.args.get("data_inicio")
+    data_fim = request.args.get("data_fim")
+    if not data_inicio or not data_fim:
+        return "Informe data de início e fim.", 400
+
+    conn = conectar()
+    linhas = conn.execute("""
+        SELECT a.*, m.cliente, m.cidade, m.node, m.produto_virtua, m.valor_virtua, m.valor_total,
+               m.status AS status_atual
+        FROM atividades a
+        LEFT JOIN mailing m ON (m.id = a.id_mailing OR (a.id_mailing IS NULL AND m.contrato = a.contrato))
+        WHERE date(a.data_fim) BETWEEN ? AND ?
+        GROUP BY a.id
+        ORDER BY a.data_fim
+    """, (data_inicio, data_fim)).fetchall()
+    ajustes = conn.execute("""
+        SELECT * FROM ajustes_agendamento WHERE date(data_hora) BETWEEN ? AND ? ORDER BY data_hora
+    """, (data_inicio, data_fim)).fetchall()
+    mapa_cod = {}
+    for r in conn.execute("SELECT cidade, cod_operadora FROM cidades_operadora ORDER BY cod_operadora"):
+        chave = (r["cidade"] or "").strip().upper()
+        mapa_cod[chave] = f"{mapa_cod[chave]}, {r['cod_operadora']}" if chave in mapa_cod else r["cod_operadora"]
+    conn.close()
+
+    registros = [{
+        "Data/Hora da Tratativa": l["data_fim"],
+        "Início": l["data_inicio"],
+        "Minutos efetivos": round(l["minutos_efetivos"], 1) if l["minutos_efetivos"] is not None else None,
+        "Operador": l["operador"],
+        "Contrato": l["contrato"],
+        "Cliente": l["cliente"],
+        "Cidade": l["cidade"],
+        "Cód. Operadora": mapa_cod.get((l["cidade"] or "").strip().upper()),
+        "Node": l["node"],
+        "Tentativa": l["tentativa"],
+        "Tabulação": l["tabulacao"],
+        "Canal de Contato": l["canal_contato"],
+        "Data Agendada": l["data_agendamento"],
+        "Janela": l["janela_agendamento"],
+        "Responsável (cliente)": l["resp_cliente"],
+        "Observação": l["observacao"],
+        "Status Atual do Contrato": l["status_atual"],
+        "Produto Internet": l["produto_virtua"],
+        "Valor Internet": l["valor_virtua"],
+        "Valor Total": l["valor_total"],
+    } for l in linhas]
+
+    df = pd.DataFrame(registros)
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        if df.empty:
+            pd.DataFrame([{"Aviso": "Nenhuma tratativa no período."}]).to_excel(writer, index=False, sheet_name="Tratativas")
+        else:
+            df.to_excel(writer, index=False, sheet_name="Tratativas")
+            resumo = pd.crosstab(df["Operador"].fillna("—"), df["Tabulação"].fillna("—"), margins=True, margins_name="Total")
+            resumo.to_excel(writer, sheet_name="Resumo por pessoa")
+        pd.DataFrame([{
+            "Data/Hora": j["data_hora"], "Feito por": j["operador"], "Contrato": j["contrato"],
+            "Data anterior": j["data_agendamento_anterior"], "Janela anterior": j["janela_anterior"],
+            "Data nova": j["data_agendamento_nova"], "Janela nova": j["janela_nova"], "Observação": j["observacao"],
+        } for j in ajustes] or [{"Aviso": "Nenhum ajuste de agendamento no período."}]).to_excel(
+            writer, index=False, sheet_name="Ajustes de agendamento")
+    buffer.seek(0)
+    return send_file(
+        buffer, as_attachment=True,
+        download_name=f"extracao_todas_tratativas_{data_inicio}_a_{data_fim}.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    )
+
+
+@app.route("/admin/extracao/quebra")
+@login_required
+@permissao_required("extracao_quebra")
+def admin_extracao_quebra():
+    """Extração COMPLETA da quebra de agenda -- pedido do Bruno, 2026-10-16,
+    pra supervisora analisar. Uma linha por OS da base de quebra no período
+    (data da agenda), com todas as colunas importadas, o Assistente DONO da
+    quebra (mesma regra da fila -- _sql_dono_quebra: agendou até a data da
+    quebra, agendamento mais recente), a tratativa registrada e a primeira
+    execução do contrato a partir da data da quebra. Abas de resumo por
+    Assistente e por motivo."""
+    data_inicio = request.args.get("data_inicio")
+    data_fim = request.args.get("data_fim")
+    so_com_quebra = request.args.get("so_com_quebra") == "1"
+    if not data_inicio or not data_fim:
+        return "Informe data de início e fim.", 400
+
+    filtro_tipo = "AND q.tipo_tratamento = 'COM QUEBRA DE AGENDA'" if so_com_quebra else ""
+    conn = conectar()
+    linhas = conn.execute(f"""
+        SELECT q.*,
+               {_sql_dono_quebra('q')} AS dono,
+               qt.operador AS trat_operador, qt.tabulacao AS trat_tabulacao, qt.submotivo AS trat_submotivo,
+               qt.observacao AS trat_observacao, qt.data_tratamento AS trat_data,
+               (SELECT MIN(e.dh_baixa) FROM execucoes_os e
+                 WHERE e.contrato = q.contrato AND e.dh_baixa >= q.dat_agenda) AS execucao_depois
+        FROM quebras_agenda q
+        LEFT JOIN quebras_tratamento qt ON qt.quebra_id = q.id
+        WHERE q.dat_agenda BETWEEN ? AND ? {filtro_tipo}
+        ORDER BY q.dat_agenda, q.cidade, q.contrato
+    """, (data_inicio, data_fim)).fetchall()
+    conn.close()
+
+    def situacao(l):
+        if l["tipo_tratamento"] != "COM QUEBRA DE AGENDA":
+            return "Não se aplica"
+        if l["trat_tabulacao"]:
+            return "Tratada"
+        return "Pendente" if l["dono"] else "Sem dono no time"
+
+    registros = []
+    for l in linhas:
+        dias_ate_tratar = None
+        if l["trat_data"] and l["dat_agenda"]:
+            try:
+                dias_ate_tratar = (datetime.strptime(l["trat_data"][:10], "%Y-%m-%d")
+                                   - datetime.strptime(l["dat_agenda"][:10], "%Y-%m-%d")).days
+            except ValueError:
+                pass
+        registros.append({
+            "Data da Agenda": l["dat_agenda"],
+            "Cód. OS": l["cod_os"],
+            "Contrato": l["contrato"],
+            "Cód. Operadora": l["cod_operadora"],
+            "Cidade": l["cidade"],
+            "Segmento": l["segmento"],
+            "Canal de Venda": l["canal_venda"],
+            "Canal de Venda (original)": l["canal_venda_original"],
+            "Tipo": l["tipo_tratamento"],
+            "Responsável pela Quebra": l["responsavel_quebra"],
+            "Agrupamento": l["agrupamento_quebra"],
+            "Sub-agrupamento": l["sub_agrupamento"],
+            "Motivo do Reagendamento": l["motivo_reagendamento"],
+            "Técnico": l["tecnico"],
+            "Assistente (dono da quebra)": l["dono"],
+            "Situação": situacao(l),
+            "Tratada por": l["trat_operador"],
+            "Tratativa": l["trat_tabulacao"],
+            "Submotivo": l["trat_submotivo"],
+            "Observação da Tratativa": l["trat_observacao"],
+            "Data da Tratativa": l["trat_data"],
+            "Dias até tratar": dias_ate_tratar,
+            "Executado depois da quebra em": l["execucao_depois"],
+            "Importado em": l["data_importacao"],
+        })
+
+    df = pd.DataFrame(registros)
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        if df.empty:
+            pd.DataFrame([{"Aviso": "Nenhuma OS de quebra no período."}]).to_excel(writer, index=False, sheet_name="Quebras")
+        else:
+            df.to_excel(writer, index=False, sheet_name="Quebras")
+            com = df[df["Tipo"] == "COM QUEBRA DE AGENDA"].copy()
+            if not com.empty:
+                com["Assistente"] = com["Assistente (dono da quebra)"].fillna("(sem dono no time)")
+                resumo = com.groupby("Assistente").agg(
+                    Quebras=("Cód. OS", "count"),
+                    Tratadas=("Tratativa", lambda x: x.notna().sum()),
+                    Reagendadas=("Tratativa", lambda x: (x == "Reagendado").sum()),
+                    Canceladas=("Tratativa", lambda x: (x == "Cancelado").sum()),
+                    Executadas_depois=("Executado depois da quebra em", lambda x: x.notna().sum()),
+                    Media_dias_ate_tratar=("Dias até tratar", "mean"),
+                ).reset_index()
+                resumo["Pendentes"] = resumo["Quebras"] - resumo["Tratadas"]
+                resumo["Media_dias_ate_tratar"] = resumo["Media_dias_ate_tratar"].round(1)
+                resumo.rename(columns={"Executadas_depois": "Executadas depois",
+                                       "Media_dias_ate_tratar": "Média de dias até tratar"}).to_excel(
+                    writer, index=False, sheet_name="Resumo por Assistente")
+                motivos = com.groupby(["Agrupamento", "Motivo do Reagendamento"], dropna=False).size().reset_index(name="Quebras")
+                motivos.sort_values("Quebras", ascending=False).to_excel(writer, index=False, sheet_name="Por motivo")
+    buffer.seek(0)
+    sufixo = "_com_quebra" if so_com_quebra else ""
+    return send_file(
+        buffer, as_attachment=True,
+        download_name=f"extracao_quebra{sufixo}_{data_inicio}_a_{data_fim}.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     )
 
@@ -10069,6 +10285,7 @@ GRUPOS_PERMISSAO = [
              ("extracao_ausencias", "Ausências", "Registros de falta (justificada ou não) no período."),
              ("extracao_usuarios", "Usuários", "Dados cadastrais de todo mundo (não inclui foto)."),
              ("extracao_followup_atrasado", "Followup Atrasado", "Contratos parados em followup vencido (2ª/3ª tentativa), com quem está atribuído e se essa pessoa está ausente hoje."),
+             ("extracao_quebra", "Quebra de Agenda (completa)", "Todas as OS da base de quebra no período, com o Assistente dono, a tratativa registrada e se houve execução depois. Liberada por padrão para Supervisor."),
          ]},
         {"chave": "historico_tratamento", "label": "Histórico de Tratamento", "desc": "Histórico de tratamentos de todos os operadores, com filtro por pessoa/data/tabulação.", "subitens": None},
         {"chave": "quebra_gestao", "label": "Gestão de Quebra de Agenda", "desc": "Fila de demandas de quebra por Assistente (pendentes x já tratadas), com filtro por data/operador/contrato/motivo.", "subitens": None},
@@ -10155,6 +10372,22 @@ def _garantir_permissoes_operador_conf():
 
 
 _garantir_permissoes_operador_conf()
+
+
+def _garantir_permissao_extracao_quebra():
+    """Auto-migração (idempotente): libera a Extração de Quebra de Agenda
+    pro SUPERVISOR -- pedido do Bruno, 2026-10-16 ("para a supervisora
+    analisar"). Só roda se essa permissão ainda não tiver NENHUMA linha
+    salva, pra nunca sobrescrever ajuste manual feito depois na tela."""
+    conn = conectar()
+    existe = conn.execute("SELECT 1 FROM permissoes WHERE modulo='extracao_quebra' LIMIT 1").fetchone()
+    if not existe:
+        conn.execute("INSERT INTO permissoes (perfil, modulo, permitido) VALUES ('SUPERVISOR', 'extracao_quebra', 1)")
+        conn.commit()
+    conn.close()
+
+
+_garantir_permissao_extracao_quebra()
 
 
 def _garantir_tabelas_diario_bordo():
