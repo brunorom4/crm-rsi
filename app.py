@@ -2040,6 +2040,24 @@ def _garantir_tabelas_quebra_agenda():
 _garantir_tabelas_quebra_agenda()
 
 
+def _garantir_coluna_canal_venda_original_quebra():
+    """Auto-migração leve: guarda o DSC_CANAL_VENDA original da planilha
+    mesmo quando a linha é reclassificada como "CELULA LOCAL" -- pedido do
+    Bruno, 2026-10-16, junto com a regra de data da quebra. Antes o canal
+    original era sobrescrito e perdido; se a classificação mudar depois
+    (recálculo do segmento), dá pra devolver o canal certo."""
+    conn = conectar()
+    try:
+        conn.execute("ALTER TABLE quebras_agenda ADD COLUMN canal_venda_original TEXT")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # coluna já existe
+    conn.close()
+
+
+_garantir_coluna_canal_venda_original_quebra()
+
+
 def _garantir_coluna_motivo_reagendamento_quebra():
     """Auto-migração leve (mesmo padrão de _garantir_coluna_meta_execucoes):
     coluna motivo_reagendamento em quebras_agenda, pra guardar o texto da
@@ -2235,6 +2253,39 @@ SUBMOTIVOS_CANCELAMENTO_QUEBRA = (
 )
 
 
+def _sql_dono_quebra(alias):
+    """Subconsulta SQL que devolve o DONO de uma quebra (alias = tabela de
+    quebras_agenda na consulta externa) -- pedido do Bruno, 2026-10-16.
+
+    Regra: a quebra só é de alguém do time se aconteceu NO DIA ou DEPOIS do
+    dia em que essa pessoa agendou o contrato (date(atividades.data_fim) <=
+    dat_agenda). E, se mais de uma pessoa agendou o mesmo contrato, o dono
+    é quem fez o agendamento MAIS RECENTE até a data da quebra.
+
+    Por quê: a base de quebra é o acumulado do mês inteiro, de todos os
+    canais. Antes o cruzamento era só por contrato -- quem agendou o
+    contrato alguma vez recebia QUALQUER quebra dele, inclusive quebras
+    anteriores ao nosso agendamento, de outro atendimento/canal (78 pares
+    assim no backup de 16/10). Comparar com a data exata agendada foi
+    descartado: cortaria ~170 quebras legítimas em que a data da OS no campo
+    difere da que agendamos (antecipação de agenda, etc.)."""
+    return f"""(SELECT a_dono.operador FROM atividades a_dono
+                WHERE a_dono.tabulacao = 'Agendado'
+                  AND a_dono.contrato = {alias}.contrato
+                  AND date(a_dono.data_fim) <= {alias}.dat_agenda
+                ORDER BY a_dono.data_fim DESC, a_dono.id DESC LIMIT 1)"""
+
+
+def dono_da_quebra(conn, quebra):
+    """Mesmo critério de _sql_dono_quebra, pra uma quebra já carregada."""
+    linha = conn.execute("""
+        SELECT operador FROM atividades
+        WHERE tabulacao = 'Agendado' AND contrato = ? AND date(data_fim) <= ?
+        ORDER BY data_fim DESC, id DESC LIMIT 1
+    """, (quebra["contrato"], quebra["dat_agenda"])).fetchone()
+    return linha["operador"] if linha else None
+
+
 def quebras_pendentes_tratamento(conn, operador_nome, status_filtro="PENDENTE", data_inicio=None,
                                    data_fim=None, contrato_filtro=None, motivo_filtro=None):
     """Fila de quebras que esse operador precisa tratar -- pedido do Bruno,
@@ -2248,8 +2299,10 @@ def quebras_pendentes_tratamento(conn, operador_nome, status_filtro="PENDENTE", 
 
     Só entra quem: (1) teve quebra de verdade (tipo_tratamento='COM QUEBRA
     DE AGENDA' -- OS sem quebra ou EXPURGADA não precisam de tratativa
-    nenhuma), (2) é de um contrato que esse operador especificamente
-    agendou (cruzamento por contrato, via atividades.tabulacao='Agendado').
+    nenhuma), (2) esse operador é o DONO da quebra -- agendou o contrato
+    até a data da quebra, e foi o agendamento mais recente até ela (ver
+    _sql_dono_quebra; regra de 2026-10-16 -- antes bastava ter agendado o
+    contrato alguma vez, de qualquer data).
 
     status_filtro: "PENDENTE" (default, sem tratativa registrada ainda),
     "CONCLUIDO" (já tratada) ou "TODOS".
@@ -2259,9 +2312,11 @@ def quebras_pendentes_tratamento(conn, operador_nome, status_filtro="PENDENTE", 
     pedido do Bruno."""
     condicoes = [
         "q.tipo_tratamento = 'COM QUEBRA DE AGENDA'",
+        # pré-filtro barato (índice por operador) antes da subconsulta do dono
         "q.contrato IN (SELECT DISTINCT contrato FROM atividades WHERE tabulacao='Agendado' AND operador=?)",
+        f"{_sql_dono_quebra('q')} = ?",
     ]
-    params = [operador_nome]
+    params = [operador_nome, operador_nome]
 
     if status_filtro == "PENDENTE":
         condicoes.append("q.id NOT IN (SELECT quebra_id FROM quebras_tratamento)")
@@ -2334,9 +2389,10 @@ def calcular_fila_gestao_quebra(conn, data_inicio, data_fim, operador=None, cont
             WHERE qa.tipo_tratamento = 'COM QUEBRA DE AGENDA'
               AND qa.dat_agenda BETWEEN ? AND ?
               AND qa.contrato IN (SELECT DISTINCT contrato FROM atividades WHERE tabulacao='Agendado' AND operador=?)
+              AND {_sql_dono_quebra('qa')} = ?
               {filtro_extra_sql}
             ORDER BY qa.dat_agenda DESC, qa.cod_os
-        """, [data_inicio, data_fim, nome] + filtro_extra_params).fetchall()
+        """, [data_inicio, data_fim, nome, nome] + filtro_extra_params).fetchall()
 
         if not linhas:
             continue
@@ -9420,6 +9476,9 @@ def remover_quebras_duplicadas(conn):
 
 
 def contratos_agendados_por_nos(conn):
+    # Desde 2026-10-16 devolve {chave cidade|contrato: dia do PRIMEIRO
+    # agendamento nosso} -- a quebra só é Célula Local se aconteceu nesse
+    # dia ou depois (ver classificar_segmento_quebra).
     """Conjunto de chaves cidade-contrato dos contratos que NÓS agendamos de
     fato na ferramenta (atividades.tabulacao='Agendado', cruzado com mailing
     só pra pegar a cidade -- atividades não tem coluna cidade própria).
@@ -9429,15 +9488,22 @@ def contratos_agendados_por_nos(conn):
     nem cidade/operadora nem canal DAC servem, porque todo canal atua em
     toda cidade; o que importa é se o contrato foi agendado por nós mesmo."""
     linhas = conn.execute("""
-        SELECT DISTINCT m.cidade, a.contrato
+        SELECT m.cidade, a.contrato, MIN(date(a.data_fim)) AS primeiro_agendamento
         FROM atividades a
         JOIN mailing m ON m.contrato = a.contrato
         WHERE a.tabulacao = 'Agendado'
+        GROUP BY m.cidade, a.contrato
     """).fetchall()
-    return {_chave_cidade_contrato(l["cidade"], l["contrato"]) for l in linhas}
+    resultado = {}
+    for l in linhas:
+        chave = _chave_cidade_contrato(l["cidade"], l["contrato"])
+        dia = l["primeiro_agendamento"]
+        if chave not in resultado or (dia and (resultado[chave] is None or dia < resultado[chave])):
+            resultado[chave] = dia
+    return resultado
 
 
-def classificar_segmento_quebra(chave_cidade_contrato, nossos_agendamentos):
+def classificar_segmento_quebra(chave_cidade_contrato, nossos_agendamentos, dat_agenda=None):
     """Célula Local = a chave cidade+contrato dessa OS de quebra bate com um
     contrato que nós agendamos de fato na ferramenta (nossos_agendamentos,
     de contratos_agendados_por_nos()); qualquer outro caso conta como
@@ -9445,7 +9511,15 @@ def classificar_segmento_quebra(chave_cidade_contrato, nossos_agendamentos):
     canal_venda vai ser reclassificado pra "CELULA LOCAL" na importação; o
     indicador "Regional" no Dashboard NÃO filtra por esse campo (é a base
     inteira -- ver calcular_indicador_quebra_totais / calcular_serie_quebra)."""
-    return "CELULA LOCAL" if chave_cidade_contrato in nossos_agendamentos else "REGIONAL"
+    # Regra de data (2026-10-16): quebra ANTERIOR ao nosso primeiro
+    # agendamento daquele contrato é legado de outro atendimento/canal --
+    # conta como Regional, não como Célula Local.
+    if chave_cidade_contrato not in nossos_agendamentos:
+        return "REGIONAL"
+    primeiro = nossos_agendamentos[chave_cidade_contrato]
+    if dat_agenda and primeiro and dat_agenda < primeiro:
+        return "REGIONAL"
+    return "CELULA LOCAL"
 
 
 @app.route("/admin/importacao/quebra", methods=["POST"])
@@ -9501,7 +9575,7 @@ def admin_importacao_quebra():
             cidade = _imp_limpo_texto(_imp_pegar_coluna(linha, "DSC_MUNICIPIO")) or None
             canal_venda_original = _imp_limpo_texto(_imp_pegar_coluna(linha, "DSC_CANAL_VENDA")) or None
             chave = _chave_cidade_contrato(cidade, contrato)
-            segmento = classificar_segmento_quebra(chave, nossos_agendamentos)
+            segmento = classificar_segmento_quebra(chave, nossos_agendamentos, dat_agenda)
             # Só as OS que batem (cidade+contrato) com um contrato que NÓS
             # agendamos na ferramenta ficam com o canal_venda gravado como
             # "CELULA LOCAL" (sobrescreve o nome original) -- pedido do
@@ -9525,6 +9599,7 @@ def admin_importacao_quebra():
                 "cidade": cidade,
                 "segmento": segmento,
                 "canal_venda": canal_venda,
+                "canal_venda_original": canal_venda_original,
                 "tipo_tratamento": tipo_tratamento,
                 "responsavel_quebra": _imp_limpo_texto(_imp_pegar_coluna(linha, "RESPONSAVEL_QUEBRA")) or None,
                 "agrupamento_quebra": _imp_limpo_texto(_imp_pegar_coluna(linha, "AGRUPAMENTO_QUEBRA")) or None,
@@ -9541,7 +9616,8 @@ def admin_importacao_quebra():
                 conn.execute("""
                     UPDATE quebras_agenda SET
                         contrato=:contrato, cod_operadora=:cod_operadora, cidade=:cidade, segmento=:segmento,
-                        canal_venda=:canal_venda, tipo_tratamento=:tipo_tratamento,
+                        canal_venda=:canal_venda, canal_venda_original=:canal_venda_original,
+                        tipo_tratamento=:tipo_tratamento,
                         responsavel_quebra=:responsavel_quebra, agrupamento_quebra=:agrupamento_quebra,
                         sub_agrupamento=:sub_agrupamento, dat_agenda=:dat_agenda, tecnico=:tecnico,
                         motivo_reagendamento=:motivo_reagendamento,
@@ -9552,12 +9628,12 @@ def admin_importacao_quebra():
             else:
                 conn.execute("""
                     INSERT INTO quebras_agenda (
-                        cod_os, contrato, cod_operadora, cidade, segmento, canal_venda, tipo_tratamento,
-                        responsavel_quebra, agrupamento_quebra, sub_agrupamento, dat_agenda, tecnico,
+                        cod_os, contrato, cod_operadora, cidade, segmento, canal_venda, canal_venda_original,
+                        tipo_tratamento, responsavel_quebra, agrupamento_quebra, sub_agrupamento, dat_agenda, tecnico,
                         motivo_reagendamento, vinculado_mailing, data_importacao
                     ) VALUES (
-                        :cod_os, :contrato, :cod_operadora, :cidade, :segmento, :canal_venda, :tipo_tratamento,
-                        :responsavel_quebra, :agrupamento_quebra, :sub_agrupamento, :dat_agenda, :tecnico,
+                        :cod_os, :contrato, :cod_operadora, :cidade, :segmento, :canal_venda, :canal_venda_original,
+                        :tipo_tratamento, :responsavel_quebra, :agrupamento_quebra, :sub_agrupamento, :dat_agenda, :tecnico,
                         :motivo_reagendamento, :vinculado_mailing, :data_importacao
                     )
                 """, dados)
@@ -9645,15 +9721,13 @@ def quebra_tratamento_form(quebra_id):
     if not quebra:
         conn.close()
         return "Quebra não encontrada.", 404
-    # Trava de segurança: só o próprio operador que agendou esse contrato
-    # pode tratar essa quebra (mesmo cruzamento usado na fila).
-    eh_do_operador = conn.execute("""
-        SELECT 1 FROM atividades WHERE tabulacao='Agendado' AND operador=? AND contrato=? LIMIT 1
-    """, (usuario["nome"], quebra["contrato"])).fetchone()
+    # Trava de segurança: só o DONO da quebra pode tratar (mesmo critério
+    # da fila -- ver _sql_dono_quebra).
+    eh_do_operador = dono_da_quebra(conn, quebra) == usuario["nome"]
     ja_tratada = conn.execute("SELECT 1 FROM quebras_tratamento WHERE quebra_id=?", (quebra_id,)).fetchone()
     conn.close()
     if not eh_do_operador:
-        return "Essa quebra não é de um contrato que você agendou.", 403
+        return "Essa quebra não é sua: ela aconteceu antes do seu agendamento ou o contrato foi agendado depois por outra pessoa.", 403
     if ja_tratada:
         return redirect("/quebra/tratamento")
     return render_template("QuebraTratamentoForm.html", quebra=quebra,
@@ -9674,12 +9748,10 @@ def quebra_tratamento_salvar(quebra_id):
     if not quebra:
         conn.close()
         return "Quebra não encontrada.", 404
-    eh_do_operador = conn.execute("""
-        SELECT 1 FROM atividades WHERE tabulacao='Agendado' AND operador=? AND contrato=? LIMIT 1
-    """, (usuario["nome"], quebra["contrato"])).fetchone()
+    eh_do_operador = dono_da_quebra(conn, quebra) == usuario["nome"]
     if not eh_do_operador:
         conn.close()
-        return "Essa quebra não é de um contrato que você agendou.", 403
+        return "Essa quebra não é sua: ela aconteceu antes do seu agendamento ou o contrato foi agendado depois por outra pessoa.", 403
     ja_tratada = conn.execute("SELECT 1 FROM quebras_tratamento WHERE quebra_id=?", (quebra_id,)).fetchone()
     if ja_tratada:
         conn.close()
