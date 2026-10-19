@@ -14,18 +14,28 @@ arquivo), pra evitar import circular, já que app.py importa esse módulo
 pra registrar o blueprint.
 
 Resumo das regras de negócio (confirmadas com o Bruno):
-- Importação: só entram contratos com AGING em ("AGENDA NO PASSADO",
-  "SEM AGENDA-NUNCA AGENDADA", "SEM AGENDA-REAGENDADA") E com
-  DATA_ABERTURA_OS de pelo menos 7 dias atrás (D-7, pedido do Bruno,
-  2026-09-19 -- corte recalculado a cada importação, sempre "hoje - 7
-  dias"). Qualquer outro AGING (AGENDA NO FUTURO, AGENDA NO DIA) ou
-  contrato aberto há menos de 7 dias é tratado como "não elegível" (esse
-  segundo caso só afeta contrato NOVO -- não afeta pra trás quem já está
-  na fila, porque o tempo só passa, um contrato nunca fica "mais novo").
+- Importação: entra todo contrato com AGING em ("AGENDA NO PASSADO",
+  "SEM AGENDA-NUNCA AGENDADA", "SEM AGENDA-REAGENDADA"), independente da
+  DATA_ABERTURA_OS -- inclusive sem data nenhuma. Qualquer outro AGING
+  (AGENDA NO FUTURO, AGENDA NO DIA) é "não elegível".
   Chave de deduplicação/reconciliação: CD_OPERADORA + CD_CONTRATO.
-- Ordenação da fila: DATA_ABERTURA_OS do mais ANTIGO pro mais novo
-  (invertida a pedido do Bruno em 2026-09-30; antes era do mais recente
-  pro mais antigo); contrato sem data vai pro fim da fila. Dentro da
+
+  Histórico: de 2026-09-19 a 2026-10-19 valeu também um corte D-7 (só
+  entrava contrato aberto há pelo menos 7 dias) e os sem data nunca
+  entravam. Os dois foram derrubados a pedido do Bruno em 2026-10-19.
+  Atenção: "sem data" aqui inclui data que o _parse_data_ddmmaa não
+  consegue ler (ele só aceita DD/MM/AA) -- antes essas linhas eram
+  descartadas em silêncio; agora entram e ficam visíveis na fila.
+- Ordenação da fila, em três faixas (2026-10-19, pedido do Bruno):
+    1ª) contratos com data ANTERIOR ao mês corrente, do mais antigo pro
+        mais novo;
+    2ª) contratos SEM data;
+    3ª) contratos com data DENTRO do mês corrente, do mais antigo pro
+        mais novo.
+  A fronteira é o 1º dia do mês atual, recalculada a cada consulta -- em
+  novembro vira "até outubro -> sem data -> novembro", sem precisar mexer
+  no código. A ordem do mais antigo pro mais novo dentro de cada faixa é
+  de 2026-09-30 (antes era do mais recente pro mais antigo). Dentro da
   mesma data, prioridade pros vendedores ANA CLAUDIA PIRES e
   TATIANE CRISTINA SABINO CALTRAN (mesmo padrão de prioridade "período
   primeiro, vendedor depois" já usado na Confirmação de Agenda).
@@ -199,12 +209,6 @@ def processar_importacao_backlog(caminho_arquivo, caminho_crm_db, usuario_nome):
 
     hoje_str = datetime.now().strftime("%Y-%m-%d")
     agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    # D-7: só entra/permanece contrato aberto há pelo menos 7 dias -- pedido
-    # do Bruno, 2026-09-19 ("se hoje é 19, tratamos os criados em 12/09 pra
-    # trás"). Corte recalculado a cada importação (sempre "hoje - 7 dias"),
-    # então um contrato aberto há menos de 7 dias fica de fora até
-    # completar esse tempo e aparecer elegível numa importação futura.
-    corte_d7_str = (datetime.now().date() - timedelta(days=7)).strftime("%Y-%m-%d")
 
     conn = conectar_backlog()
 
@@ -223,11 +227,10 @@ def processar_importacao_backlog(caminho_arquivo, caminho_crm_db, usuario_nome):
             str(linha["DATA_ABERTURA_OS"]) if pd.notna(linha["DATA_ABERTURA_OS"]) else None
         )
         chaves_vistas[(cd_operadora, cd_contrato)] = aging
-        elegivel = (
-            aging in AGING_ELEGIVEL
-            and data_abertura_os is not None
-            and data_abertura_os <= corte_d7_str
-        )
+        # Elegibilidade é só o AGING (2026-10-19). O corte D-7 e a exigência
+        # de ter data saíram daqui -- contrato sem data entra e cai na 2ª
+        # faixa da fila (ver ordenação no cabeçalho do arquivo).
+        elegivel = aging in AGING_ELEGIVEL
 
         existente = conn.execute(
             "SELECT * FROM contratos_backlog WHERE cd_operadora=? AND cd_contrato=?",
@@ -290,15 +293,11 @@ def processar_importacao_backlog(caminho_arquivo, caminho_crm_db, usuario_nome):
                           f"Voltou na planilha com AGING '{aging}' -- reenfileirado.", agora_str))
                 reenfileirados += 1
         else:
-            # não elegível (AGING fora da lista, ou aberto há menos de 7
-            # dias): se já existia aqui dentro (e não está aguardando
-            # retorno, já filtrado acima), resolve e tira da fila. Na
-            # prática um contrato já cadastrado aqui sempre tinha pelo
-            # menos 7 dias no momento em que entrou, e isso nunca diminui
-            # -- então esse ramo é acionado pelo AGING ter mudado, não pelo
-            # corte de data.
+            # não elegível (AGING fora da lista -- desde 2026-10-19 esse é o
+            # único motivo possível): se já existia aqui dentro (e não está
+            # aguardando retorno, já filtrado acima), resolve e tira da fila.
             if existente:
-                motivo = "AGING não elegível" if aging not in AGING_ELEGIVEL else "aberto há menos de 7 dias"
+                motivo = "AGING não elegível"
                 novo_ultimo_fechamento = existente["ultimo_fechamento"] or "RESOLVIDO_REIMPORTACAO"
                 if existente["status"] != "RESOLVIDO":
                     conn.execute("""
@@ -376,11 +375,20 @@ def acordar_retornos_vencidos():
     return total
 
 
+def _primeiro_dia_mes_atual():
+    """Fronteira das faixas da fila. Recalculada a cada chamada, então a
+    regra anda sozinha na virada do mês."""
+    return datetime.now().date().replace(day=1).strftime("%Y-%m-%d")
+
+
 def buscar_proximo_backlog(operador_nome):
     """Mesmo padrão de reivindicação com retry-loop (evita corrida entre dois
-    operadores pegando o mesmo contrato). Ordenação: DATA_ABERTURA_OS do
-    mais ANTIGO pro mais novo (2026-09-30), sem data no fim, com
-    prioridade de vendedor como desempate dentro da mesma data."""
+    operadores pegando o mesmo contrato).
+
+    Ordenação em três faixas (2026-10-19): meses anteriores ao atual ->
+    sem data -> mês atual. Dentro de cada faixa, DATA_ABERTURA_OS do mais
+    ANTIGO pro mais novo (2026-09-30), com prioridade de vendedor como
+    desempate dentro da mesma data."""
     acordar_retornos_vencidos()
     conn = conectar_backlog()
 
@@ -394,15 +402,25 @@ def buscar_proximo_backlog(operador_nome):
         return atual
 
     agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    inicio_mes = _primeiro_dia_mes_atual()
     ids_ja_tentados = []
     for _tentativa in range(5):
         marcador = ",".join("?" * len(ids_ja_tentados)) if ids_ja_tentados else "-1"
+        # O CASE define a faixa (0 = meses anteriores, 1 = sem data, 2 = mês
+        # atual). O "?" dele vem DEPOIS dos ids do NOT IN na lista de
+        # parâmetros -- a ordem dos ? no SQL é o que manda.
         candidato = conn.execute(f"""
             SELECT * FROM contratos_backlog
             WHERE status='PENDENTE' AND id NOT IN ({marcador})
-            ORDER BY data_abertura_os IS NULL, data_abertura_os ASC, prioridade_vendedor DESC, id ASC
+            ORDER BY
+                CASE
+                    WHEN data_abertura_os IS NULL THEN 1
+                    WHEN data_abertura_os < ? THEN 0
+                    ELSE 2
+                END,
+                data_abertura_os ASC, prioridade_vendedor DESC, id ASC
             LIMIT 1
-        """, ids_ja_tentados).fetchone()
+        """, ids_ja_tentados + [inicio_mes]).fetchone()
 
         if not candidato:
             conn.close()
