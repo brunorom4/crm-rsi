@@ -190,7 +190,13 @@
                             {{ h['observacao'] }}
                             {% set nome_print = extrair_nome_evidencia_gpon(h['observacao']) %}
                             {% if nome_print %}
-                            <a href="/uploads/{{ nome_print }}" target="_blank" class="ms-1"><i class="bi bi-paperclip"></i> Ver print</a>
+                                {# Imagem apagada pela limpeza de 30 dias vira texto, não link:
+                                   o nome continua na observação, mas o arquivo não existe mais. #}
+                                {% if evidencia_gpon_existe(nome_print) %}
+                                <a href="/uploads/{{ nome_print }}" target="_blank" class="ms-1"><i class="bi bi-paperclip"></i> Ver print</a>
+                                {% else %}
+                                <span class="ms-1 text-muted small"><i class="bi bi-paperclip"></i> print removido (limpeza de 30 dias)</span>
+                                {% endif %}
                             {% endif %}
                         </td>
                     </tr>

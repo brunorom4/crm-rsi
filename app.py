@@ -5367,7 +5367,30 @@ def extrair_nome_evidencia_gpon(observacao):
     return nome_arquivo or None
 
 
+def evidencia_gpon_existe(nome_arquivo):
+    """Diz se a imagem da evidência ainda está no disco -- pedido do Bruno,
+    2026-10-19.
+
+    A tarefa_limpar_imagens_gpon.py apaga as evidências com mais de 30 dias,
+    mas o nome do arquivo continua escrito na observação da atividade pra
+    sempre (é assim que o CRM guarda a referência). Sem essa checagem, a tela
+    mostraria um link "Ver print" que leva a um 404. Com ela, o link só
+    aparece clicável quando o arquivo existe; apagado, vira texto estático.
+
+    A conferência de pasta é proposital: o nome chega de um campo de texto
+    livre (a observação), então não dá pra confiar que nunca vai ter "..".
+    """
+    if not nome_arquivo:
+        return False
+    pasta = os.path.realpath(app.config['UPLOAD_FOLDER'])
+    caminho = os.path.realpath(os.path.join(pasta, nome_arquivo))
+    if not caminho.startswith(pasta + os.sep):
+        return False
+    return os.path.isfile(caminho)
+
+
 app.jinja_env.globals["extrair_nome_evidencia_gpon"] = extrair_nome_evidencia_gpon
+app.jinja_env.globals["evidencia_gpon_existe"] = evidencia_gpon_existe
 
 
 @app.route("/gpon")
