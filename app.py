@@ -9398,6 +9398,34 @@ def admin_importacao_mailing():
         return redirect("/admin/importacao?erro_mailing=" + urllib.parse.quote(
             "A planilha está sem a(s) coluna(s): " + ", ".join(faltando)))
 
+    # Modo da importação -- pedido do Bruno, 2026-10-20. A tela obriga a
+    # escolher: não há padrão, porque errar aqui é caro nos dois sentidos.
+    #   completa    -- a lista é a fila inteira. Quem não veio nela perde a
+    #                  prioridade (comportamento de sempre).
+    #   incremental -- lista avulsa de outra origem (indicação da técnica,
+    #                  por exemplo). Posiciona esses contratos e NÃO encosta
+    #                  em mais ninguém.
+    incremental = request.form.get("modo") == "incremental"
+    origem = (request.form.get("origem") or "").strip() or (
+        "Lista avulsa" if incremental else "Mailing padrão")
+
+    # Trava contra o engano caro: mandar uma lista de 20 contratos no modo
+    # completo zeraria a prioridade de dezenas de milhares de registros,
+    # inclusive os que estão em follow-up. Lista pequena contra base grande
+    # é quase sempre lista avulsa marcada no modo errado.
+    if not incremental:
+        conn_check = conectar()
+        ativos = conn_check.execute(
+            "SELECT COUNT(*) c FROM mailing WHERE status IN ('PENDENTE','ENFILEIRADO')"
+        ).fetchone()["c"]
+        conn_check.close()
+        if ativos > 5000 and len(df) < ativos * 0.1:
+            return redirect("/admin/importacao?erro_mailing=" + urllib.parse.quote(
+                f"A planilha tem {len(df)} linha(s) e a fila ativa tem {ativos}. No modo "
+                f"'lista completa' isso zeraria a prioridade de quem não veio na planilha. "
+                f"Se é uma lista avulsa, marque 'lista avulsa (incremental)'. Se é mesmo a "
+                f"lista completa, confira se o arquivo veio inteiro."))
+
     conn = conectar()
     novos = atualizados = reabertos = ignorados = erros = 0
     chaves_da_planilha = set()  # (contrato, cidade) -- ver comentário na chave composta abaixo
@@ -9434,6 +9462,7 @@ def admin_importacao_mailing():
                 "valor_total": valor_total,
                 "prioridade": prioridade,
                 "data_entrada_fila": agora_str,
+                "origem": origem,
             }
             chaves_da_planilha.add((contrato, dados["cidade"]))
 
@@ -9513,7 +9542,7 @@ def admin_importacao_mailing():
                         produto_tv, valor_tv, valor_ponto_adicional,
                         produto_virtua, valor_virtua,
                         produto_voip, valor_voip, valor_total,
-                        status, tentativa, prioridade, data_entrada_fila
+                        status, tentativa, prioridade, data_entrada_fila, origem
                     ) VALUES (
                         :contrato, :cliente, :cidade, :node, :endereco, :complemento,
                         :telefone_celular, :telefone_residencial, :telefone_comercial,
@@ -9521,14 +9550,24 @@ def admin_importacao_mailing():
                         '', 0, 0,
                         :produto_virtua, :valor_virtua,
                         '', 0, :valor_total,
-                        'PENDENTE', 1, :prioridade, :data_entrada_fila
+                        'PENDENTE', 1, :prioridade, :data_entrada_fila, :origem
                     )
                 """, dados)
                 novos += 1
-                conn.execute(
-                    "INSERT INTO historico_importacao_mailing (contrato, importado_por, importado_em) VALUES (?, ?, ?)",
-                    (contrato, usuario["nome"], datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
-                )
+
+            # Registro da importação. No modo completo, só os contratos novos
+            # -- a lista inteira entra todo mês e gravar 30 mil linhas por
+            # importação não diria nada. No incremental, TODO contrato da
+            # lista: ali o que interessa é justamente saber que aquela lista
+            # empurrou aquele contrato na fila naquele dia, mesmo que ele já
+            # existisse na base.
+            if incremental or not existente:
+                conn.execute("""
+                    INSERT INTO historico_importacao_mailing
+                        (contrato, importado_por, importado_em, origem, modo)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (contrato, usuario["nome"], agora_str, origem,
+                      "incremental" if incremental else "completa"))
         except Exception:
             erros += 1
 
@@ -9542,20 +9581,29 @@ def admin_importacao_mailing():
     # Chave composta (contrato, cidade) aqui também -- por contrato só, uma
     # linha PENDENTE de uma cidade "sumiria" da lista de zerar só por outra
     # cidade com o mesmo número de contrato ainda estar na planilha nova.
-    conn.execute("DROP TABLE IF EXISTS temp_contratos_planilha")
-    conn.execute("CREATE TEMP TABLE temp_contratos_planilha (contrato TEXT, cidade TEXT, PRIMARY KEY (contrato, cidade))")
-    conn.executemany(
-        "INSERT OR IGNORE INTO temp_contratos_planilha (contrato, cidade) VALUES (?, ?)",
-        list(chaves_da_planilha)
-    )
-    cursor_zerados = conn.execute("""
-        UPDATE mailing SET prioridade = 0
-        WHERE status IN ('PENDENTE', 'ENFILEIRADO')
-          AND prioridade != 0
-          AND (contrato, cidade) NOT IN (SELECT contrato, cidade FROM temp_contratos_planilha)
-    """)
-    zerados = cursor_zerados.rowcount
-    conn.execute("DROP TABLE temp_contratos_planilha")
+    #
+    # No modo INCREMENTAL essa zeragem não acontece. Uma lista avulsa de 20
+    # contratos não é a fila: ela diz "coloque estes aqui", não "todos os
+    # outros deixaram de valer". Medido na base de 2026-10-19, rodar a
+    # zeragem com uma lista pequena atingiria 20.112 registros -- 18.953
+    # pendentes e 1.159 enfileirados, destes 1.161 com follow-up marcado,
+    # ou seja, derrubaria também a fila de retorno que o time já construiu.
+    zerados = 0
+    if not incremental:
+        conn.execute("DROP TABLE IF EXISTS temp_contratos_planilha")
+        conn.execute("CREATE TEMP TABLE temp_contratos_planilha (contrato TEXT, cidade TEXT, PRIMARY KEY (contrato, cidade))")
+        conn.executemany(
+            "INSERT OR IGNORE INTO temp_contratos_planilha (contrato, cidade) VALUES (?, ?)",
+            list(chaves_da_planilha)
+        )
+        cursor_zerados = conn.execute("""
+            UPDATE mailing SET prioridade = 0
+            WHERE status IN ('PENDENTE', 'ENFILEIRADO')
+              AND prioridade != 0
+              AND (contrato, cidade) NOT IN (SELECT contrato, cidade FROM temp_contratos_planilha)
+        """)
+        zerados = cursor_zerados.rowcount
+        conn.execute("DROP TABLE temp_contratos_planilha")
 
     conn.commit()
     conn.close()
@@ -9564,6 +9612,8 @@ def admin_importacao_mailing():
         f"/admin/importacao?mailing_novos={novos}&mailing_atualizados={atualizados}"
         f"&mailing_reabertos={reabertos}"
         f"&mailing_ignorados={ignorados}&mailing_erros={erros}&mailing_zerados={zerados}"
+        f"&mailing_modo={'incremental' if incremental else 'completa'}"
+        f"&mailing_origem={urllib.parse.quote(origem)}"
     )
 
 
@@ -10900,6 +10950,42 @@ def _garantir_tabela_historico_importacao_mailing():
 
 
 _garantir_tabela_historico_importacao_mailing()
+
+
+def _garantir_colunas_origem_importacao():
+    """Origem do contrato e da importação -- pedido do Bruno, 2026-10-20.
+
+    Nasce junto com a importação incremental: listas avulsas (indicação da
+    área técnica, por exemplo) entram por fora do mailing padrão, e sem
+    marcar a origem não dá pra responder depois se esses contratos convertem
+    melhor que a base normal.
+
+    São duas coisas diferentes, de propósito:
+
+    mailing.origem -- de onde o contrato ENTROU na base. Gravado só na
+      criação e nunca sobrescrito: é a procedência do lead, não a última
+      planilha que passou por cima dele. Contratos anteriores a esta
+      migração ficam NULL, porque não dá pra descobrir retroativamente.
+
+    historico_importacao_mailing.origem/modo -- qual lista tocou o contrato
+      e quando. Numa importação incremental grava TODO contrato da lista,
+      não só os novos: o que interessa ali é saber que a lista da técnica
+      empurrou aquele contrato na fila naquela data.
+    """
+    conn = conectar()
+    for tabela, coluna, tipo in (
+        ("mailing", "origem", "TEXT"),
+        ("historico_importacao_mailing", "origem", "TEXT"),
+        ("historico_importacao_mailing", "modo", "TEXT"),
+    ):
+        colunas = [c["name"] for c in conn.execute(f"PRAGMA table_info({tabela})").fetchall()]
+        if coluna not in colunas:
+            conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}")
+    conn.commit()
+    conn.close()
+
+
+_garantir_colunas_origem_importacao()
 
 
 def atualizar_previsao_tempo_todas_cidades():
