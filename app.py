@@ -8248,68 +8248,184 @@ def admin_sunny_salvar():
     return redirect("/admin/modo")
 
 
+# ---------------------------------------------------------------------------
+# Relatório por e-mail
+# ---------------------------------------------------------------------------
+# Esta tela era do tempo do Power Automate: o CRM escrevia um HTML numa pasta
+# do OneDrive e um fluxo externo mandava o e-mail. Com a migração para a nuvem
+# a pasta deixou de existir e a tela ficou sem função.
+#
+# Agora ela configura o envio direto por SMTP, que é o que o
+# relatorio_gerencial.py usa. O módulo é importado DENTRO das rotas, não no
+# topo do arquivo: assim um erro nele não impede o site de subir.
+#
+# A SENHA NUNCA VOLTA PARA O HTML. O formulário mostra só o tamanho dela, e o
+# campo de senha em branco significa "mantém a que está gravada". Devolver a
+# senha no value do input a deixaria no código-fonte da página.
 @app.route("/admin/relatorio_email")
 @login_required
 @perfil_required("ADM")
 def admin_relatorio_email():
     conn = conectar()
     config = conn.execute("""
-        SELECT email_pasta_destino, email_envio_automatico_ativo, email_horario_envio,
-               email_dias_semana, email_ultimo_envio_data
+        SELECT email_smtp_host, email_smtp_porta, email_smtp_usuario, email_smtp_senha,
+               email_remetente, email_envio_automatico_ativo, email_dias_semana,
+               email_ultimo_envio_data
         FROM configuracoes WHERE id=1
     """).fetchone()
+    destinatarios = conn.execute(
+        "SELECT id, email, ativo FROM relatorio_email_destinatarios ORDER BY email"
+    ).fetchall()
     conn.close()
     dias_marcados = (config["email_dias_semana"] or "SEG,TER,QUA,QUI,SEX").split(",") if config else []
-    return render_template("AdminRelatorioEmail.html", config=config, dias_marcados=dias_marcados,
-                            dias_semana=DIAS_SEMANA, data_hoje=hoje_str())
+    senha_gravada = len(config["email_smtp_senha"] or "") if config else 0
+    return render_template("AdminRelatorioEmail.html", config=config,
+                           destinatarios=destinatarios, dias_marcados=dias_marcados,
+                           dias_semana=DIAS_SEMANA, data_hoje=hoje_str(),
+                           senha_gravada=senha_gravada)
 
 
 @app.route("/admin/relatorio_email/salvar", methods=["POST"])
 @login_required
 @perfil_required("ADM")
 def admin_relatorio_email_salvar():
-    pasta = (request.form.get("email_pasta_destino") or "").strip()
-    horario = (request.form.get("email_horario_envio") or "18:00").strip()
+    host = (request.form.get("email_smtp_host") or "").strip()
+    usuario = (request.form.get("email_smtp_usuario") or "").strip()
+    remetente = (request.form.get("email_remetente") or "").strip()
+    senha = request.form.get("email_smtp_senha") or ""
     ativo = 1 if request.form.get("email_envio_automatico_ativo") else 0
-    dias_marcados = request.form.getlist("email_dias_semana")
-    dias_texto = ",".join(dias_marcados) if dias_marcados else ""
+    dias_texto = ",".join(request.form.getlist("email_dias_semana"))
+    try:
+        porta = int((request.form.get("email_smtp_porta") or "587").strip())
+    except ValueError:
+        porta = 587
 
     conn = conectar()
+    # email_pasta_destino vai a vazio de propósito: é o que desliga a rotina
+    # de fundo que ainda escrevia o arquivo do Power Automate.
     conn.execute("""
-        UPDATE configuracoes SET email_pasta_destino=?, email_horario_envio=?, email_envio_automatico_ativo=?, email_dias_semana=?
+        UPDATE configuracoes SET email_smtp_host=?, email_smtp_porta=?, email_smtp_usuario=?,
+               email_remetente=?, email_envio_automatico_ativo=?, email_dias_semana=?,
+               email_pasta_destino=''
         WHERE id=1
-    """, (pasta, horario, ativo, dias_texto))
+    """, (host, porta, usuario, remetente, ativo, dias_texto))
+    # Senha em branco mantém a gravada -- é o que permite salvar os outros
+    # campos sem precisar redigitar a senha de app toda vez.
+    if senha.strip():
+        conn.execute("UPDATE configuracoes SET email_smtp_senha=? WHERE id=1",
+                     (senha.replace(" ", ""),))
+    conn.commit()
+    conn.close()
+    return redirect("/admin/relatorio_email?salvo=1")
+
+
+@app.route("/admin/relatorio_email/destinatario", methods=["POST"])
+@login_required
+@perfil_required("ADM")
+def admin_relatorio_email_destinatario():
+    acao = request.form.get("acao")
+    conn = conectar()
+    if acao == "adicionar":
+        email = (request.form.get("email") or "").strip()
+        if "@" in email:
+            conn.execute("INSERT OR IGNORE INTO relatorio_email_destinatarios(email, ativo)"
+                         " VALUES (?, 1)", (email,))
+            conn.execute("UPDATE relatorio_email_destinatarios SET ativo=1 WHERE email=?",
+                         (email,))
+    elif acao == "alternar":
+        conn.execute("UPDATE relatorio_email_destinatarios SET ativo = 1 - ativo WHERE id=?",
+                     (request.form.get("id"),))
+    elif acao == "remover":
+        conn.execute("DELETE FROM relatorio_email_destinatarios WHERE id=?",
+                     (request.form.get("id"),))
     conn.commit()
     conn.close()
     return redirect("/admin/relatorio_email")
 
 
-@app.route("/admin/relatorio_email/liberar_hoje", methods=["POST"])
+@app.route("/admin/relatorio_email/enviar_teste", methods=["POST"])
 @login_required
 @perfil_required("ADM")
-def admin_relatorio_email_liberar_hoje():
-    conn = conectar()
-    conn.execute("UPDATE configuracoes SET email_ultimo_envio_data=NULL WHERE id=1")
-    conn.commit()
-    conn.close()
-    return redirect("/admin/relatorio_email?liberado=1")
-
-
-@app.route("/admin/relatorio_email/gerar_agora", methods=["POST"])
-@login_required
-@perfil_required("ADM")
-def admin_relatorio_email_gerar_agora():
+def admin_relatorio_email_enviar_teste():
     import urllib.parse
     conn = conectar()
-    config = conn.execute("SELECT email_pasta_destino FROM configuracoes WHERE id=1").fetchone()
+    try:
+        import relatorio_gerencial
+        corpo = ("<p style=\"font-family:sans-serif\">Teste de envio do CRM RSI.<br>"
+                 "Se esta mensagem chegou, os relatórios diário e semanal estão prontos "
+                 "para ser agendados.</p>")
+        ok, detalhe = relatorio_gerencial.enviar_email(conn, "CRM RSI — teste de envio", corpo)
+    except Exception as erro:
+        ok, detalhe = False, str(erro)
+    finally:
+        conn.close()
+    chave = "enviado" if ok else "erro_envio"
+    return redirect(f"/admin/relatorio_email?{chave}=" + urllib.parse.quote(detalhe))
 
-    dados = calcular_dados_relatorio(conn)
-    corpo_html = montar_relatorio_email_html(dados)
-    sucesso, resultado = escrever_arquivo_relatorio(config["email_pasta_destino"] if config else None, corpo_html)
-    conn.close()
-    if sucesso:
-        return redirect("/admin/relatorio_email?gerado=1")
-    return redirect("/admin/relatorio_email?erro_envio=" + urllib.parse.quote(resultado))
+
+@app.route("/admin/relatorio_email/enviar_agora", methods=["POST"])
+@login_required
+@perfil_required("ADM")
+def admin_relatorio_email_enviar_agora():
+    import urllib.parse
+    tipo = request.form.get("tipo", "diario")
+    conn = conectar()
+    try:
+        assunto, html = _montar_relatorio_gerencial(conn, tipo)
+        import relatorio_gerencial
+        ok, detalhe = relatorio_gerencial.enviar_email(conn, assunto, html)
+    except Exception as erro:
+        ok, detalhe = False, str(erro)
+    finally:
+        conn.close()
+    chave = "enviado" if ok else "erro_envio"
+    return redirect(f"/admin/relatorio_email?{chave}=" + urllib.parse.quote(detalhe))
+
+
+@app.route("/admin/relatorio_email/previa")
+@login_required
+@perfil_required("ADM")
+def admin_relatorio_email_previa():
+    """Mostra o relatório na tela, sem enviar nada. É o jeito de conferir o
+    conteúdo antes de mandar para alguém."""
+    tipo = request.args.get("tipo", "diario")
+    conn = conectar()
+    try:
+        _, html = _montar_relatorio_gerencial(conn, tipo)
+    except Exception as erro:
+        html = (f"<p style=\"font-family:sans-serif;color:#b00\">Não consegui montar a "
+                f"prévia: {erro}</p>")
+    finally:
+        conn.close()
+    return html
+
+
+def _montar_relatorio_gerencial(conn, tipo):
+    """Monta o diário de hoje ou o semanal da última semana fechada.
+
+    Importa o módulo aqui dentro, e não no topo do app.py, para que um erro
+    no relatório nunca impeça o site inteiro de subir.
+    """
+    import relatorio_gerencial
+    if tipo == "semanal":
+        hoje = datetime.now().date()
+        inicio, fim = relatorio_gerencial.semana_fechada_antes(hoje)
+        dados = relatorio_gerencial.montar_semanal(conn, inicio, fim)
+        html = relatorio_gerencial.montar_html_semanal(dados)
+        assunto = (f"CRM RSI · semana {inicio.strftime('%d/%m')}-{fim.strftime('%d/%m')} · "
+                   f"{dados['numeros']['agendados']} agendas")
+        return assunto, html
+    dia = datetime.now().date()
+    dados = relatorio_gerencial.montar_diario(conn, dia)
+    html = relatorio_gerencial.montar_html_diario(dados)
+    qtd = len(dados["variacoes"])
+    if not dados["numeros"]["atividades"]:
+        assunto = f"CRM RSI · {dia.strftime('%d/%m')} · sem atividade no dia"
+    else:
+        assunto = (f"CRM RSI · {dia.strftime('%d/%m')} · "
+                   + (f"{qtd} ponto{'s' if qtd != 1 else ''} de atenção"
+                      if qtd else "tudo dentro do normal"))
+    return assunto, html
 
 
 @app.route("/admin/relatorio_telegram")

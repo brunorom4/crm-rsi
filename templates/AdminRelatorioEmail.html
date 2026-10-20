@@ -6,17 +6,18 @@
         <h2><i class="bi bi-envelope-fill"></i> Relatório por E-mail</h2>
         <hr>
         <p class="text-muted">
-            O CRM gera o relatório (ranking de fechamentos e agendamentos, com comparação e projeção)
-            como um arquivo, escrito numa pasta sincronizada do OneDrive. O OneDrive sobe esse arquivo
-            sozinho, e um fluxo do Power Automate (configurado à parte) dispara o e-mail quando percebe
-            o arquivo novo. O CRM nunca precisa se conectar direto com a Microsoft.
+            O CRM envia os relatórios direto por SMTP. São dois: o <strong>diário</strong>, com os números
+            do dia e as variações relevantes de volume, e o <strong>semanal</strong>, com desempenho por
+            pessoa ajustado pelo mix de filas, quadrantes de time e cidade, rendimento líquido e
+            indicadores de processo. Os horários são definidos nas Scheduled Tasks do PythonAnywhere;
+            aqui ficam a conta de envio, os destinatários e em que dias o envio acontece.
         </p>
 
-        {% if request.args.get('gerado') %}
-        <div class="alert alert-success">Relatório gerado com sucesso na pasta configurada!</div>
+        {% if request.args.get('salvo') %}
+        <div class="alert alert-success">Configuração salva.</div>
         {% endif %}
-        {% if request.args.get('liberado') %}
-        <div class="alert alert-success">Liberado! O disparo automático pode rodar de novo hoje, no horário configurado.</div>
+        {% if request.args.get('enviado') %}
+        <div class="alert alert-success">{{ request.args.get('enviado') }}</div>
         {% endif %}
         {% if request.args.get('erro_envio') %}
         <div class="alert alert-danger">{{ request.args.get('erro_envio') }}</div>
@@ -24,22 +25,56 @@
 
         {% set rotulos_dias = {'SEG':'Segunda','TER':'Terça','QUA':'Quarta','QUI':'Quinta','SEX':'Sexta','SAB':'Sábado','DOM':'Domingo'} %}
 
-        <form action="/admin/relatorio_email/salvar" method="POST">
-            <div class="mb-3">
-                <label class="form-label fw-bold">Pasta de destino (sincronizada com o OneDrive)</label>
-                <input type="text" name="email_pasta_destino" class="form-control" value="{{ config['email_pasta_destino'] or '' }}"
-                       placeholder="C:\Users\SeuUsuario\OneDrive - Claro\CRM_Relatorios">
-                <div class="form-text">
-                    O caminho completo da pasta, do jeito que aparece no Explorador de Arquivos dessa máquina.
-                    Crie a pasta antes, se ainda não existir.
+        <form action="/admin/relatorio_email/salvar" method="POST" autocomplete="off">
+            <div class="row g-3 mb-3">
+                <div class="col-md-7">
+                    <label class="form-label fw-bold">Servidor SMTP</label>
+                    <input type="text" name="email_smtp_host" class="form-control"
+                           value="{{ config['email_smtp_host'] or 'smtp.gmail.com' }}"
+                           placeholder="smtp.gmail.com">
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label fw-bold">Porta</label>
+                    <input type="number" name="email_smtp_porta" class="form-control" style="max-width:140px;"
+                           value="{{ config['email_smtp_porta'] or 587 }}">
                 </div>
             </div>
-            <div class="mb-3">
-                <label class="form-label fw-bold">Horário da geração automática</label>
-                <input type="time" name="email_horario_envio" class="form-control" style="max-width: 160px;" value="{{ config['email_horario_envio'] or '18:00' }}">
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Usuário (e-mail completo)</label>
+                    <input type="email" name="email_smtp_usuario" class="form-control"
+                           value="{{ config['email_smtp_usuario'] or '' }}"
+                           placeholder="seuendereco@gmail.com">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">Remetente</label>
+                    <input type="email" name="email_remetente" class="form-control"
+                           value="{{ config['email_remetente'] or '' }}"
+                           placeholder="em branco = o mesmo usuário">
+                </div>
             </div>
+
             <div class="mb-3">
-                <label class="form-label fw-bold">Dias da semana em que dispara</label>
+                <label class="form-label fw-bold">Senha de app</label>
+                <input type="password" name="email_smtp_senha" class="form-control" style="max-width:360px;"
+                       autocomplete="new-password" placeholder="deixe em branco para manter a atual">
+                <div class="form-text">
+                    {% if senha_gravada %}
+                        Há uma senha gravada ({{ senha_gravada }} caracteres).
+                        {% if senha_gravada != 16 %}
+                        <span class="text-danger">O Gmail usa senha de app de 16 caracteres — essa não parece ser uma.</span>
+                        {% endif %}
+                        Preencha só se for trocar.
+                    {% else %}
+                        <span class="text-danger">Nenhuma senha gravada.</span> Sem ela o envio não funciona.
+                    {% endif %}
+                    A senha nunca é exibida de volta nesta tela.
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Dias em que o relatório diário é enviado</label>
                 <div class="d-flex gap-3 flex-wrap">
                     {% for dia in dias_semana %}
                     <div class="form-check">
@@ -49,56 +84,117 @@
                     </div>
                     {% endfor %}
                 </div>
+                <div class="form-text">
+                    A tarefa agendada roda todo dia; nos dias desmarcados ela não envia nada.
+                    O semanal sai sempre na segunda-feira, independente daqui.
+                </div>
             </div>
+
             <div class="form-check mb-3">
                 <input class="form-check-input" type="checkbox" name="email_envio_automatico_ativo" id="envioAuto"
                        {% if config['email_envio_automatico_ativo'] is none or config['email_envio_automatico_ativo'] %}checked{% endif %}>
-                <label class="form-check-label" for="envioAuto">Geração automática ligada</label>
+                <label class="form-check-label" for="envioAuto">Envio automático ligado</label>
+                <div class="form-text">Desligado, as tarefas agendadas continuam rodando mas não enviam.</div>
             </div>
+
             <button type="submit" class="btn btn-danger"><i class="bi bi-save-fill"></i> Salvar</button>
         </form>
+    </div>
+</div>
 
-        <hr>
-        <div class="mb-3">
-            <strong>Última geração automática:</strong>
-            {% if config['email_ultimo_envio_data'] %}
-                {{ config['email_ultimo_envio_data'] }}
-                {% if config['email_ultimo_envio_data'] == data_hoje %}
-                <span class="status-pill status-verde ms-2">Já rodou hoje</span>
-                <form action="/admin/relatorio_email/liberar_hoje" method="POST" class="d-inline">
-                    <button type="submit" class="btn btn-sm btn-outline-warning ms-2">Liberar novo envio hoje</button>
-                </form>
-                {% endif %}
-            {% else %}
-                <span class="text-muted">nunca rodou ainda</span>
-            {% endif %}
-            <div class="text-muted small mt-1">
-                O disparo automático só roda <strong>uma vez por dia</strong> — se já rodou hoje (mesmo que num
-                horário diferente do atual), ele não dispara de novo sozinho até amanhã. Use o botão acima se
-                precisar liberar um novo disparo ainda hoje, pra testar um horário novo.
-            </div>
-        </div>
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-people-fill"></i> Destinatários</div>
+        {% if destinatarios %}
+        <table class="table table-sm align-middle">
+            <tbody>
+                {% for d in destinatarios %}
+                <tr>
+                    <td>{{ d['email'] }}</td>
+                    <td style="width:120px;">
+                        {% if d['ativo'] %}
+                        <span class="status-pill status-verde">ativo</span>
+                        {% else %}
+                        <span class="status-pill">inativo</span>
+                        {% endif %}
+                    </td>
+                    <td style="width:200px;" class="text-end">
+                        <form action="/admin/relatorio_email/destinatario" method="POST" class="d-inline">
+                            <input type="hidden" name="acao" value="alternar">
+                            <input type="hidden" name="id" value="{{ d['id'] }}">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                {{ 'Desativar' if d['ativo'] else 'Ativar' }}
+                            </button>
+                        </form>
+                        <form action="/admin/relatorio_email/destinatario" method="POST" class="d-inline"
+                              onsubmit="return confirm('Remover {{ d['email'] }} da lista?');">
+                            <input type="hidden" name="acao" value="remover">
+                            <input type="hidden" name="id" value="{{ d['id'] }}">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">Remover</button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-danger">Nenhum destinatário cadastrado — o envio vai falhar até você adicionar um.</p>
+        {% endif %}
 
-        <form action="/admin/relatorio_email/gerar_agora" method="POST">
-            <button type="submit" class="btn btn-outline-dark"><i class="bi bi-file-earmark-arrow-up-fill"></i> Gerar relatório agora</button>
-            <div class="text-muted small mt-2">
-                Escreve o arquivo na pasta configurada na hora, com os dados de agora — serve tanto pra
-                testar quanto pra disparar um envio fora do horário automático. Não interfere no controle de
-                "já rodou hoje" acima (esse botão pode ser usado quantas vezes quiser, sem afetar o automático).
-            </div>
+        <form action="/admin/relatorio_email/destinatario" method="POST" class="d-flex gap-2 flex-wrap">
+            <input type="hidden" name="acao" value="adicionar">
+            <input type="email" name="email" class="form-control" style="max-width:320px;"
+                   placeholder="novo destinatário" required>
+            <button type="submit" class="btn btn-outline-dark"><i class="bi bi-plus-lg"></i> Adicionar</button>
         </form>
+    </div>
+</div>
+
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-send-fill"></i> Conferir e enviar</div>
+        <div class="d-flex gap-2 flex-wrap mb-2">
+            <a href="/admin/relatorio_email/previa?tipo=diario" target="_blank" class="btn btn-outline-dark">
+                <i class="bi bi-eye-fill"></i> Prévia do diário
+            </a>
+            <a href="/admin/relatorio_email/previa?tipo=semanal" target="_blank" class="btn btn-outline-dark">
+                <i class="bi bi-eye-fill"></i> Prévia do semanal
+            </a>
+            <form action="/admin/relatorio_email/enviar_teste" method="POST" class="d-inline">
+                <button type="submit" class="btn btn-outline-secondary">
+                    <i class="bi bi-envelope-check"></i> Enviar e-mail de teste
+                </button>
+            </form>
+            <form action="/admin/relatorio_email/enviar_agora" method="POST" class="d-inline">
+                <input type="hidden" name="tipo" value="diario">
+                <button type="submit" class="btn btn-outline-danger">Enviar o diário agora</button>
+            </form>
+            <form action="/admin/relatorio_email/enviar_agora" method="POST" class="d-inline">
+                <input type="hidden" name="tipo" value="semanal">
+                <button type="submit" class="btn btn-outline-danger">Enviar o semanal agora</button>
+            </form>
+        </div>
+        <div class="text-muted small">
+            A prévia abre numa aba nova e não envia nada — use para conferir o conteúdo antes de
+            colocar mais alguém na lista. O e-mail de teste é uma mensagem curta, serve para validar
+            servidor e senha sem disparar o relatório inteiro.
+        </div>
     </div>
 </div>
 
 <div class="card card-shadow">
     <div class="card-body">
-        <div class="section-title"><i class="bi bi-diagram-3-fill"></i> Como montar o fluxo no Power Automate</div>
-        <ol class="mb-0">
-            <li class="mb-2">Confirme que a pasta configurada acima está mesmo sincronizada com o OneDrive (aparece com o ícone de nuvem/check no Explorador de Arquivos).</li>
-            <li class="mb-2">No Power Automate, crie um fluxo automatizado com o gatilho <strong>"Quando um arquivo é criado"</strong> (conector OneDrive for Business), apontando pra essa mesma pasta.</li>
-            <li class="mb-2">Adicione a ação <strong>"Obter conteúdo do arquivo"</strong>.</li>
-            <li class="mb-2">Adicione a ação <strong>"Enviar um e-mail (V2)"</strong> (conector Outlook) — no campo "Corpo", marque a opção de HTML e cole o conteúdo do arquivo ali. Preencha os destinatários fixos direto nesse passo.</li>
+        <div class="section-title"><i class="bi bi-key-fill"></i> Como gerar a senha de app do Gmail</div>
+        <ol class="mb-2">
+            <li class="mb-2">Em <strong>myaccount.google.com → Segurança</strong>, ligue a <strong>verificação em duas etapas</strong>. Sem ela a opção de senha de app nem aparece.</li>
+            <li class="mb-2">Ainda em Segurança, procure <strong>Senhas de app</strong> e gere uma nova.</li>
+            <li class="mb-2">O Google mostra <strong>16 caracteres, uma única vez</strong>. Cole no campo de senha acima e salve. Pode colar com ou sem os espaços.</li>
+            <li class="mb-2">Clique em <strong>Enviar e-mail de teste</strong>. No primeiro envio, confira também a caixa de spam.</li>
         </ol>
+        <div class="text-muted small">
+            A senha normal da conta não funciona — o Google recusa a autenticação e o erro que aparece
+            aqui é de usuário ou senha inválidos.
+        </div>
     </div>
 </div>
 {% endblock %}

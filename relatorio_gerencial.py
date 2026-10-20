@@ -1343,6 +1343,31 @@ azar explica. Ela é característica de cidade e de infraestrutura.</p>
 # ---------------------------------------------------------------------------
 # Envio
 # ---------------------------------------------------------------------------
+def pode_enviar_hoje(conn, dia, tipo):
+    """A tarefa agendada roda todo dia; quem decide se envia é a tela.
+
+    Separar as duas coisas evita ter que mexer na Scheduled Task (e lembrar
+    do fuso UTC) sempre que mudar um dia de envio. O semanal ignora os dias
+    da semana: ele sai quando a tarefa de segunda roda.
+    """
+    cfg = conn.execute("""
+        SELECT email_envio_automatico_ativo, email_dias_semana
+        FROM configuracoes WHERE id=1
+    """).fetchone()
+    if not cfg:
+        return True, ""
+    ativo = cfg["email_envio_automatico_ativo"]
+    if ativo is not None and not ativo:
+        return False, "Envio automático desligado na tela de Relatório por E-mail."
+    if tipo != "diario":
+        return True, ""
+    dias = (cfg["email_dias_semana"] or "SEG,TER,QUA,QUI,SEX").split(",")
+    abrev = ABREV_DIA[dia.weekday()]
+    if abrev not in dias:
+        return False, f"{abrev} não está nos dias de envio configurados."
+    return True, ""
+
+
 def enviar_email(conn, assunto, corpo_html):
     cfg = conn.execute("""
         SELECT email_smtp_host, email_smtp_porta, email_smtp_usuario,
@@ -1380,6 +1405,7 @@ USO = """Uso:
 
   --data    dia do relatório diário (padrão: hoje)
   --semana  qualquer dia da semana desejada (padrão: a última semana fechada)
+  --forcar  envia mesmo com o envio desligado ou fora dos dias configurados
 """
 
 
@@ -1392,7 +1418,7 @@ def _opcao(args, nome):
         sys.exit(f"ERRO: {nome} precisa vir seguido de uma data AAAA-MM-DD.")
 
 
-def _entregar(conn, args, html, assunto, resumo):
+def _entregar(conn, args, html, assunto, resumo, dia=None, tipo="diario"):
     """--preview grava arquivo, --enviar manda e-mail, sem nada imprime o HTML."""
     caminho = _opcao(args, "--preview")
     if caminho:
@@ -1403,6 +1429,13 @@ def _entregar(conn, args, html, assunto, resumo):
         print(resumo)
         return True
     if "--enviar" in args:
+        if "--forcar" not in args:
+            liberado, motivo = pode_enviar_hoje(conn, dia or date.today(), tipo)
+            if not liberado:
+                # Não é erro: a tarefa rodou e decidiu não enviar. Sair com
+                # código 0 evita a Scheduled Task marcar falha todo sábado.
+                print(f"Nada enviado -- {motivo}")
+                return True
         ok, detalhe = enviar_email(conn, assunto, html)
         print(("OK: " if ok else "ERRO: ") + detalhe)
         return ok
@@ -1449,7 +1482,9 @@ def main():
                   f"relevante | desfecho de agenda: "
                   + (f"semana de {sq[0].strftime('%d/%m')}" if sq else "sem cobertura"))
 
-    ok = _entregar(conn, args, html, assunto, resumo)
+    ok = _entregar(conn, args, html, assunto, resumo,
+                   dia=(dia if diario else fim),
+                   tipo=("diario" if diario else "semanal"))
     conn.close()
     if not ok:
         sys.exit(1)
