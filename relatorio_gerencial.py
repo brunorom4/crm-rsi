@@ -968,6 +968,13 @@ def _grade_quadrante(titulo_x, titulo_y, celulas, vazio="ninguém nesta faixa"):
             f'<tr>{cel(celulas[2])}{cel(celulas[3])}</tr></table>')
 
 
+def _etiqueta(texto, classe="tag"):
+    """Etiqueta pequena ao lado de um nome. Existe como função para manter as
+    aspas escapadas FORA de f-string: o Python 3.10 da produção não aceita
+    backslash dentro da expressão de uma f-string (só o 3.12 em diante)."""
+    return f'<span class="{classe}">{texto}</span>'
+
+
 def _num_br(valor, casas=1, sufixo=""):
     if valor is None:
         return "—"
@@ -1066,16 +1073,21 @@ def _bloco_pessoas(pessoas):
         return ('<p class="ok">Sem ninguém com volume suficiente na semana '
                 f'(mínimo de {MIN_CONTATOS_PESSOA} contatos).</p>')
 
-    linhas = "".join(
-        f'<tr><td>{p["pessoa"].title()}'
-        f'{"<span class=\"tag\">" + _num_br(p["pct_fria"], 0, "% fria") + "</span>" if p["pct_fria"] >= 60 else ""}'
-        f'</td><td class="r">{p["contatos"]}</td>'
-        f'<td class="r">{_num_br(p["conversao"], 1, "%")}</td>'
-        f'<td class="r">{_num_br(p["esperado"], 1, "%")}</td>'
-        f'<td class="r"><span class="{"up" if p["diferenca"] >= 0 else "down"}">'
-        f'{_num_br(p["diferenca"], 1)}</span>'
-        f'{" <b>*</b>" if abs(p["z"]) >= Z_RELEVANTE else ""}</td></tr>'
-        for p in pessoas)
+    def linha(p):
+        # A etiqueta sai da f-string de propósito: aspas escapadas dentro de
+        # expressão de f-string só são aceitas no Python 3.12+, e a produção
+        # roda 3.10.
+        etiqueta = _etiqueta(_num_br(p["pct_fria"], 0, "% fria")) if p["pct_fria"] >= 60 else ""
+        marca = " <b>*</b>" if abs(p["z"]) >= Z_RELEVANTE else ""
+        classe = "up" if p["diferenca"] >= 0 else "down"
+        return (f'<tr><td>{p["pessoa"].title()}{etiqueta}</td>'
+                f'<td class="r">{p["contatos"]}</td>'
+                f'<td class="r">{_num_br(p["conversao"], 1, "%")}</td>'
+                f'<td class="r">{_num_br(p["esperado"], 1, "%")}</td>'
+                f'<td class="r"><span class="{classe}">{_num_br(p["diferenca"], 1)}</span>'
+                f'{marca}</td></tr>')
+
+    linhas = "".join(linha(p) for p in pessoas)
 
     destaques = [p for p in pessoas if abs(p["z"]) >= Z_RELEVANTE]
     return (
@@ -1176,7 +1188,7 @@ def _bloco_liquido(liquido, janela=None):
                      f'contatos e 100% de conversão.</p>')
     linhas = "".join(
         f'<tr><td>{c["cidade"]}'
-        f'{"<span class=\"tag tag-bl\">bloqueada</span>" if c["bloqueada"] else ""}</td>'
+        f'{_etiqueta("bloqueada", "tag tag-bl") if c["bloqueada"] else ""}</td>'
         f'<td class="r">{_num_br(c["conversao"], 1, "%")}</td>'
         f'<td class="r">{_num_br(c["quebra"], 1, "%")}</td>'
         f'<td class="r"><b>{_num_br(c["liquido"], 1, "%")}</b></td></tr>'
