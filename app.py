@@ -2058,6 +2058,52 @@ def _garantir_tabelas_quebra_agenda():
 _garantir_tabelas_quebra_agenda()
 
 
+def _garantir_tabela_bloqueio_historico():
+    """Histórico das decisões de bloqueio de cidade -- pedido do Bruno,
+    2026-10-19.
+
+    A tabela cidades_bloqueio_distribuicao guarda só o estado ATUAL: a tela
+    de salvar regrava as 36 cidades de uma vez, então o atualizado_em de
+    todas fica igual e não dá pra saber quando uma cidade entrou ou saiu do
+    bloqueio. Sem isso não há como avaliar depois se o bloqueio funcionou
+    como válvula de capacidade (a agenda voltou a encurtar?) nem o que ele
+    custou em conversão.
+
+    Aqui só entra o que REALMENTE mudou -- uma linha por cidade por
+    alteração de estado, não a cada clique em salvar.
+    """
+    conn = conectar()
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS cidades_bloqueio_historico (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cidade TEXT NOT NULL,
+            bloqueado INTEGER NOT NULL,
+            bloqueado_antes INTEGER,
+            motivo TEXT,
+            alterado_em TEXT NOT NULL,
+            alterado_por TEXT
+        )
+    """)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_bloqueio_hist_cidade ON cidades_bloqueio_historico(cidade, alterado_em)")
+
+    # Marco zero: sem uma linha de partida, a primeira mudança futura não
+    # tem "antes" com data conhecida. Grava o estado de hoje uma única vez.
+    ja_tem = conn.execute("SELECT COUNT(*) c FROM cidades_bloqueio_historico").fetchone()["c"]
+    if not ja_tem:
+        agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        for linha in conn.execute("SELECT cidade, bloqueado FROM cidades_bloqueio_distribuicao").fetchall():
+            conn.execute("""
+                INSERT INTO cidades_bloqueio_historico
+                    (cidade, bloqueado, bloqueado_antes, motivo, alterado_em, alterado_por)
+                VALUES (?, ?, NULL, 'estado inicial registrado', ?, 'SISTEMA')
+            """, (linha["cidade"], linha["bloqueado"], agora_str))
+    conn.commit()
+    conn.close()
+
+
+_garantir_tabela_bloqueio_historico()
+
+
 def _garantir_coluna_canal_venda_original_quebra():
     """Auto-migração leve: guarda o DSC_CANAL_VENDA original da planilha
     mesmo quando a linha é reclassificada como "CELULA LOCAL" -- pedido do
@@ -8121,8 +8167,22 @@ def admin_cidades_bloqueio_salvar():
     agora_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     conn = conectar()
+    # Estado antes de gravar: a tela manda TODAS as cidades a cada salvamento,
+    # então sem comparar não dá pra saber qual delas realmente mudou -- e o
+    # histórico ficaria com 36 linhas iguais por clique (2026-10-19).
+    estado_anterior = {
+        linha["cidade"]: linha["bloqueado"]
+        for linha in conn.execute("SELECT cidade, bloqueado FROM cidades_bloqueio_distribuicao").fetchall()
+    }
     for cidade in todas_as_cidades:
         bloqueado = 1 if cidade in cidades_marcadas else 0
+        antes = estado_anterior.get(cidade)
+        if antes != bloqueado:
+            conn.execute("""
+                INSERT INTO cidades_bloqueio_historico
+                    (cidade, bloqueado, bloqueado_antes, alterado_em, alterado_por)
+                VALUES (?, ?, ?, ?, ?)
+            """, (cidade, bloqueado, antes, agora_str, usuario["nome"]))
         conn.execute("""
             INSERT INTO cidades_bloqueio_distribuicao (cidade, bloqueado, atualizado_em, atualizado_por)
             VALUES (?, ?, ?, ?)
