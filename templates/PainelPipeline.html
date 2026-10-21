@@ -1,0 +1,266 @@
+{% extends "layout.html" %}
+
+{#
+  Painel de Pipeline -- visão individual (2026-10-20).
+  Os gráficos são barras de CSS, sem biblioteca externa: o CRM roda dentro
+  da rede da empresa, onde CDN de terceiro às vezes não passa no firewall.
+#}
+
+{% macro pct(v, casas=1) -%}
+{%- if v is none -%}—{%- else -%}{{ ('%.' ~ casas ~ 'f')|format(v)|replace('.', ',') }}%{%- endif -%}
+{%- endmacro %}
+
+{% block conteudo %}
+{% set p = d.pipeline %}
+{% set f = d.funil %}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="mb-0"><i class="bi bi-funnel-fill"></i>
+        {% if eh_outro %}Pipeline de {{ d.operador.title() }}{% else %}Meu pipeline{% endif %}
+    </h2>
+    <span class="text-muted small">Últimas {{ d.semanas }} semanas · até {{ d.fim.strftime('%d/%m/%Y') }}</span>
+</div>
+
+{% if eh_outro %}
+<div class="alert alert-info py-2 small">
+    Você está vendo o painel de outra pessoa.
+    <a href="/pipeline" class="alert-link">Voltar para o meu</a>.
+</div>
+{% endif %}
+
+<!-- ===================== O QUE ESTÁ NA MINHA MÃO AGORA ===================== -->
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-list-check"></i> Na minha mão agora</div>
+
+        <div class="row g-3">
+            <div class="col-6 col-lg-3">
+                <div class="p-3 rounded" style="background:#f7f8fb">
+                    <div class="fs-3 fw-bold lh-1">{{ p.followups_hoje }}</div>
+                    <div class="small text-muted">follow-ups vencem hoje</div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="p-3 rounded" style="background:{{ '#fdf4f3' if p.followups_atrasados else '#f7f8fb' }}">
+                    <div class="fs-3 fw-bold lh-1 {{ 'text-danger' if p.followups_atrasados }}">{{ p.followups_atrasados }}</div>
+                    <div class="small text-muted">atrasados</div>
+                    {% if p.dias_parado %}
+                    <div class="small text-danger mt-1">o mais antigo há {{ p.dias_parado }} dias</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="p-3 rounded" style="background:#f7f8fb">
+                    <div class="fs-3 fw-bold lh-1">{{ p.agendas_semana }}</div>
+                    <div class="small text-muted">agendas desta semana</div>
+                    <div class="small text-muted">{{ p.inicio_semana.strftime('%d/%m') }} a {{ p.fim_semana.strftime('%d/%m') }}</div>
+                </div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="p-3 rounded" style="background:#f7f8fb">
+                    <div class="fs-3 fw-bold lh-1">{{ p.em_maos }}</div>
+                    <div class="small text-muted">contratos comigo</div>
+                </div>
+            </div>
+        </div>
+
+        {% if p.executadas or p.quebradas %}
+        {% set total_desf = p.executadas + p.quebradas %}
+        <div class="mt-3 pt-3 border-top">
+            <div class="d-flex justify-content-between small mb-1">
+                <span><strong>{{ p.executadas }}</strong> instalações feitas ·
+                      <strong>{{ p.quebradas }}</strong> agendas quebradas</span>
+                <span class="text-muted">últimas 8 semanas</span>
+            </div>
+            <div class="d-flex rounded overflow-hidden" style="height:10px">
+                <div style="width:{{ (100 * p.executadas / total_desf)|round(1) }}%;background:#187a46"></div>
+                <div style="width:{{ (100 * p.quebradas / total_desf)|round(1) }}%;background:#d9dde5"></div>
+            </div>
+            <div class="small text-muted mt-2">
+                A quebra depende da cidade e da infraestrutura, não de quem agendou — está aqui
+                como informação do que aconteceu com o seu trabalho, não como cobrança.
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ===================== MEU FUNIL ===================== -->
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-filter"></i> Meu funil</div>
+
+        {% set etapas = [
+            ('Tentativas', f.tentativas, None),
+            ('Falei com o cliente', f.falou, f.taxa_falou),
+            ('Agendamentos', f.agendados, f.conversao)
+        ] %}
+        {% for rotulo, valor, taxa in etapas %}
+        <div class="mb-2">
+            <div class="d-flex justify-content-between small">
+                <span>{{ rotulo }}</span>
+                <span><strong>{{ valor }}</strong>{% if taxa is not none %}
+                    <span class="text-muted ms-2">{{ pct(taxa) }} da etapa anterior</span>{% endif %}</span>
+            </div>
+            <div class="rounded" style="height:22px;background:#eceef3">
+                <div class="rounded" style="height:22px;background:#c4161c;opacity:{{ 1 - loop.index0 * 0.22 }};
+                     width:{{ (100 * valor / f.tentativas)|round(1) if f.tentativas else 0 }}%"></div>
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="row g-3 mt-2">
+            <div class="col-md-6">
+                <div class="p-3 rounded h-100" style="background:#f7f8fb">
+                    <div class="small text-muted">1ª abordagem</div>
+                    <div class="fs-4 fw-bold">{{ pct(f.conv_fria) }}</div>
+                    <div class="small text-muted">{{ f.fria }} contatos · {{ f.fria_ag }} agendas</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded h-100" style="background:#f1f9f4">
+                    <div class="small text-muted">Retorno de follow-up</div>
+                    <div class="fs-4 fw-bold">{{ pct(f.conv_retorno) }}</div>
+                    <div class="small text-muted">{{ f.retorno }} contatos · {{ f.retorno_ag }} agendas</div>
+                </div>
+            </div>
+        </div>
+        {% if f.pct_do_retorno %}
+        <p class="small text-muted mt-3 mb-0">
+            <strong>{{ pct(f.pct_do_retorno, 0) }} das suas agendas vieram do retorno</strong>, não do primeiro
+            contato. É assim no time inteiro — o follow-up é onde o resultado acontece, e por isso
+            devolver o retorno no prazo vale mais que qualquer outra coisa aqui.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ===================== MINHA EVOLUÇÃO ===================== -->
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-graph-up"></i> Minha evolução</div>
+        <p class="small text-muted">
+            Sua conversão de cada semana contra o <strong>esperado pelo mix de filas que você
+            trabalhou</strong>. Primeira abordagem e retorno convertem em patamares muito diferentes,
+            então comparar o número cru de duas semanas não diz nada se o mix mudou.
+        </p>
+
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Semana</th>
+                    <th class="text-end">Contatos</th>
+                    <th class="text-end">Conversão</th>
+                    <th class="text-end">Esperado</th>
+                    <th class="text-end">Diferença</th>
+                    <th style="width:38%">Leitura</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for e in d.evolucao %}
+                {% if e.conversao is none %}
+                <tr class="text-muted"><td>{{ e.inicio.strftime('%d/%m') }}</td>
+                    <td colspan="5" class="small">sem atividade</td></tr>
+                {% else %}
+                {% set dentro = (e.diferenca|abs) <= e.margem %}
+                <tr>
+                    <td>{{ e.inicio.strftime('%d/%m') }}</td>
+                    <td class="text-end">{{ e.contatos }}</td>
+                    <td class="text-end">{{ pct(e.conversao) }}</td>
+                    <td class="text-end text-muted">{{ pct(e.esperado) }}</td>
+                    <td class="text-end">
+                        <span class="{{ 'text-success' if e.diferenca >= 0 else 'text-danger' }}">
+                            {{ ('%+.1f'|format(e.diferenca))|replace('.', ',') }}
+                        </span>
+                    </td>
+                    <td class="small">
+                        {% if dentro %}
+                        <span class="text-muted">dentro da variação normal (±{{ pct(e.margem, 0) }})</span>
+                        {% elif e.diferenca > 0 %}
+                        <span class="text-success fw-semibold">acima do esperado</span>
+                        {% else %}
+                        <span class="text-danger fw-semibold">abaixo do esperado</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endif %}
+            {% endfor %}
+            </tbody>
+        </table>
+        <p class="small text-muted mb-0">
+            A margem acompanha o volume: semana com poucos contatos oscila muito por acaso, então
+            diferença grande ali continua sendo normal. Só o que aparece como "acima" ou "abaixo"
+            saiu do que o acaso explica.
+        </p>
+    </div>
+</div>
+
+<!-- ===================== ALAVANCAS ===================== -->
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-lightning-charge-fill"></i> Minhas alavancas</div>
+        <p class="small text-muted">
+            Quatro comportamentos que você controla e cujo ganho foi medido nesta base. Em todos,
+            <strong>quanto menor o seu percentual, melhor</strong>.
+        </p>
+
+        {% if not d.alavancas %}
+        <p class="text-muted mb-0">Ainda não há volume suficiente no período para calcular.</p>
+        {% endif %}
+
+        {% for a in d.alavancas %}
+        <div class="p-3 rounded mb-3" style="background:{{ '#fdf4f3' if a.prioritaria else '#f7f8fb' }}">
+            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                <div>
+                    <strong>{{ a.titulo }}</strong>
+                    {% if a.prioritaria %}
+                    <span class="badge bg-danger ms-1">comece por aqui</span>
+                    {% elif a.acima_do_time %}
+                    <span class="badge bg-secondary ms-1">acima do time</span>
+                    {% endif %}
+                </div>
+                <div class="text-end">
+                    <span class="fs-4 fw-bold">{{ pct(a.meu) }}</span>
+                    <div class="small text-muted">time: {{ pct(a.time) }}</div>
+                </div>
+            </div>
+
+            <div class="mt-2 mb-2">
+                <div class="position-relative rounded" style="height:8px;background:#e2e5ec">
+                    <div class="rounded" style="height:8px;width:{{ a.meu|round(1) }}%;
+                         background:{{ '#c4161c' if a.prioritaria else '#8a909c' }}"></div>
+                </div>
+                <div class="small text-muted mt-1">
+                    seu percentual sobre {{ a.n }} casos no período
+                </div>
+            </div>
+
+            <div class="small">{{ a.acao }}</div>
+            <div class="small text-muted mt-1">
+                Ganho medido: {{ pct(a.ruim, 0) }} → {{ pct(a.bom, 0) }} de {{ a.metrica }}
+                ({{ ('%+.0f'|format(a.ganho))|replace('.', ',') }} pontos, {{ a.medido }}).
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-info-circle"></i> Como estes números são calculados</div>
+        <ul class="small text-muted mb-0">
+            <li><strong>Contatos</strong> são tabulações que encerram a tratativa. 2ª/3ª tentativa e
+                improdutivo não entram, porque não houve conversa.</li>
+            <li><strong>Conversão</strong> é agendamentos dividido por contatos.</li>
+            <li><strong>Esperado</strong> aplica, ao seu mix de filas da semana, a conversão que o time
+                inteiro teve em cada fila. É o que separa desempenho de composição de trabalho.</li>
+            <li><strong>Margem</strong> é o intervalo de variação por acaso, calculado a partir do seu
+                volume na semana.</li>
+            <li><strong>Quebra de agenda</strong> não entra em nenhum indicador seu: testamos as
+                diferenças individuais e nenhuma passa do que o acaso explica.</li>
+            <li>Conversão por dia não aparece em lugar nenhum desta tela — num único dia ela oscila
+                mais de 70 pontos para a mesma pessoa.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

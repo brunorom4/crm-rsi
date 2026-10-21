@@ -1,0 +1,210 @@
+{% extends "layout.html" %}
+
+{#
+  Painel de Pipeline -- consolidado do supervisor (2026-10-20).
+  Mesma regra da tela individual: nada de ranking por conversão crua. A
+  coluna que ordena é a diferença contra o esperado pelo mix de cada um.
+#}
+
+{% macro pct(v, casas=1) -%}
+{%- if v is none -%}—{%- else -%}{{ ('%.' ~ casas ~ 'f')|format(v)|replace('.', ',') }}%{%- endif -%}
+{%- endmacro %}
+
+{% block conteudo %}
+{% set f = d.funil %}
+{% set ta = d.time_alavancas %}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+    <h2 class="mb-0"><i class="bi bi-diagram-3-fill"></i> Pipeline da equipe</h2>
+    <span class="text-muted small">
+        {{ d.inicio.strftime('%d/%m') }} a {{ d.fim.strftime('%d/%m/%Y') }} · {{ d.semanas }} semanas
+    </span>
+</div>
+
+<!-- ===================== FUNIL DO TIME ===================== -->
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-filter"></i> Funil do time</div>
+        <div class="row g-3 mb-3">
+            <div class="col-6 col-lg-3">
+                <div class="fs-3 fw-bold lh-1">{{ f.tentativas }}</div>
+                <div class="small text-muted">tentativas</div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="fs-3 fw-bold lh-1">{{ f.falou }}</div>
+                <div class="small text-muted">falou com o cliente · {{ pct(f.taxa_falou, 0) }}</div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="fs-3 fw-bold lh-1">{{ f.agendados }}</div>
+                <div class="small text-muted">agendamentos</div>
+            </div>
+            <div class="col-6 col-lg-3">
+                <div class="fs-3 fw-bold lh-1">{{ pct(f.conversao) }}</div>
+                <div class="small text-muted">conversão</div>
+            </div>
+        </div>
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background:#f7f8fb">
+                    <div class="small text-muted">1ª abordagem</div>
+                    <div class="fs-5 fw-bold">{{ pct(f.conv_fria) }}</div>
+                    <div class="small text-muted">{{ f.fria }} contatos · {{ f.fria_ag }} agendas</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="p-3 rounded" style="background:#f1f9f4">
+                    <div class="small text-muted">Retorno de follow-up</div>
+                    <div class="fs-5 fw-bold">{{ pct(f.conv_retorno) }}</div>
+                    <div class="small text-muted">{{ f.retorno }} contatos · {{ f.retorno_ag }} agendas</div>
+                </div>
+            </div>
+        </div>
+        <p class="small text-muted mt-3 mb-0">
+            <strong>{{ pct(f.pct_do_retorno, 0) }} das agendas vêm do retorno.</strong>
+            É o que torna o prazo de follow-up a configuração de maior alavancagem do sistema.
+        </p>
+    </div>
+</div>
+
+<!-- ===================== ALAVANCAS DO TIME ===================== -->
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-lightning-charge-fill"></i> Onde o time perde resultado</div>
+        <p class="small text-muted">
+            Percentual do time em cada comportamento. Em todos, menor é melhor — o número
+            mostra quanto espaço existe.
+        </p>
+        <div class="row g-3">
+            {% for chave, g in d.ganhos.items() %}
+            {% set v = ta[chave] %}
+            {% if v.pct is not none %}
+            <div class="col-md-6">
+                <div class="p-3 rounded h-100" style="background:{{ '#fdf4f3' if v.pct > 50 else '#f7f8fb' }}">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <strong class="small">{{ g.titulo }}</strong>
+                        <span class="fs-4 fw-bold">{{ pct(v.pct) }}</span>
+                    </div>
+                    <div class="rounded mt-2" style="height:8px;background:#e2e5ec">
+                        <div class="rounded" style="height:8px;width:{{ v.pct|round(1) }}%;
+                             background:{{ '#c4161c' if v.pct > 50 else '#8a909c' }}"></div>
+                    </div>
+                    <div class="small text-muted mt-2">
+                        {{ pct(g.ruim, 0) }} → {{ pct(g.bom, 0) }} de {{ g.metrica }} ·
+                        {{ v.n }} casos
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- ===================== QUADRANTE ===================== -->
+{% set com_dif = d.pessoas %}
+{% if com_dif|length >= 4 %}
+{% set volumes = com_dif|map(attribute='agendados')|list|sort %}
+{% set corte = volumes[(volumes|length / 2)|int] %}
+<div class="card card-shadow mb-4">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-grid-3x3-gap-fill"></i> Quadrante de desempenho</div>
+        <p class="small text-muted">
+            Horizontal: agendas no período (corte na mediana, {{ corte }}).
+            Vertical: conversão contra o esperado pelo mix de cada um.
+        </p>
+        <div class="row g-3">
+            {% for titulo, fundo, acima, muito in [
+                 ('Referência', '#f1f9f4', true, true),
+                 ('Converte bem, volume menor', '#f7f8fb', true, false),
+                 ('Volume com conversão abaixo', '#f7f8fb', false, true),
+                 ('Prioridade de apoio', '#fdf4f3', false, false)] %}
+            <div class="col-md-6">
+                <div class="p-3 rounded h-100" style="background:{{ fundo }}">
+                    <div class="small fw-bold text-uppercase mb-2" style="letter-spacing:.4px">{{ titulo }}</div>
+                    {% set ns = namespace(vazio=true) %}
+                    {% for pe in com_dif %}
+                        {% if (pe.diferenca >= 0) == acima and (pe.agendados >= corte) == muito %}
+                        {% set ns.vazio = false %}
+                        <div class="small mb-1">
+                            <a href="/pipeline?pessoa={{ pe.operador|urlencode }}" class="text-decoration-none">
+                                {{ pe.operador.title() }}</a>
+                            — {{ pe.agendados }} agendas,
+                            <span class="{{ 'text-success' if pe.diferenca >= 0 else 'text-danger' }}">
+                                {{ ('%+.1f'|format(pe.diferenca))|replace('.', ',') }} p.p.</span>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    {% if ns.vazio %}<div class="small text-muted fst-italic">ninguém nesta faixa</div>{% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- ===================== TABELA POR PESSOA ===================== -->
+<div class="card card-shadow">
+    <div class="card-body">
+        <div class="section-title"><i class="bi bi-people-fill"></i> Pessoa a pessoa</div>
+        <p class="small text-muted">
+            Ordenado pela diferença contra o esperado pelo mix, não pela conversão crua: quem faz
+            mais primeira abordagem tem conversão baixa por construção, e um ranking cru puniria
+            exatamente quem pega o trabalho mais difícil.
+        </p>
+        <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+                <tr>
+                    <th>Pessoa</th>
+                    <th class="text-end">Contatos</th>
+                    <th class="text-end">Agendas</th>
+                    <th class="text-end">Conversão</th>
+                    <th class="text-end">Dif.</th>
+                    <th class="text-end">Retent.<br><span class="fw-normal">antes 10h</span></th>
+                    <th class="text-end">1ª abord.<br><span class="fw-normal">à tarde</span></th>
+                    <th class="text-end">Mesmo<br><span class="fw-normal">horário</span></th>
+                    <th class="text-end">Follow-up<br><span class="fw-normal">atrasado</span></th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for pe in d.pessoas %}
+                <tr>
+                    <td><a href="/pipeline?pessoa={{ pe.operador|urlencode }}"
+                           class="text-decoration-none">{{ pe.operador.title() }}</a></td>
+                    <td class="text-end">{{ pe.contatos }}</td>
+                    <td class="text-end">{{ pe.agendados }}</td>
+                    <td class="text-end">{{ pct(pe.funil.conversao) }}</td>
+                    <td class="text-end">
+                        <span class="{{ 'text-success' if pe.diferenca >= 0 else 'text-danger' }}">
+                            {{ ('%+.1f'|format(pe.diferenca))|replace('.', ',') }}</span>
+                    </td>
+                    {# Percentual sobre poucos casos não é indicador: "100%" sobre 2
+                       retornos viraria marcação vermelha sem significado nenhum.
+                       Abaixo do mínimo a célula mostra só o n, em cinza. #}
+                    {% for chave in ['retorno_cedo', 'fria_tarde', 'mesmo_horario', 'followup_atrasado'] %}
+                    {% set v = pe.alavancas[chave] %}
+                    {% if v.pct is none or v.n < d.minimo %}
+                    <td class="text-end text-muted" title="só {{ v.n }} caso(s) no período">
+                        <span class="small">n={{ v.n }}</span></td>
+                    {% else %}
+                    <td class="text-end {{ 'text-danger fw-semibold' if ta[chave].pct is not none
+                        and v.pct > ta[chave].pct + 10 }}" title="{{ v.n }} casos">
+                        {{ pct(v.pct, 0) }}</td>
+                    {% endif %}
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        <p class="small text-muted mb-0">
+            Nas quatro últimas colunas, menor é melhor. Em vermelho, quem está mais de 10 pontos
+            acima do time naquele comportamento — é onde a conversa de apoio tem o maior retorno,
+            porque é coisa que a pessoa controla. Onde aparece <span class="text-muted">n=</span>,
+            houve menos de {{ d.minimo }} casos no período: percentual ali não significa nada e
+            por isso não é calculado.
+        </p>
+    </div>
+</div>
+{% endblock %}

@@ -12123,6 +12123,14 @@ app.register_blueprint(bp_backup_nuvem)
 from resumo_enfileiramento import bp_resumo_enfileiramento
 app.register_blueprint(bp_resumo_enfileiramento)
 
+# Painel de Pipeline (2026-10-20): /pipeline, onde cada um vê o próprio
+# funil, o que está na mão dele agora e as alavancas que controla; e
+# /pipeline/equipe, o consolidado do supervisor com o quadrante. Não é
+# placar -- o módulo explica no cabeçalho por que não há ranking por
+# conversão crua nem quebra por pessoa.
+from painel_pipeline import bp_painel_pipeline
+app.register_blueprint(bp_painel_pipeline)
+
 
 # ==========================
 # AMBIENTE DE TESTE -- conta separada no PythonAnywhere (2026-10-15)

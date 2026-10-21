@@ -331,6 +331,7 @@
             <ul class="sidebar-menu">
                 {% if pode('dashboard_pessoal') or pode('dashboard_equipe') %}
                 <li><a href="/" class="{{ 'active' if request.path == '/' }}"><i class="bi bi-house-door-fill"></i> <span class="texto-menu">Dashboard</span></a></li>
+                <li><a href="/pipeline" class="{{ 'active' if request.path == '/pipeline' }}"><i class="bi bi-funnel-fill"></i> <span class="texto-menu">Meu Pipeline</span></a></li>
                 {% endif %}
                 <li><a href="/noticias" class="{{ 'active' if request.path.startswith('/noticias') }}"><i class="bi bi-megaphone-fill"></i> <span class="texto-menu">Informações</span>{% if tem_noticia_nao_lida %}<span class="badge-noticia"></span>{% endif %}</a></li>
                 {% if pode('qualidade_propria') or pode('qualidade_gestao') %}
@@ -371,6 +372,7 @@
             <ul class="sidebar-menu">
                 {% if pode('supervisao') %}
                 <li><a href="/supervisao" class="{{ 'active' if request.path == '/supervisao' }}"><i class="bi bi-eye-fill"></i> <span class="texto-menu">Supervisão</span></a></li>
+                <li><a href="/pipeline/equipe" class="{{ 'active' if request.path == '/pipeline/equipe' }}"><i class="bi bi-diagram-3-fill"></i> <span class="texto-menu">Pipeline da Equipe</span></a></li>
                 {% endif %}
                 {% if pode('escalas') %}
                 <li><a href="/escalas" class="{{ 'active' if request.path == '/escalas' }}"><i class="bi bi-calendar3"></i> <span class="texto-menu">Escalas</span></a></li>
